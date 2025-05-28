@@ -16,7 +16,6 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->enum('type', ['ingredients', 'benefits', 'guide', 'usage']);
             $table->text('content');
-            $table->string('language', 10);
         });
     }
 
