@@ -16,7 +16,6 @@ return new class extends Migration
             $table->foreignId('blog_id')->constrained('blogs');
             $table->foreignId('product_id')->constrained('products');
             $table->string('description')->nullable();
-            $table->timestamps();
         });
     }
 

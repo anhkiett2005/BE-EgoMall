@@ -19,7 +19,6 @@ return new class extends Migration
             $table->string('shipping_address');
             $table->string('note');
             $table->timestamp('created_at');
-            $table->timestamps();
         });
     }
 

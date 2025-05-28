@@ -15,9 +15,8 @@ return new class extends Migration
             $table->id(); // Primary key
             $table->foreignId('blog_id')->constrained('blogs'); // FK đến blogs
             $table->integer('order')->default(0); // Thứ tự hiển thị
-            $table->string('title')->nullable(); // Tiêu đề của đoạn nội dung
+            $table->string('title'); // Tiêu đề của đoạn nội dung
             $table->text('content'); // Nội dung chi tiết
-            $table->timestamps(); // created_at & updated_at
         });
     }
 

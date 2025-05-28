@@ -16,8 +16,7 @@ return new class extends Migration
             $table->foreignId('coupon_id')->constrained('coupons');
             $table->foreignId('user_id')->constrained('users');
             $table->timestamp('last_used_at');
-            $table->integer('total_used')->default(0);
-            $table->timestamps();
+            $table->integer('total_used');
         });
     }
 

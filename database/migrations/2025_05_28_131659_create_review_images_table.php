@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('review_id')->constrained('reviews');
             $table->string('image_url');
-            $table->timestamps();
         });
     }
 

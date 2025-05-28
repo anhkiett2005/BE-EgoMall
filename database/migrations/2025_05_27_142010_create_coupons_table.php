@@ -19,7 +19,6 @@ return new class extends Migration
             $table->string('discount_value');
             $table->integer('min_order_value');
             $table->integer('usage_limit');
-            $table->integer('used_count')->default(0);
             $table->timestamp('start_date');
             $table->timestamp('end_date');
             $table->boolean('status')->default(true);

@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id();
             $table->foreignId('slider_id')->constrained('sliders');
             $table->string('image_url');
-            $table->string('caption')->nullable();
+            $table->string('caption');
             $table->string('link_url');
-            $table->integer('sort_order')->default(0);
+            $table->integer('sort_order');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
