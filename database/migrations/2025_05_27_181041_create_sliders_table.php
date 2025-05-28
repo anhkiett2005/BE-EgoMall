@@ -15,7 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('description');
-            $table->boolean('is_active')->default(true);
+            $table->string('position');
+            $table->boolean('status')->default(true);
             $table->timestamps();
         });
     }

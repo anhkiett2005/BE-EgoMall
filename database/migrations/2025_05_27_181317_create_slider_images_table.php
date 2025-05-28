@@ -15,10 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('slider_id')->constrained('sliders');
             $table->string('image_url');
-            $table->string('caption');
             $table->string('link_url');
-            $table->integer('sort_order');
-            $table->boolean('is_active')->default(true);
+            $table->timestamp('start_date');
+            $table->timestamp('end_date');
+            $table->boolean('status')->default(true);
+            $table->integer('display_order');
             $table->timestamps();
         });
     }
