@@ -20,12 +20,11 @@ return new class extends Migration
             $table->decimal('price', 10, 2);
             $table->decimal('sale_price', 10, 2)->nullable();
             $table->integer('quantity')->default(0);
-            $table->string('stock_status')->default('in_stock'); // hoặc ENUM
-            $table->boolean('is_variable')->default(false); // Có nhiều biến thể không
+            $table->string('stock_status')->default('in_stock');
+            $table->boolean('is_variable')->default(false);
             $table->text('description')->nullable();
             $table->text('content')->nullable();
             $table->boolean('is_active')->default(true);
-            $table->string('image_url')->nullable();
             $table->timestamps();
         });
 
