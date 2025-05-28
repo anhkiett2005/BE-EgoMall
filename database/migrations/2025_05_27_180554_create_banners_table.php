@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('position');
             $table->timestamp('start_date');
             $table->timestamp('end_date');
-            $table->boolean('status')->default(false);
+            $table->boolean('status')->default(true);
             $table->timestamps();
         });
     }

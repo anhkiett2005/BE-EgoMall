@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id(); // Primary key
             $table->string('slug')->unique(); // Đường dẫn URL thân thiện
             $table->foreignId('author_id')->constrained('users'); // FK đến users
-            $table->boolean('status')->default(false);
+            $table->boolean('status')->default(true);
             $table->timestamp('published_at')->nullable(); // Thời gian xuất bản
             $table->timestamp('updated_at'); // created_at & updated_at
         });

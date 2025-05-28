@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users');
             $table->integer('total_price');
-            $table->boolean('status')->default(false);
+            $table->boolean('status')->default(true);
             $table->string('shipping_address');
             $table->string('note');
             $table->timestamp('created_at');

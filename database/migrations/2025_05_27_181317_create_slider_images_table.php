@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('caption')->nullable();
             $table->string('link_url');
             $table->integer('sort_order')->default(0);
-            $table->boolean('is_active')->default(false);
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
