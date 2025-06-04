@@ -24,27 +24,5 @@ class CategorySeeder extends Seeder
                     'parent_id' => $parent->id,
                 ]);
         }
-
-        $brandIds = \App\Models\Brand::pluck('id')->toArray();
-
-        // Tạo danh mục theo brand
-        Category::factory()
-                ->count(5)
-                ->create([
-                    'brand_id' => fake()->randomElement($brandIds),
-                    'parent_id' => null,
-                ]);
-
-        // Mỗi danh mục theo brand có thêm 1–2 danh mục con
-        $brandCategories = Category::whereNotNull('brand_id')->get();
-        foreach ($brandCategories as $parent) {
-            Category::factory()
-                ->count(rand(1, 2))
-                ->create([
-                    'parent_id' => $parent->id,
-                    'brand_id' => $parent->brand_id, // giữ nguyên brand
-                ]);
-        }
-
     }
 }

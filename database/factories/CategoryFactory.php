@@ -26,7 +26,6 @@ class CategoryFactory extends Factory
             'thumbnail' => $this->faker->imageUrl(),
             'is_active' => true,
             'is_featured' => $this->faker->boolean(20),
-            'brand_id' => null, // có thể random brand nếu muốn
         ];
     }
 }

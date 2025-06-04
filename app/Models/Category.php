@@ -18,7 +18,6 @@ class Category extends Model
         'thumbnail',
         'is_active',
         'is_featured',
-        'brand_id'
     ];
 
     protected $casts = [
@@ -44,14 +43,6 @@ class Category extends Model
     public function children()
     {
         return $this->hasMany(Category::class, 'parent_id')->with('children');
-    }
-
-    /**
-     * Quan hệ: Thương hiệu liên kết
-     */
-    public function brand()
-    {
-        return $this->belongsTo(Brand::class);
     }
 
     /**

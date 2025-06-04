@@ -16,7 +16,7 @@ class CategoryController extends Controller
     public function index()
     {
         // Lấy tất cả danh mục gốc kèm danh mục con và brand
-        $categories = Category::with(['children','brand'])
+        $categories = Category::with('children')
                                 ->root()
                                 ->get();
 
