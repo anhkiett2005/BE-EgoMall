@@ -17,10 +17,10 @@ return new class extends Migration
             $table->string('image_url');
             $table->string('link_url');
             $table->string('position');
-            $table->timestamp('start_date');
-            $table->timestamp('end_date');
+            $table->timestamp('start_date')->nullable();
+            $table->timestamp('end_date')->nullable();
             $table->boolean('status')->default(true);
-            $table->timestamps();
+            // $table->timestamps();
         });
     }
 
