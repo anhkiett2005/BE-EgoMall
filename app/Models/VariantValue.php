@@ -22,4 +22,9 @@ class VariantValue extends Model
     {
         return $this->belongsTo(VariantOption::class, 'option_id');
     }
+
+    public function productVariantValues()
+    {
+        return $this->hasMany(ProductVariantValue::class);
+    }
 }

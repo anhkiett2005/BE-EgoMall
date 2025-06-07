@@ -37,4 +37,9 @@ class ProductVariant extends Model
     {
         return $this->hasMany(ProductVariantValue::class, 'product_variant_id');
     }
+
+    public function giftPromotions()
+    {
+        return $this->hasMany(Promotion::class, 'gift_product_variant_id');
+    }
 }

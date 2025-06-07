@@ -34,6 +34,11 @@ class Product extends Model
         'is_active' => 'boolean'
     ];
 
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
     public function brand()
     {
         return $this->belongsTo(Brand::class);
@@ -42,5 +47,15 @@ class Product extends Model
     public function variants()
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+     public function images()
+    {
+        return $this->hasMany(ProductImage::class);
+    }
+
+    public function giftPromotions()
+    {
+        return $this->hasMany(Promotion::class, 'gift_product_id');
     }
 }

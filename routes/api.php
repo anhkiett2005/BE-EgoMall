@@ -16,6 +16,11 @@ Route::prefix('v1/front')
         Route::controller('BrandController')->group(function() {
             Route::get('/brands','index');
         });
+
+        // Routes API Product
+        Route::controller('ProductController')->group(function() {
+            Route::get('/products','index');
+        });
     });
 
 

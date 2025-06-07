@@ -76,4 +76,9 @@ class Category extends Model
     {
         return $query->where('is_featured', true);
     }
+
+    public function products()
+    {
+        return $this->hasMany(Product::class);
+    }
 }

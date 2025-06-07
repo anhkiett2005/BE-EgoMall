@@ -15,8 +15,13 @@ class ProductVariantValue extends Model
         'variant_value_id',
     ];
 
-    public function variant()
+    public function productVariant()
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    public function variantValue()
+    {
+        return $this->belongsTo(VariantValue::class);
     }
 }
