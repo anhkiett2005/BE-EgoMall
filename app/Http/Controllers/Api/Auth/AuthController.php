@@ -13,6 +13,8 @@ use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use Symfony\Component\HttpFoundation\Cookie;
 use App\Models\User;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Requests\ChangePasswordRequest;
+
 
 
 class AuthController extends Controller
@@ -171,7 +173,8 @@ class AuthController extends Controller
      */
     public function update(UpdateProfileRequest $request): JsonResponse
     {
-        $user = auth('api')->user(); /** @var \App\Models\User $user */
+        $user = auth('api')->user();
+        /** @var \App\Models\User $user */
 
         $data = $request->validated();
 
@@ -182,5 +185,31 @@ class AuthController extends Controller
         $user->update($data);
         return (new UserResource($user))
             ->response();
+    }
+
+    /**
+     * Đổi mật khẩu
+     */
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        // 1. Lấy user hiện tại
+        /** @var \App\Models\User $user */
+        $user = auth('api')->user();
+
+        // 2. Kiểm tra mật khẩu cũ
+        if (! Hash::check($request->old_password, $user->password)) {
+            return response()->json([
+                'error' => 'Mật khẩu cũ không đúng.'
+            ], 422);
+        }
+
+        // 3. Lưu mật khẩu mới
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        // 4. Trả về thông báo thành công
+        return response()->json([
+            'message' => 'Đổi mật khẩu thành công.'
+        ]);
     }
 }
