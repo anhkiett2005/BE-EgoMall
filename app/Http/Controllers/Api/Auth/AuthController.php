@@ -171,7 +171,7 @@ class AuthController extends Controller
      */
     public function update(UpdateProfileRequest $request): JsonResponse
     {
-        $user = auth('api')->user();
+        $user = auth('api')->user(); /** @var \App\Models\User $user */
 
         $data = $request->validated();
 
