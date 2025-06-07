@@ -12,8 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        // Nếu muốn thêm middleware toàn cục, dùng $middleware->push(...)
+        // JWT middleware sẽ được gọi trực tiếp trong routes/api.php thông qua class name
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Cấu hình xử lý ngoại lệ
     })->create();

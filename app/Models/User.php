@@ -7,42 +7,65 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;  // thêm use này
+
+class User extends Authenticatable implements JWTSubject
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
+     * Các trường cho phép gán hàng loạt (mass assignable).
      */
     protected $fillable = [
         'name',
         'email',
         'password',
+        'phone',
+        'google_id',
+        'facebook_id',
+        'provider',
+        'address',
+        'image',
+        'role_id',
+        'is_active',
+        'otp',
+        'expires_at',
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
+     * Các trường sẽ không hiển thị trong JSON output.
      */
     protected $hidden = [
         'password',
-        'remember_token',
+        'otp',
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
+     * Các kiểu dữ liệu (casts) cho các cột.
      */
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'expires_at'        => 'datetime',
+        'is_active'         => 'boolean',
+    ];
+
+    /**
+     * Phương thức bắt buộc của JWTSubject:
+     * Trả về khóa chính để ký token.
+     */
+    public function getJWTIdentifier(): mixed
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->getKey();
     }
+
+    /**
+     * Phương thức bắt buộc của JWTSubject:
+     * Trả về mảng custom claims (nếu cần).
+     */
+    public function getJWTCustomClaims(): array
+    {
+        return [];
+    }
+
+
 }

@@ -33,7 +33,7 @@ return new class extends Migration
             $table->string('otp', 6)->nullable()->comment('Mã OTP xác thực (nếu cần)');
             $table->timestamp('expires_at')->nullable()->comment('Thời gian hết hạn OTP hoặc verify');
 
-            $table->rememberToken();
+            // $table->rememberToken();
             $table->timestamps();
 
             // Khóa ngoại: role_id tham chiếu sang bảng roles (Chưa có bảng này, sẽ tạo sau)
