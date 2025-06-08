@@ -17,6 +17,9 @@ use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use Symfony\Component\HttpFoundation\Cookie;
 use App\Models\User;
+use App\Http\Requests\ForgotPasswordRequest;
+use App\Http\Requests\ResetPasswordWithOtpRequest;
+
 
 class AuthController extends Controller
 {
@@ -231,4 +234,83 @@ class AuthController extends Controller
             'message' => 'OTP mới đã được gửi. Vui lòng kiểm tra email.'
         ], 200);
     }
+
+    /**
+     * Gửi mã OTP cho chức năng Quên mật khẩu.
+     */
+    public function sendForgotPasswordOtp(ForgotPasswordRequest $request): JsonResponse
+    {
+        // 1. Lấy user
+        $user = User::where('email', $request->email)->first();
+
+        $now   = now();
+        $start = $user->otp_sent_at ?? $now;
+        $count = $user->otp_sent_count;
+
+        // 2. Reset quota nếu đã quá 1 giờ
+        if ($start->diffInMinutes($now) >= 60) {
+            $user->otp_sent_count = 0;
+            $user->otp_sent_at    = $now;
+            $count = 0;
+        }
+
+        // 3. Kiểm quota tối đa 3 lần
+        if ($count >= 3) {
+            $remaining = 60 - $start->diffInMinutes($now);
+            return response()->json([
+                'error' => "Bạn đã gửi quá 3 lần. Vui lòng thử lại sau {$remaining} phút."
+            ], 429);
+        }
+
+        // 4. Sinh OTP mới, cập nhật TTL và quota
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $user->otp             = $otp;
+        $user->otp_expires_at  = $now->addMinutes(5);
+        $user->otp_sent_count++;
+        if (! $user->otp_sent_at) {
+            $user->otp_sent_at = $now;
+        }
+        $user->save();
+
+        // 5. Gửi mail OTP
+        $user->notify(new OtpNotification($otp, 5));
+
+        return response()->json([
+            'message' => 'OTP đã được gửi đến email. Vui lòng kiểm tra.'
+        ], 200);
+    }
+
+    /**
+ * Đặt lại mật khẩu bằng OTP.
+ */
+public function resetPasswordWithOtp(ResetPasswordWithOtpRequest $request): JsonResponse
+{
+    // Lấy user theo email
+    $user = User::where('email', $request->email)->first();
+
+    // Kiểm tra OTP và TTL
+    if (! $user
+        || $user->otp !== $request->otp
+        || now()->gt($user->otp_expires_at)
+    ) {
+        return response()->json([
+            'error' => 'OTP không hợp lệ hoặc đã hết hạn'
+        ], 422);
+    }
+
+    // Cập nhật mật khẩu mới
+    $user->password = Hash::make($request->new_password);
+
+    // Xóa các trường OTP để không tái sử dụng
+    $user->otp               = null;
+    $user->otp_expires_at    = null;
+    $user->otp_sent_count    = 0;
+    $user->otp_sent_at       = null;
+
+    $user->save();
+
+    return response()->json([
+        'message' => 'Đặt lại mật khẩu thành công.'
+    ], 200);
+}
 }

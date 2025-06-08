@@ -25,8 +25,9 @@ Route::prefix('v1/front')
 Route::prefix('v1/auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('verify-otp', [AuthController::class, 'verifyOtp']);
-    // Gửi lại OTP khi user đã register nhưng chưa verify
     Route::post('resend-otp', [AuthController::class, 'resendOtp']);
+    Route::post('forgot-password', [AuthController::class, 'sendForgotPasswordOtp']);
+    Route::post('reset-password-otp', [AuthController::class, 'resetPasswordWithOtp']);
 
     Route::post('login',    [AuthController::class, 'login']);
 
