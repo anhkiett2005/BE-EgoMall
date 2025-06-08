@@ -31,17 +31,23 @@ return new class extends Migration
             // Trạng thái account
             $table->boolean('is_active')->default(true)->comment('Active/Inactive');
             $table->string('otp', 6)->nullable()->comment('Mã OTP xác thực (nếu cần)');
-            $table->timestamp('expires_at')->nullable()->comment('Thời gian hết hạn OTP hoặc verify');
+            $table->timestamp('otp_expires_at')->nullable()->comment('Thời gian hết hạn OTP hoặc verify');
+            $table->unsignedTinyInteger('otp_sent_count')
+                ->default(0)
+                ->comment('Số lần đã gửi OTP trong khung giờ hiện tại');
+            $table->timestamp('otp_sent_at')
+                ->nullable()
+                ->comment('Thời điểm bắt đầu khung đếm resend OTP');
 
             // $table->rememberToken();
             $table->timestamps();
 
             // Khóa ngoại: role_id tham chiếu sang bảng roles (Chưa có bảng này, sẽ tạo sau)
             $table->foreign('role_id')
-                  ->references('id')
-                  ->on('roles')
-                  ->onDelete('restrict')
-                  ->onUpdate('cascade');
+                ->references('id')
+                ->on('roles')
+                ->onDelete('restrict')
+                ->onUpdate('cascade');
         });
     }
 

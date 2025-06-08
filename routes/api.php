@@ -24,6 +24,10 @@ Route::prefix('v1/front')
 
 Route::prefix('v1/auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
+    Route::post('verify-otp', [AuthController::class, 'verifyOtp']);
+    // Gửi lại OTP khi user đã register nhưng chưa verify
+    Route::post('resend-otp', [AuthController::class, 'resendOtp']);
+
     Route::post('login',    [AuthController::class, 'login']);
 
     Route::middleware([JwtCookieAuth::class, Authenticate::class])->group(function () {
@@ -38,7 +42,7 @@ Route::prefix('v1/auth')->group(function () {
 
         // Logout
         Route::post('logout', [AuthController::class, 'logout']);
-        
+
         // Refresh token
         Route::post('refresh', [AuthController::class, 'refresh']);
     });

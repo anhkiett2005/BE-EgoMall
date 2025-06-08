@@ -30,6 +30,8 @@ class User extends Authenticatable implements JWTSubject
         'is_active',
         'otp',
         'expires_at',
+        'otp_sent_count',
+        'otp_sent_at',
     ];
 
     /**
@@ -47,6 +49,8 @@ class User extends Authenticatable implements JWTSubject
         'email_verified_at' => 'datetime',
         'expires_at'        => 'datetime',
         'is_active'         => 'boolean',
+        'otp_expires_at' => 'datetime',
+        'otp_sent_at'    => 'datetime',
     ];
 
     /**
@@ -66,6 +70,4 @@ class User extends Authenticatable implements JWTSubject
     {
         return [];
     }
-
-
 }
