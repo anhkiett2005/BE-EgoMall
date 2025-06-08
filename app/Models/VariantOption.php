@@ -19,6 +19,6 @@ class VariantOption extends Model
 
     public function variantValues()
     {
-        return $this->hasMany(VariantValue::class);
+        return $this->hasMany(VariantValue::class, 'option_id');
     }
 }

@@ -23,4 +23,13 @@ Route::prefix('v1/front')
         });
     });
 
+Route::prefix('v1/admin')
+     ->namespace('App\Http\Controllers\Api\Admin')
+     ->group(function() {
+         Route::controller('ProductController')->group(function() {
+            Route::get('/products','index')->name('admin.products.index');
+            Route::post('/products/create','store')->name('admin.products.store');
+         });
+     });
+
 

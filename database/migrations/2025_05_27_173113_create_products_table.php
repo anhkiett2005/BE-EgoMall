@@ -17,10 +17,10 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->foreignId('category_id')->constrained('categories');
             $table->string('sku')->unique();
-            $table->decimal('price', 10, 2);
+            $table->decimal('price', 10, 2)->nullable();
             $table->decimal('sale_price', 10, 2)->nullable();
-            $table->integer('quantity')->default(0);
-            $table->string('stock_status')->default('in_stock');
+            $table->integer('quantity')->nullable();
+            $table->enum('stock_status',['in_stock','out_of_stock'])->nullable();
             $table->boolean('is_variable')->default(false);
             $table->boolean('is_active')->default(true);
             $table->foreignId('brand_id')->nullable()->constrained('brands');

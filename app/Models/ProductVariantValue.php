@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class ProductVariantValue extends Model
 {
     use HasFactory;
+
+    public $timestamps = false;
     protected $table = 'product_variant_values';
 
     protected $fillable = [
