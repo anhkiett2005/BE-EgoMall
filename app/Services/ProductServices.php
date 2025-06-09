@@ -6,6 +6,7 @@ use App\Http\Requests\StoreProductRequest;
 use App\Models\Product;
 use App\Models\VariantOption;
 use Exception;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -153,4 +154,65 @@ class ProductServices {
         }
 
     }
+
+    public static function showProduct(string $slug): ?array
+    {
+        // Tìm theo slug của sản phẩm chính
+        $product = Product::with(['category', 'brand', 'images'])
+                    ->where('slug', $slug)
+                    ->first();
+
+        if ($product) {
+            return ['product' => [
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'sku' => $product->sku,
+                'category' => $product->category->name,
+                'brand' => $product->brand->name,
+                'images' => $product->images->map(fn($image) => [
+                    'url' => $image->image_url
+                ]),
+                'price' => $product->price,
+                'sale_price' => $product->sale_price,
+                'quantity' => $product->quantity,
+                'stock_status' => $product->stock_status,
+                'description' => $product->description,
+                'type_skin' => $product->type_skin,
+                'created_at' => $product->created_at->format('Y-m-d H:i:s'),
+            ]];
+        }
+
+        // Nếu là biến thể
+        $variantProduct = Product::with([
+                                'category',
+                                'brand',
+                                'images',
+                                'variants' => fn($query) => $query->where('slug', $slug)
+                            ])
+                        ->whereHas('variants', fn($query) => $query->where('slug', $slug))
+                        ->first();
+
+        if ($variantProduct && $variantProduct->variants->isNotEmpty()) {
+            $variant = $variantProduct->variants->first();
+            return ['product' => [
+                'name' => $variant->name ?? $variantProduct->name,
+                'slug' => $variant->slug,
+                'sku' => $variant->sku,
+                'category' => $variantProduct->category->name,
+                'brand' => $variantProduct->brand->name,
+                'images' => $variantProduct->images->map(fn($image) => [
+                    'url' => $image->image_url
+                ]),
+                'price' => $variant->price,
+                'sale_price' => $variant->sale_price,
+                'quantity' => $variant->quantity,
+                'type_skin' => $variantProduct->type_skin,
+                'stock_status' => $variant->stock_status,
+                'created_at' => $variant->created_at->format('Y-m-d H:i:s'),
+            ]];
+        }
+
+        return null;
+    }
+
 }

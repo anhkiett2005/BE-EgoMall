@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CategoryController;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,7 @@ Route::prefix('v1/admin')
      ->group(function() {
          Route::controller('ProductController')->group(function() {
             Route::get('/products','index')->name('admin.products.index');
+            Route::get('/product/{slug}','show')->name('admin.product.show');
             Route::post('/products/create','store')->name('admin.products.store');
          });
      });

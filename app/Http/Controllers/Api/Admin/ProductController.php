@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
+use App\Models\Product;
 use App\Services\ProductServices;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -54,9 +55,16 @@ class ProductController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show($slug)
     {
-        //
+        $product = $this->productService->showProduct($slug);
+
+        if($product) {
+            return response()->json([
+                'message' => 'Data Fetched Successfully',
+                'data' => $product
+            ]);
+        }
     }
 
     /**
