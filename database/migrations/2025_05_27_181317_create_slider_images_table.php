@@ -16,8 +16,8 @@ return new class extends Migration
             $table->foreignId('slider_id')->constrained('sliders');
             $table->string('image_url');
             $table->string('link_url');
-            $table->timestamp('start_date');
-            $table->timestamp('end_date');
+            $table->timestamp('start_date')->nullable();
+            $table->timestamp('end_date')->nullable();
             $table->boolean('status')->default(true);
             $table->integer('display_order');
             $table->timestamps();
