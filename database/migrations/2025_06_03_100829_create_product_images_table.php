@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('product_images', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('product_id')->constrained('products');
+            $table->foreignId('product_variant')->constrained('product_variants')->onDelete('cascade');
             $table->string('image_url');
         });
     }

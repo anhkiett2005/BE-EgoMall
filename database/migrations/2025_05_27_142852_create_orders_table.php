@@ -15,10 +15,14 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users');
             $table->integer('total_price');
-            $table->boolean('status')->default(true);
+            $table->boolean('status');
             $table->string('note');
             $table->string('shipping_address');
             $table->string('shipping_phone');
+            $table->string('payment_method');
+            $table->string('payment_status');
+            $table->timestamp('payment_date');
+            $table->string('transaction_id');
             $table->timestamp('created_at');
         });
     }

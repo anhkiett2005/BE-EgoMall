@@ -24,6 +24,7 @@ return new class extends Migration
             $table->integer('buy_quantity')->nullable();
             $table->integer('get_quantity')->nullable();
             $table->foreignId('gift_product_id')->nullable()->constrained('products')->nullOnDelete();
+            $table->foreignId('gift_product_variant_id')->nullable()->constrained('product_variants')->nullOnDelete();
             $table->timestamps();
         });
 

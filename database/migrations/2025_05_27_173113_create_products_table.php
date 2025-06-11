@@ -21,11 +21,12 @@ return new class extends Migration
             $table->decimal('sale_price', 10, 2)->nullable();
             $table->integer('quantity')->nullable();
             $table->enum('stock_status',['in_stock','out_of_stock'])->nullable();
-            $table->boolean('is_variable')->default(false);
+            $table->boolean('is_variable')->default(true);
             $table->boolean('is_active')->default(true);
             $table->foreignId('brand_id')->nullable()->constrained('brands');
             $table->string('type_skin')->nullable();
             $table->text('description')->nullable();
+            $table->string('image')->nullable();
             $table->timestamps();
         });
 
