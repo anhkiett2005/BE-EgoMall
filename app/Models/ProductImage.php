@@ -15,7 +15,7 @@ class ProductImage extends Model
     protected $table = 'product_images';
 
     protected $fillable = [
-        'product_id',
+        'product_variant_id',
         'image_url'
     ];
 
@@ -23,8 +23,8 @@ class ProductImage extends Model
         'id'
     ];
 
-    public function product()
+    public function productVariant()
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(ProductVariant::class);
     }
 }

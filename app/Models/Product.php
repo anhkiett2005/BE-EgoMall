@@ -23,6 +23,7 @@ class Product extends Model
         'brand_id',
         'type_skin',
         'description',
+        'image'
     ];
 
     protected $hidden = [
@@ -47,11 +48,6 @@ class Product extends Model
     public function variants()
     {
         return $this->hasMany(ProductVariant::class);
-    }
-
-     public function images()
-    {
-        return $this->hasMany(ProductImage::class);
     }
 
     public function giftPromotions()

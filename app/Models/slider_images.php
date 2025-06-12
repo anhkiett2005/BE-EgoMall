@@ -8,6 +8,8 @@ class Slider_images extends Model
 {
     use HasFactory;
 
+    protected $table = 'slider_images';
+
     protected $fillable = [
         'slider_id',
         'image_url',

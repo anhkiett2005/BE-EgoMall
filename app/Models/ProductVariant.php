@@ -44,4 +44,9 @@ class ProductVariant extends Model
     {
         return $this->hasMany(Promotion::class, 'gift_product_variant_id');
     }
+
+     public function images()
+    {
+        return $this->hasMany(ProductImage::class);
+    }
 }

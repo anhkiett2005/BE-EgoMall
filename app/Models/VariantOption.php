@@ -21,4 +21,9 @@ class VariantOption extends Model
     {
         return $this->hasMany(VariantValue::class, 'option_id');
     }
+
+    public function categoryOptions()
+    {
+        return $this->hasMany(CategoryOption::class, 'variant_option_id');
+    }
 }

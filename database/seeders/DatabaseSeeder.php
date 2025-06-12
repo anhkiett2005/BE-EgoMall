@@ -18,10 +18,13 @@ class DatabaseSeeder extends Seeder
         $this->call([
             // BrandSeeder::class,
             // CategorySeeder::class,
-            RoleSeeder::class,
-            PermissionSeeder::class,
-            RoleHasPermissionSeeder::class,
-            UserSeeder::class,
+            // RoleSeeder::class,
+            // PermissionSeeder::class,
+            // RoleHasPermissionSeeder::class,
+            // UserSeeder::class,
+            SliderSeeder::class,
+            SliderImageSeeder::class,
+            BannerSeeder::class
         ]);
     }
 }

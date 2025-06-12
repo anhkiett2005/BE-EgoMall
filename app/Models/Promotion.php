@@ -40,4 +40,8 @@ class Promotion extends Model
         return $this->hasManyThrough(Product::class, PromotionProduct::class, 'promotion_id', 'id', 'id', 'product_id');
     }
 
+    public function productVariants()
+    {
+        return $this->hasManyThrough(ProductVariant::class, PromotionProduct::class, 'promotion_id', 'id', 'id', 'product_variant_id');
+    }
 }

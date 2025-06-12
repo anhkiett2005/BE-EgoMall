@@ -42,7 +42,23 @@ Route::prefix('v1/front')
             Route::put('/slider-images/update/{id}', 'update');
             Route::delete('/slider-images/delete/{id}', 'destroy');
         });
+
+        // Routes API Product
+        Route::controller('ProductController')->group(function() {
+            Route::get('/products','index');
+        });
     });
+
+
+Route::prefix('v1/admin')
+     ->namespace('App\Http\Controllers\Api\Admin')
+     ->group(function() {
+         Route::controller('ProductController')->group(function() {
+            Route::get('/products','index')->name('admin.products.index');
+            Route::get('/product/{slug}','show')->name('admin.product.show');
+            Route::post('/products/create','store')->name('admin.products.store');
+         });
+     });
 
 Route::prefix('v1/auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);

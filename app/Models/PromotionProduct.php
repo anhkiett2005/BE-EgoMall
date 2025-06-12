@@ -14,7 +14,8 @@ class PromotionProduct extends Model
 
     protected $fillable = [
         'promotion_id',
-        'product_id'
+        'product_id',
+        'product_variant_id'
     ];
 
     protected $hidden = [

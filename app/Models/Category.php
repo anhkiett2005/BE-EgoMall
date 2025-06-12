@@ -81,4 +81,9 @@ class Category extends Model
     {
         return $this->hasMany(Product::class);
     }
+
+    public function categoryOptions()
+    {
+        return $this->hasMany(CategoryOption::class);
+    }
 }
