@@ -12,13 +12,11 @@ class ProductVariant extends Model
     protected $table = 'product_variants';
     protected $fillable = [
         'product_id',
-        'name',
         'sku',
-        'slug',
         'price',
         'sale_price',
         'quantity',
-        'stock_status'
+        'is_active',
     ];
 
     protected $hidden = [
@@ -27,7 +25,8 @@ class ProductVariant extends Model
 
     protected $casts = [
         'price' => 'float',
-        'sale_price' => 'float'
+        'sale_price' => 'float',
+        'is_active' => 'boolean'
     ];
 
     public function product()
