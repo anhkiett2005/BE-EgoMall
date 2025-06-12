@@ -19,7 +19,7 @@ return new class extends Migration
             $table->time('published_at'); // Thoi gian phát hành
             $table->timestamps();
             $table->boolean('status')->default(true);
-            $table->foreignId('category_blog_id')->nullable()->constrained('category_blogs');
+            $table->foreignId('category_blog_id')->nullable()->constrained('categories');
             $table->foreignId('author_id')->nullable()->constrained('users');
             $table->integer('view_count')->default(0);
             $table->string('slug')->unique();

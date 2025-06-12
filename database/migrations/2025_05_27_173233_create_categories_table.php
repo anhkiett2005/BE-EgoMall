@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('thumbnail')->nullable();
             $table->boolean('is_active')->default(true);
             $table->boolean('is_featured')->default(false);
+            $table->enum('type', ['product', 'blog'])->default('product');
             $table->timestamps();
         });
 

@@ -35,41 +35,61 @@ class ProductController extends Controller
             $promotionRemainingTime = $diffInHours;
         }
 
-        // Lấy sản phẩm khuyến mãi ngẫu nhiên
-        $productPromotion = $promotion
-                            ? $promotion->products()
-                            ->with(['category', 'brand', 'images', 'variants'])
-                            // ->inRandomOrder()
-                            ->take(10)
-                            ->get()
-                            ->transform(function($product) {
-                                if ($product->is_variable == true) {
-                                    $variant = $product->variants->first();
-                                    if ($variant) {
-                                        $product->sku = $variant->sku;
-                                        $product->price = $variant->price;
-                                        $product->sale_price = $variant->sale_price;
-                                    }
-                                }
 
-                                $product->brand_name = optional($product->brand)->name;
+            $productPromotion = collect();
 
+            if ($promotion) {
+                if ($promotion->products()->exists()) {
+                    // Lấy theo sản phẩm cha nếu có
+                    $productPromotion = $promotion->products()
+                        ->with(['category', 'brand', 'variants.images'])
+                        ->take(10)
+                        ->get()
+                        ->flatMap(function ($product) {
+                            // Nếu sản phẩm có biến thể thì lấy toàn bộ biến thể
+                            return $product->variants->map(function ($variant) use ($product) {
                                 return [
                                     'name' => $product->name,
                                     'slug' => $product->slug,
-                                    'sku' => $product->sku,
-                                    'price' => $product->price,
-                                    'sale_price' => $product->sale_price,
-                                    'brand_name' => $product->brand_name,
-                                    'images' => $product->images->take(2)->map(function ($image) {
+                                    'sku' => $variant->sku,
+                                    'price' => $variant->price,
+                                    'sale_price' => $variant->sale_price,
+                                    'brand_name' => optional($product->brand)->name,
+                                    'images' => $variant->images->take(2)->map(function ($image) {
                                         return [
                                             'image_url' => $image->image_url
                                         ];
                                     })->values()
                                 ];
-                            })
-                            : collect([]);
-    }
+                            });
+                        });
+                } else {
+                    // Nếu không có product cha, lấy trực tiếp các biến thể trong chương trình
+                    $productPromotion = $promotion->productVariants()
+                        ->with(['product.brand','product.category', 'images']) // eager load product cha để lấy name, slug, brand
+                        ->take(10)
+                        ->get()
+                        ->map(function ($variant) {
+                            $product = $variant->product;
+
+                            return [
+                                'name' => optional($product)->name,
+                                'slug' => optional($product)->slug,
+                                'sku' => $variant->sku,
+                                'category' => optional(optional($product)->category)->name,
+                                'price' => $variant->price,
+                                'sale_price' => $variant->sale_price,
+                                'brand_name' => optional(optional($product)->brand)->name,
+                                'images' => $variant->images->take(2)->map(function ($image) {
+                                    return [
+                                        'image_url' => $image->image_url
+                                    ];
+                                })->values()
+                            ];
+                        });
+                }
+            }
+
         // Lấy product có danh mục bán chạy
         $productBestSelling = Product::with(['category', 'brand','images'])
         ->whereHas('category', function($q) {
@@ -105,6 +125,10 @@ class ProductController extends Controller
                 })->values()
             ];
         });
+        }
+
+        // Lấy sản phẩm khuyến mãi ngẫu nhiên
+
 
         // lấy product có danh mục sửa rữa mặt
         $productFaceWash = Product::with(['category', 'brand','images'])

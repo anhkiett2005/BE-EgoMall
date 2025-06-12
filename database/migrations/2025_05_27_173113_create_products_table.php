@@ -16,11 +16,6 @@ return new class extends Migration
             $table->string('name');
             $table->string('slug')->unique();
             $table->foreignId('category_id')->constrained('categories');
-            $table->string('sku')->unique();
-            $table->decimal('price', 10, 2)->nullable();
-            $table->decimal('sale_price', 10, 2)->nullable();
-            $table->integer('quantity')->nullable();
-            $table->enum('stock_status',['in_stock','out_of_stock'])->nullable();
             $table->boolean('is_variable')->default(true);
             $table->boolean('is_active')->default(true);
             $table->foreignId('brand_id')->nullable()->constrained('brands');

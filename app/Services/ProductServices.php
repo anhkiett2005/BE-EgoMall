@@ -94,6 +94,7 @@ class ProductServices {
                     'brand_id' => $data['brand_id'] ?? null,
                     'type_skin' => $data['type_skin'] ?? null,
                     'description' => $data['description'] ?? null,
+                    'image' => $data['image'] ?? null
             ]);
 
             // Nếu có biến thể
