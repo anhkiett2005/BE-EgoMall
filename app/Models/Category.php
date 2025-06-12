@@ -18,6 +18,7 @@ class Category extends Model
         'thumbnail',
         'is_active',
         'is_featured',
+        'type'
     ];
 
     protected $casts = [
@@ -85,5 +86,10 @@ class Category extends Model
     public function categoryOptions()
     {
         return $this->hasMany(CategoryOption::class);
+    }
+
+    public function blogs()
+    {
+        return $this->hasMany(Blog::class,'category_blog_id');
     }
 }
