@@ -76,19 +76,15 @@ class ProductServices {
     public function store(StoreProductRequest $request)
     {
         $data = $request->all();
+        dd($data);
         DB::beginTransaction();
 
         try {
-            // Tạo sản phẩm cha mặc định
+            // Tạo sản phẩm chứa thông tin chung
             $product = Product::create([
                     'name' => $data['name'],
                     'slug' => Str::slug($data['name']) ?? null,
                     'category_id' => $data['category_id'],
-                    'sku' => $data['sku'] ?? null,
-                    'price' => $data['price'] ?? null,
-                    'sale_price' => $data['sale_price'] ?? null,
-                    'quantity' => $data['quantity'] ?? null,
-                    'stock_status' => (!$data['is_variable'] && empty($data['variants'])) ? 'in_stock' : null,
                     'is_variable' => $data['is_variable'] ?? false,
                     'is_active' => $data['is_active'],
                     'brand_id' => $data['brand_id'] ?? null,
@@ -100,17 +96,15 @@ class ProductServices {
             // Nếu có biến thể
             if($data['is_variable'] && !empty($data['variants'])) {
                 foreach($data['variants'] as $variant) {
-                    // Tạo name cho variant
-                    $variantName = Common::generateVariantName($product->name, $variant['options']);
+                    // // Tạo name cho variant
+                    // $variantName = Common::generateVariantName($product->name, $variant['options']);
 
                     $productVariant = $product->variants()->create([
-                        'name' => $variantName,
                         'sku' => $variant['sku'],
-                        'slug' => Str::slug($variantName),
                         'price' => $variant['price'],
                         'sale_price' => $variant['sale_price'] ?? null,
                         'quantity' => $variant['quantity'],
-                        'stock_status' => 'in_stock',
+                        'is_active' => $variant['is_active']
                     ]);
 
                     // check các options của variant

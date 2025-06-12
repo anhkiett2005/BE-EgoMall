@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Promotion;
 use App\Models\PromotionProduct;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
@@ -25,18 +26,20 @@ class PromotionSeeder extends Seeder
             'discount_value' => null,
             'buy_quantity' => 3,
             'get_quantity' => 1,
-            'gift_product_id' => 9,
+            'gift_product_id' => null,
+            'gift_product_variant_id' => null,
             'start_date' => Carbon::now(),
             'end_date' => Carbon::now()->addDays(30),
             'status' => true,
         ]);
 
         // Gắn product_id: 1, 2, 3
-        $productIds = Product::inRandomOrder()->take(10)->pluck('id')->toArray();
+        $productIds = ProductVariant::inRandomOrder()->take(6)->pluck('id')->toArray();
         foreach ($productIds as $productId) {
             PromotionProduct::create([
                 'promotion_id' => $promotion1->id,
-                'product_id' => $productId,
+                'product_id' => null,
+                'product_variant_id' => $productId
             ]);
         }
 
