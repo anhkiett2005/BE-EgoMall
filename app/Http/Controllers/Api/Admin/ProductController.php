@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
 use App\Models\Product;
@@ -42,13 +43,15 @@ class ProductController extends Controller
 
             if($product) {
                 return response()->json([
+                    'success' => true,
                     'message' => 'Resource Created Successfully'
                 ], Response::HTTP_CREATED);
             }
-        } catch (\Throwable $th) {
+        } catch (ApiException $e) {
             return response()->json([
-                'message' => 'Something went wrong!!!',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+                'message' => $e->getMessage(),
+                'errors' => $e->getCode() == 422 ? $e->getErrors() : []
+            ], $e->getStatus() ?: Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 

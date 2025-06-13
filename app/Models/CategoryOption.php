@@ -9,6 +9,8 @@ class CategoryOption extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'category_options';
 
     protected $fillable = [

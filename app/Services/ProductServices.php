@@ -2,9 +2,12 @@
 namespace App\Services;
 
 use App\Classes\Common;
+use App\Exceptions\ApiException;
 use App\Http\Requests\StoreProductRequest;
+use App\Models\CategoryOption;
 use App\Models\Product;
 use App\Models\VariantOption;
+use App\Models\VariantValue;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -76,7 +79,6 @@ class ProductServices {
     public function store(StoreProductRequest $request)
     {
         $data = $request->all();
-        dd($data);
         DB::beginTransaction();
 
         try {
@@ -107,36 +109,43 @@ class ProductServices {
                         'is_active' => $variant['is_active']
                     ]);
 
-                    // check các options của variant
-                    foreach($variant['options'] as $optionName => $optionValue) {
-                        // tìm hoặc tạo mới options
-                        $variantOption = VariantOption::firstOrCreate([
-                            'name' => $optionName
-                        ]);
+                    foreach($variant['options'] as $optionId => $optionValue) {
 
-                        // tạo variant_value nếu ch có
-                        $variantValue = $variantOption->variantValues()->firstOrCreate([
+                        // check nếu không nằm trong category_option thì báo lỗi
+                        $isValidOption = CategoryOption::where('category_id','=',$product->category_id)
+                                                       ->where('variant_option_id', '=', $optionId)
+                                                       ->exists();
+
+                        if (!$isValidOption) {
+                            throw new ApiException("Option Id {$optionId} không hợp lệ với danh mục {$product->category->name}", 404);
+                        }
+
+                        // tạo variant_value từ các options gửi lên request
+                        $variantValue = VariantValue::create([
+                            'option_id' => $optionId,
                             'value' => $optionValue
                         ]);
-
                         // ghi nhan variant_value cho product_variant
                         $productVariant->values()->create([
                             'variant_value_id' => $variantValue->id
                         ]);
                     }
-                }
-            }
 
-            // Thêm hình ảnh
-            foreach($data['images'] as $image) {
-                $product->images()->create([
-                    'image_url' => $image,
-                ]);
+                    //  thêm hình ảnh cho variant
+                    foreach($variant['images'] as $image) {
+                        $productVariant->images()->create([
+                            'image_url' => $image['url']
+                        ]);
+                    }
+                }
             }
 
             DB::commit();
 
             return $product;
+        } catch(ApiException $e) {
+            DB::rollBack();
+            throw $e;
         } catch (Exception $e) {
             DB::rollBack();
             logger('Log bug',[
@@ -145,7 +154,7 @@ class ProductServices {
                 'error_line' => $e->getLine(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
-            throw $e;
+            throw new ApiException('Something went wrong!!!');
         }
 
     }

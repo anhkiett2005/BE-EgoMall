@@ -6,6 +6,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 class StoreProductRequest extends FormRequest
 {
@@ -38,7 +39,7 @@ class StoreProductRequest extends FormRequest
             'image' => ['required','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
 
             'variants' => 'required|array',
-            'variants.*.sku' => 'required|numeric',
+            'variants.*.sku' => 'required|numeric|unique:product_variants,sku',
             'variants.*.price' => 'required|numeric',
             'variants.*.sale_price' => 'nullable|numeric',
             'variants.*.quantity' => 'required|numeric',
@@ -98,6 +99,7 @@ class StoreProductRequest extends FormRequest
 
             'variants.*.sku.required' => 'Mã sản phẩm của biến thể là bắt buộc.',
             'variants.*.sku.numeric' => 'Mã sản phẩm của biến thể phải là số.',
+            'variants.*.sku.unique' => 'Mã sản phẩm của biến thể đã tồn tại.',
 
             'variants.*.price.required' => 'Giá của biến thể là bắt buộc.',
             'variants.*.price.numeric' => 'Giá của biến thể phải là số.',
@@ -124,9 +126,30 @@ class StoreProductRequest extends FormRequest
         ];
     }
 
+    public function withValidator(Validator $validator)
+    {
+        $validator->after(function ($validator) {
+            $validOptionIds = DB::table('variant_options')->pluck('id')->toArray();
+
+            foreach($this->variants as $index => $variant) {
+                if(!isset($variant['options']) || !is_array($variant['options'])) {
+                    continue;
+                }
+
+                foreach ($variant['options'] as $optionId => $optionValue) {
+                    if (!in_array((int)$optionId, $validOptionIds)) {
+                        $validator->errors()->add("variants.$index.options.$optionId", "Option Id $optionId không hợp lệ.");
+                    }
+                }
+            }
+        });
+    }
+
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([
+            'message' => 'Validation errors',
+            'code' => 422,
             'errors' => $validator->errors()
         ], Response::HTTP_UNPROCESSABLE_ENTITY));
     }
