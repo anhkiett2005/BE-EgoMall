@@ -44,7 +44,8 @@ class StoreProductRequest extends FormRequest
             'variants.*.quantity' => 'required|numeric',
             'variants.*.is_active' => 'required|boolean|in:0,1',
             'variants.*.options' => 'required|array|min:1',
-            'variants.*.images' => ['required','array','min:1','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
+            'variants.*.images' => 'required|array|min:1',
+            'variants.*.images.*.url' => ['required','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
         ];
 
         return $rules;
@@ -116,8 +117,10 @@ class StoreProductRequest extends FormRequest
             'variants.*.images.required' => 'Danh sách hình ảnh của biến thể là bắt buộc.',
             'variants.*.images.array' => 'Danh sách hình ảnh của biến thể phải là mảng.',
             'variants.*.images.min' => 'Mỗi biến thể phải có ít nhất một hình ảnh.',
-            'variants.*.images.url' => 'Hình ảnh biến thể phải là một đường dẫn hợp lệ.',
-            'variants.*.images.regex' => 'Hình ảnh mỗi biến thể phải có định dạng jpeg, jpg, png, gif, hoặc webp.',
+
+            'variants.*.images.*.url.required' => 'Hình ảnh của biến thể là bắt buộc.',
+            'variants.*.images.*.url.url' => 'Hình ảnh của biến thể phải là một đường dẫn hợp lệ.',
+            'variants.*.images.*.url.regex' => 'Hình ảnh của biến thể phải có định dạng jpeg, jpg, png, gif, hoặc webp.',
         ];
     }
 
