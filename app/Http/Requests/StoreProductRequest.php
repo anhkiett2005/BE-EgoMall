@@ -6,6 +6,7 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 class StoreProductRequest extends FormRequest
 {
@@ -26,39 +27,27 @@ class StoreProductRequest extends FormRequest
     {
         $rules = [
             'name' => 'required|string|max:255',
+            'slug' => 'required|string|unique:products,slug',
             // 'images' => 'required|array|min:1',
             // 'images.*' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'images' => 'required|array|min:1',
-            'images.*' => 'required|string',
             'category_id' => 'required|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
             'is_variable' => 'required|boolean|in:0,1',
             'is_active' => 'required|boolean|in:0,1',
             'type_skin' => 'nullable|string',
             'description' => 'nullable|string',
-        ];
+            'image' => ['required','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
 
-        if(!$this->is_variable) {
-            $rules = array_merge($rules,[
-                'slug' => 'required|string|unique:products,slug',
-                'sku' => 'required|numeric',
-                'price' => 'nullable|numeric',
-                'sale_price' => 'nullable|numeric',
-                'quantity' => 'nullable|numeric',
-                'stock_status' => 'nullable|in:in_stock,out_of_stock',
-            ]);
-        }else {
-            $rules = array_merge($rules,[
-                'variants' => 'required|array',
-                'variants.*.sku' => 'required|numeric',
-                'variants.*.slug' => 'required|string|unique:product_variants,slug',
-                'variants.*.price' => 'required|numeric',
-                'variants.*.sale_price' => 'nullable|numeric',
-                'variants.*.quantity' => 'required|numeric',
-                'variants.*.stock_status' => 'required|in:in_stock,out_of_stock',
-                'variants.*.options' => 'required|array|min:1'
-            ]);
-        }
+            'variants' => 'required|array',
+            'variants.*.sku' => 'required|numeric|unique:product_variants,sku',
+            'variants.*.price' => 'required|numeric',
+            'variants.*.sale_price' => 'nullable|numeric',
+            'variants.*.quantity' => 'required|numeric',
+            'variants.*.is_active' => 'required|boolean|in:0,1',
+            'variants.*.options' => 'required|array|min:1',
+            'variants.*.images' => 'required|array|min:1',
+            'variants.*.images.*.url' => ['required','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
+        ];
 
         return $rules;
     }
@@ -95,18 +84,14 @@ class StoreProductRequest extends FormRequest
             'type_skin.string' => 'Loại da phải là chuỗi.',
             'description.string' => 'Mô tả phải là chuỗi.',
 
+            'image.required' => 'Hình ảnh là bắt buộc.',
+            'image.url' => 'Hình ảnh phải là một đường dẫn hợp lệ.',
+            'image.regex' => 'Hình ảnh phải có định dạng jpeg, jpg, png, gif, hoặc webp.',
+
             // Trường khi không phải sản phẩm biến thể
             'slug.required' => 'Slug là bắt buộc.',
             'slug.string' => 'Slug phải là chuỗi.',
-            'slug.unique' => 'Slug của sản phẩm cha đã tồn tại.',
-
-            'sku.required' => 'Mã sản phẩm là bắt buộc.',
-            'sku.numeric' => 'Mã sản phẩm phải là số.',
-
-            'price.numeric' => 'Giá phải là số.',
-            'sale_price.numeric' => 'Giá khuyến mãi phải là số.',
-            'quantity.numeric' => 'Số lượng phải là số.',
-            'stock_status.in' => 'Tình trạng kho chỉ được in_stock hoặc out_of_stock.',
+            'slug.unique' => 'Slug của sản phẩm đã tồn tại.',
 
             // Trường khi là sản phẩm biến thể
             'variants.required' => 'Danh sách biến thể là bắt buộc.',
@@ -114,10 +99,7 @@ class StoreProductRequest extends FormRequest
 
             'variants.*.sku.required' => 'Mã sản phẩm của biến thể là bắt buộc.',
             'variants.*.sku.numeric' => 'Mã sản phẩm của biến thể phải là số.',
-
-            'variants.*.slug.required' => 'Slug của biến thể là bắt buộc.',
-            'variants.*.slug.string' => 'Slug của biến thể phải là chuỗi.',
-            'variants.*.slug.unique' => 'Slug của biến thể đã tồn tại.',
+            'variants.*.sku.unique' => 'Mã sản phẩm của biến thể đã tồn tại.',
 
             'variants.*.price.required' => 'Giá của biến thể là bắt buộc.',
             'variants.*.price.numeric' => 'Giá của biến thể phải là số.',
@@ -127,18 +109,47 @@ class StoreProductRequest extends FormRequest
             'variants.*.quantity.required' => 'Số lượng của biến thể là bắt buộc.',
             'variants.*.quantity.numeric' => 'Số lượng của biến thể phải là số.',
 
-            'variants.*.stock_status.required' => 'Trạng thái kho của biến thể là bắt buộc.',
-            'variants.*.stock_status.in' => 'Trạng thái kho của biến thể chỉ được in_stock hoặc out_of_stock.',
+            'variants.*.is_active.required' => 'Trạng thái hoạt động của biến thể là bắt buộc.',
+            'variants.*.is_active.boolean' => 'Trạng thái hoạt động của biến thể phải là true hoặc false.',
 
             'variants.*.options.required' => 'Biến thể phải có ít nhất một tùy chọn.',
             'variants.*.options.array' => 'Tùy chọn của biến thể phải là mảng.',
             'variants.*.options.min' => 'Mỗi biến thể phải có ít nhất một tùy chọn.',
+
+            'variants.*.images.required' => 'Danh sách hình ảnh của biến thể là bắt buộc.',
+            'variants.*.images.array' => 'Danh sách hình ảnh của biến thể phải là mảng.',
+            'variants.*.images.min' => 'Mỗi biến thể phải có ít nhất một hình ảnh.',
+
+            'variants.*.images.*.url.required' => 'Hình ảnh của biến thể là bắt buộc.',
+            'variants.*.images.*.url.url' => 'Hình ảnh của biến thể phải là một đường dẫn hợp lệ.',
+            'variants.*.images.*.url.regex' => 'Hình ảnh của biến thể phải có định dạng jpeg, jpg, png, gif, hoặc webp.',
         ];
+    }
+
+    public function withValidator(Validator $validator)
+    {
+        $validator->after(function ($validator) {
+            $validOptionIds = DB::table('variant_options')->pluck('id')->toArray();
+
+            foreach($this->variants as $index => $variant) {
+                if(!isset($variant['options']) || !is_array($variant['options'])) {
+                    continue;
+                }
+
+                foreach ($variant['options'] as $optionId => $optionValue) {
+                    if (!in_array((int)$optionId, $validOptionIds)) {
+                        $validator->errors()->add("variants.$index.options.$optionId", "Option Id $optionId không hợp lệ.");
+                    }
+                }
+            }
+        });
     }
 
     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([
+            'message' => 'Validation errors',
+            'code' => 422,
             'errors' => $validator->errors()
         ], Response::HTTP_UNPROCESSABLE_ENTITY));
     }

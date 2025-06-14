@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
 use App\Models\Product;
+use App\Response\ApiResponse;
 use App\Services\ProductServices;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -41,14 +43,10 @@ class ProductController extends Controller
             $product = $this->productService->store($request);
 
             if($product) {
-                return response()->json([
-                    'message' => 'Resource Created Successfully'
-                ], Response::HTTP_CREATED);
+                return ApiResponse::success('Resource Created Successfully',Response::HTTP_CREATED);
             }
-        } catch (\Throwable $th) {
-            return response()->json([
-                'message' => 'Something went wrong!!!',
-            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         }
     }
 
