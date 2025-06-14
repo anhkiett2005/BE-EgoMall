@@ -6,6 +6,7 @@ use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
 use App\Models\Product;
+use App\Response\ApiResponse;
 use App\Services\ProductServices;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -42,16 +43,10 @@ class ProductController extends Controller
             $product = $this->productService->store($request);
 
             if($product) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Resource Created Successfully'
-                ], Response::HTTP_CREATED);
+                return ApiResponse::success('Resource Created Successfully',Response::HTTP_CREATED);
             }
         } catch (ApiException $e) {
-            return response()->json([
-                'message' => $e->getMessage(),
-                'errors' => $e->getCode() == 422 ? $e->getErrors() : []
-            ], $e->getStatus() ?: Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         }
     }
 

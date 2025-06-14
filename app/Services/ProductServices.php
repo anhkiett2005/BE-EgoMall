@@ -117,7 +117,7 @@ class ProductServices {
                                                        ->exists();
 
                         if (!$isValidOption) {
-                            throw new ApiException("Option Id {$optionId} không hợp lệ với danh mục {$product->category->name}", 404);
+                            throw new ApiException("Option Id {$optionId} không hợp lệ với danh mục {$product->category->name}", 400);
                         }
 
                         // tạo variant_value từ các options gửi lên request

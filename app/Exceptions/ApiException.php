@@ -2,6 +2,7 @@
 
 namespace App\Exceptions;
 
+use App\Response\ApiResponse;
 use Exception;
 use Illuminate\Http\JsonResponse;
 
@@ -12,18 +13,14 @@ class ApiException extends Exception
 
     public function __construct($message = 'Something went wrong !!!', $statusCode = 500, $errors = [])
     {
-        parent::__construct($message);
+        parent::__construct($message,$statusCode);
         $this->statusCode = $statusCode;
         $this->errors = $errors;
     }
 
     public function render($request): JsonResponse
     {
-        return response()->json([
-            'success' => false,
-            'message' => $this->getMessage(),
-            'errors' => $this->errors
-        ], $this->statusCode);
+        return ApiResponse::error($this->message, $this->errors, $this->statusCode);
     }
 
     public function getErrors()
