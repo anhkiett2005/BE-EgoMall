@@ -120,11 +120,13 @@ class ProductServices {
                             throw new ApiException("Option Id {$optionId} không hợp lệ với danh mục {$product->category->name}", 400);
                         }
 
-                        // tạo variant_value từ các options gửi lên request
-                        $variantValue = VariantValue::create([
-                            'option_id' => $optionId,
-                            'value' => $optionValue
-                        ]);
+                        // tạo variant_value từ các options gửi lên request, ch có thì tạo mới
+                        $variantValue = VariantValue::firstOrCreate(
+                            [
+                                'option_id' => $optionId,
+                                'value' => $optionValue
+                            ]
+                        );
                         // ghi nhan variant_value cho product_variant
                         $productVariant->values()->create([
                             'variant_value_id' => $variantValue->id

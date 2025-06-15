@@ -27,14 +27,14 @@ class PromotionSeeder extends Seeder
             'buy_quantity' => 3,
             'get_quantity' => 1,
             'gift_product_id' => null,
-            'gift_product_variant_id' => null,
+            'gift_product_variant_id' => 12,
             'start_date' => Carbon::now(),
             'end_date' => Carbon::now()->addDays(30),
             'status' => true,
         ]);
 
         // Gắn product_id: 1, 2, 3
-        $productIds = ProductVariant::inRandomOrder()->take(6)->pluck('id')->toArray();
+        $productIds = ProductVariant::inRandomOrder()->take(10)->pluck('id')->toArray();
         foreach ($productIds as $productId) {
             PromotionProduct::create([
                 'promotion_id' => $promotion1->id,
@@ -52,16 +52,20 @@ class PromotionSeeder extends Seeder
             'discount_value' => 20,
             'buy_quantity' => null,
             'get_quantity' => null,
-            'gift_product_id' => null,
+            'gift_product_id' => 11,
+            'gift_product_variant_id' => null,
             'start_date' => Carbon::now(),
             'end_date' => Carbon::now()->addDays(15),
             'status' => true,
         ]);
 
-        foreach ($productIds as $productId) {
+        $productIdCommons = Product::inRandomOrder()->take(5)->pluck('id')->toArray();
+
+        foreach ($productIdCommons as $productId) {
             PromotionProduct::create([
                 'promotion_id' => $promotion2->id,
                 'product_id' => $productId,
+                'product_variant_id' => null,
             ]);
         }
     }

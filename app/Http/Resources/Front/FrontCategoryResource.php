@@ -16,6 +16,7 @@ class FrontCategoryResource extends JsonResource
     {
         // base fields return to frontend
         $data = [
+            'id' => $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
             'thumbnail' => $this->thumbnail,
