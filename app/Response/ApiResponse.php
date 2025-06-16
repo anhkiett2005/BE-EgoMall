@@ -3,6 +3,7 @@
 namespace App\Response;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection as Collection;
 
 class ApiResponse {
     /**
@@ -12,7 +13,7 @@ class ApiResponse {
      * @return \Illuminate\Http\JsonResponse new instance of the response
      *
      */
-    public static function success($message = 'success', $code = 200, $data = []): JsonResponse {
+    public static function success($message = 'success', $code = 200, array | Collection $data = []): JsonResponse {
         return response()->json([
             'success' => true,
             'message' => $message,
