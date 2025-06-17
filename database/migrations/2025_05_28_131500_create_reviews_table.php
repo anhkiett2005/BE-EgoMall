@@ -12,8 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('reviews', function (Blueprint $table) {
-            $table->unsignedBigInteger('order_id')->primary();
-            $table->foreignId('order_id')->constrained('orders');
+            $table->unsignedBigInteger('order_id');
+            $table->primary('order_id');
+            $table->foreign('order_id')->references('id')->on('orders');
             $table->integer('rating');
             $table->text('comment');
             $table->timestamps();

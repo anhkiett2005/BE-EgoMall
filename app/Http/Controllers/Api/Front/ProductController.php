@@ -17,20 +17,47 @@ class ProductController extends Controller
      */
     public function index()
     {
-        //  Lấy product and các variant
-        $products = Product::with(['category','brand','variants','variants.values.variantValue.option'])
-                           ->get();
+        // lấy product and các vairant và đánh giá trung bình review về sản phẩm này
+        $products = Product::with([
+            'category',
+            'brand',
+            'variants' => function($query) {
+                     $query->where('is_active', '!=', 0)
+                           ->with([
+                                'images',
+                                'values.variantValue.option',
+                                'orderDetails.order.review'
+                            ]);
+            }
+        ])
+        ->where('is_active', '!=', 0)
+        ->get();
 
         $productLists = $products->map(function($product): array {
+            $allReviews = collect();
+
+            foreach ($product->variants as $variant) {
+                foreach ($variant->orderDetails as $detail) {
+                    if ($detail->order && $detail->order->review) {
+                        $allReviews->push($detail->order->review);
+                    }
+                }
+            }
+
+            $averageRating = $allReviews->avg('rating') ?? 0;
+            $reviewCount = $allReviews->count();
+
             return [
                 'id' => $product->id,
                 'name' => $product->name,
                 'slug' => $product->slug,
-                'category' => optional($product->category)->id,
-                'brand' => optional($product->brand)->id,
+                'category' => $product->category->id,
+                'brand' => $product->brand->id ?? null,
                 'type_skin' => $product->type_skin ?? null,
                 'description' => $product->description ?? null,
                 'image' => $product->image ?? null,
+                'average_rating' => $averageRating,
+                'review_count' => $reviewCount,
                 'variants' => $product->variants->map(function($variant) {
                     return [
                         'id' => $variant->id,
@@ -39,8 +66,8 @@ class ProductController extends Controller
                         'sale_price' => $variant->sale_price,
                         'options' => $variant->values->map(function ($value) {
                             return [
-                                'name' => optional(optional($value->variantValue)->option)->name,
-                                'value' => optional($value->variantValue)->value
+                                'name' => $value->variantValue->option->name,
+                                'value' => $value->variantValue->value
                             ];
                         })->values(),
                     ];
@@ -50,6 +77,7 @@ class ProductController extends Controller
 
         return ApiResponse::success('Data fetched successfully', data: $productLists);
     }
+
 
 
     public function show($slug)
