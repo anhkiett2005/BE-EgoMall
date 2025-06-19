@@ -83,19 +83,38 @@ class ProductController extends Controller
     public function show($slug)
     {
         $product = Product::with([
-                                'brand',
-                                'variants' => function ($query) {
-                                    $query->where('is_active', '!=', 0)
-                                        ->with([
-                                            'images',
-                                            'values.variantValue.option'
-                                        ]);
-                                }
-                            ])
-                          ->where('slug', 'like', '%' . $slug . '%')
-                          ->first();
+            'brand',
+            'variants' => function ($query) {
+                $query->where('is_active', '!=', 0)
+                    ->with([
+                        'images',
+                        'values.variantValue.option',
+                        'orderDetails.order.review'
+                    ]);
+            }
+        ])
+        ->where('slug', 'like', '%' . $slug . '%')
+        ->where('is_active', '!=', 0)
+        ->first();
+
+        if (!$product) {
+            return ApiResponse::error('Product not found', 404);
+        }
 
         $listDetails = collect();
+
+        // Tính rating trung bình và số lượng đánh giá
+        $allReviews = collect();
+        foreach ($product->variants as $variant) {
+            foreach ($variant->orderDetails as $detail) {
+                if ($detail->order && $detail->order->review) {
+                    $allReviews->push($detail->order->review);
+                }
+            }
+        }
+
+        $averageRating = $allReviews->avg('rating') ?? 0;
+        $reviewCount = $allReviews->count();
 
         // trả về các list variants của sản phẩm
         $variantLists = $product->variants->map(function ($variant) {
@@ -104,7 +123,7 @@ class ProductController extends Controller
                 'sku' => $variant->sku,
                 'price' => $variant->price,
                 'sale_price' => $variant->sale_price,
-                'image' => $variant->images->first()->image_url,
+                'image' => $variant->images->first()->image_url ?? null,
                 'quantity' => $variant->quantity,
                 'options' => $variant->values->map(function ($value) {
                     return [
@@ -124,13 +143,15 @@ class ProductController extends Controller
             'id' => $product->id,
             'name' => $product->name,
             'slug' => $product->slug,
-            'brand' => $product->brand->name,
+            'brand' => $product->brand->name ?? null,
             'image' => $product->image,
             'status' => $status,
+            'average_rating' => $averageRating,
+            'review_count' => $reviewCount,
             'variants' => $variantLists,
         ]);
 
-        return ApiResponse::success('Data fetched successfully',data: $listDetails);
-
+        return ApiResponse::success('Data fetched successfully', data: $listDetails);
     }
+
 }

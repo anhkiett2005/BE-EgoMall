@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api\Front;
 
 use App\Http\Controllers\Controller;
+use App\Models\OrderDetail;
 use App\Models\ProductVariant;
 use App\Models\Promotion;
 use App\Response\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class PromotionController extends Controller
 {
@@ -23,6 +25,24 @@ class PromotionController extends Controller
                               ->where('status','!=',0)
                               ->get();
 
+        // Thu thập toàn bộ variant_id có liên quan tới promotion
+        $promotionVariantIds = $promotions->flatMap(function ($promotion) {
+            return $promotion->productVariants->pluck('id')
+                ->merge(
+                    $promotion->products->flatMap(function ($product) {
+                        return $product->variants->pluck('id');
+                    })
+                );
+        })
+        ->unique();
+
+        // Tính sold quantity một lần cho toàn bộ variant
+        $soldQuantities = OrderDetail::whereIn('product_variant_id', $promotionVariantIds)
+                                     ->select('product_variant_id', DB::raw('SUM(quantity) as total'))
+                                     ->groupBy('product_variant_id')
+                                     ->pluck('total', 'product_variant_id'); // [variant_id => quantity]
+
+                                     
         foreach($promotions as $promotion) {
             // Tính thời gian còn lại của promotion
             $promotionEndDate = $promotion->end_date;
@@ -32,13 +52,22 @@ class PromotionController extends Controller
             // Trường hợp áp dụng toàn bộ sản phẩm khi có product_id
             if($promotion->products()->exists()) {
                 foreach($promotion->products as $product) {
-                    $promotionMap->put($product->id, [
+                    // Lấy tất cả variant của product
+                    $variantIds = $product->variants->pluck('id');
+
+                    // Lấy tổng số lượng bán ra khi có product_id
+                    $soldQuantity = $variantIds->sum(function ($variantId) use ($soldQuantities) {
+                        return $soldQuantities[$variantId] ?? 0;
+                    });
+
+                    $promotionMap->put("product_" . $product->id, [
                         'type' => 'product',
                         'productId' => $product->id,
                         'promotionId' => $promotion->id,
                         'promotionName' => $promotion->name,
                         'endDate' => $diffInHours,
-                        'conditions' => $this->getPromotionConditions($promotion)
+                        'conditions' => $this->getPromotionConditions($promotion),
+                        'soldQuantity' => $soldQuantity
                     ]);
                 }
             }
@@ -46,14 +75,16 @@ class PromotionController extends Controller
             // Trường hợp áp dụng cho sản phẩm biến thể khi có product_variant_id
             if($promotion->productVariants()->exists()) {
                 foreach($promotion->productVariants as $variant) {
-                    $promotionMap->put($variant->id, [
+                    $soldQuantity = $soldQuantities[$variant->id] ?? 0;
+                    $promotionMap->put("variant_" . $variant->id, [
                         'type' => 'variant',
                         'variantId' => $variant->id,
                         'parentProduct' => $variant->product_id,
                         'promotionId' => $promotion->id,
                         'promotionName' => $promotion->name,
                         'endDate' => $diffInHours,
-                        'conditions' => $this->getPromotionConditions($promotion)
+                        'conditions' => $this->getPromotionConditions($promotion),
+                        'soldQuantity' => $soldQuantity
                     ]);
                 }
             }
