@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Promotion;
+use App\Response\ApiResponse;
 use Illuminate\Support\Carbon;
 
 class ProductController extends Controller
@@ -16,204 +17,141 @@ class ProductController extends Controller
      */
     public function index()
     {
-        //  Lấy product khuyến mãi
-        $promotion = Promotion::where('start_date','<=', Carbon::now())
-                              ->where('end_date','>=', Carbon::now())
-                              ->where('status','!=',0)
-                              ->first();
-        $promotionEndDate = null;
-        $promotionRemainingTime = null;
+        // lấy product and các vairant và đánh giá trung bình review về sản phẩm này
+        $products = Product::with([
+            'category',
+            'brand',
+            'variants' => function($query) {
+                     $query->where('is_active', '!=', 0)
+                           ->with([
+                                'images',
+                                'values.variantValue.option',
+                                'orderDetails.order.review'
+                            ]);
+            }
+        ])
+        ->where('is_active', '!=', 0)
+        ->get();
 
-        if ($promotion) {
-        $promotionEndDate = $promotion->end_date;
+        $productLists = $products->map(function($product): array {
+            $allReviews = collect();
 
-        // Tính thời gian còn lại
-        $end = Carbon::parse($promotionEndDate);
-        $diffInHours = $end->toIso8601String();
+            foreach ($product->variants as $variant) {
+                foreach ($variant->orderDetails as $detail) {
+                    if ($detail->order && $detail->order->review) {
+                        $allReviews->push($detail->order->review);
+                    }
+                }
+            }
 
-        if ($diffInHours) {
-            $promotionRemainingTime = $diffInHours;
-        }
+            $averageRating = $allReviews->avg('rating') ?? 0;
+            $reviewCount = $allReviews->count();
 
-
-            $productPromotion = collect();
-
-            if ($promotion) {
-                if ($promotion->products()->exists()) {
-                    // Lấy theo sản phẩm cha nếu có
-                    $productPromotion = $promotion->products()
-                        ->with(['category', 'brand', 'variants.images'])
-                        ->take(10)
-                        ->get()
-                        ->flatMap(function ($product) {
-                            // Nếu sản phẩm có biến thể thì lấy toàn bộ biến thể
-                            return $product->variants->map(function ($variant) use ($product) {
-                                return [
-                                    'name' => $product->name,
-                                    'slug' => $product->slug,
-                                    'sku' => $variant->sku,
-                                    'price' => $variant->price,
-                                    'sale_price' => $variant->sale_price,
-                                    'brand_name' => optional($product->brand)->name,
-                                    'images' => $variant->images->take(2)->map(function ($image) {
-                                        return [
-                                            'image_url' => $image->image_url
-                                        ];
-                                    })->values()
-                                ];
-                            });
-                        });
-                } else {
-                    // Nếu không có product cha, lấy trực tiếp các biến thể trong chương trình
-                    $productPromotion = $promotion->productVariants()
-                        ->with(['product.brand','product.category', 'images']) // eager load product cha để lấy name, slug, brand
-                        ->take(10)
-                        ->get()
-                        ->map(function ($variant) {
-                            $product = $variant->product;
-
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'category' => $product->category->id,
+                'brand' => $product->brand->id ?? null,
+                'type_skin' => $product->type_skin ?? null,
+                'description' => $product->description ?? null,
+                'image' => $product->image ?? null,
+                'average_rating' => $averageRating,
+                'review_count' => $reviewCount,
+                'variants' => $product->variants->map(function($variant) {
+                    return [
+                        'id' => $variant->id,
+                        'sku' => $variant->sku,
+                        'price' => $variant->price,
+                        'sale_price' => $variant->sale_price,
+                        'options' => $variant->values->map(function ($value) {
                             return [
-                                'name' => optional($product)->name,
-                                'slug' => optional($product)->slug,
-                                'sku' => $variant->sku,
-                                'category' => optional(optional($product)->category)->name,
-                                'price' => $variant->price,
-                                'sale_price' => $variant->sale_price,
-                                'brand_name' => optional(optional($product)->brand)->name,
-                                'images' => $variant->images->take(2)->map(function ($image) {
-                                    return [
-                                        'image_url' => $image->image_url
-                                    ];
-                                })->values()
+                                'name' => $value->variantValue->option->name,
+                                'value' => $value->variantValue->value
                             ];
-                        });
-                }
-            }
-
-        // Lấy product có danh mục bán chạy
-        $productBestSelling = Product::with(['category', 'brand','images'])
-        ->whereHas('category', function($q) {
-            $q->where('slug', 'like', '%ban-chay%')
-              ->select('slug');
-        })
-        ->paginate(8)
-        ->transform(function($product) {
-            if($product->is_variable == true) {
-                $variant = $product->variants->first();
-                // lấy ra variant đầu tiên
-                if($variant) {
-                    $product->sku = $variant->sku;
-                    $product->price = $variant->price;
-                    $product->sale_price = $variant->sale_price;
-                }
-            }
-
-            // Lấy brand name thay vì object brand
-            $product->brand_name = optional($product->brand)->name;
-
-            return [
-                'name' => $product->name,
-                'slug' => $product->slug,
-                'sku' => $product->sku,
-                'price' => $product->price,
-                'sale_price' => $product->sale_price,
-                'brand_name' => $product->brand_name,
-                'images' => $product->images->take(2)->map(function($image) {
-                     return [
-                        'image_url' => $image->image_url
+                        })->values(),
                     ];
-                })->values()
+                })->values(),
             ];
         });
+
+        return ApiResponse::success('Data fetched successfully', data: $productLists);
+    }
+
+
+
+    public function show($slug)
+    {
+        $product = Product::with([
+            'brand',
+            'variants' => function ($query) {
+                $query->where('is_active', '!=', 0)
+                    ->with([
+                        'images',
+                        'values.variantValue.option',
+                        'orderDetails.order.review'
+                    ]);
+            }
+        ])
+        ->where('slug', 'like', '%' . $slug . '%')
+        ->where('is_active', '!=', 0)
+        ->first();
+
+        if (!$product) {
+            return ApiResponse::error('Product not found', 404);
         }
 
-        // Lấy sản phẩm khuyến mãi ngẫu nhiên
+        $listDetails = collect();
 
-
-        // lấy product có danh mục sửa rữa mặt
-        $productFaceWash = Product::with(['category', 'brand','images'])
-        ->whereHas('category', function($q) {
-            $q->where('slug', 'like', '%sua-rua-mat%')
-              ->select('slug');
-        })
-        ->paginate(8)
-        ->transform(function($product) {
-            if($product->is_variable == true) {
-                $variant = $product->variants->first();
-                // lấy ra variant đầu tiên
-                if($variant) {
-                    $product->sku = $variant->sku;
-                    $product->price = $variant->price;
-                    $product->sale_price = $variant->sale_price;
+        // Tính rating trung bình và số lượng đánh giá
+        $allReviews = collect();
+        foreach ($product->variants as $variant) {
+            foreach ($variant->orderDetails as $detail) {
+                if ($detail->order && $detail->order->review) {
+                    $allReviews->push($detail->order->review);
                 }
             }
+        }
 
-            // Lấy brand name thay vì object brand
-            $product->brand_name = optional($product->brand)->name;
+        $averageRating = $allReviews->avg('rating') ?? 0;
+        $reviewCount = $allReviews->count();
 
+        // trả về các list variants của sản phẩm
+        $variantLists = $product->variants->map(function ($variant) {
             return [
-                'name' => $product->name,
-                'slug' => $product->slug,
-                'sku' => $product->sku,
-                'price' => $product->price,
-                'sale_price' => $product->sale_price,
-                'brand_name' => $product->brand_name,
-                'images' => $product->images->take(2)->map(function($image) {
-                     return [
-                        'image_url' => $image->image_url
+                'id' => $variant->id,
+                'sku' => $variant->sku,
+                'price' => $variant->price,
+                'sale_price' => $variant->sale_price,
+                'image' => $variant->images->first()->image_url ?? null,
+                'quantity' => $variant->quantity,
+                'options' => $variant->values->map(function ($value) {
+                    return [
+                        'name' => $value->variantValue->option->name,
+                        'value' => $value->variantValue->value
                     ];
-                })->values()
+                })->values(),
             ];
         });
 
-        // lấy product có danh mục xả kho
-        $productClearanceSale = Product::with(['category', 'brand','images'])
-        ->whereHas('category', function($q) {
-            $q->where('slug', 'like', '%xa-kho%')
-              ->select('slug');
-        })
-        ->paginate(5)
-        ->transform(function($product) {
-            if($product->is_variable == true) {
-                $variant = $product->variants->first();
-                // lấy ra variant đầu tiên
-                if($variant) {
-                    $product->sku = $variant->sku;
-                    $product->price = $variant->price;
-                    $product->sale_price = $variant->sale_price;
-                }
-            }
+        // Tính tổng số lượng của toàn bộ variant để check status
+        $totalQuantity = $product->variants->sum('quantity');
+        $status = $totalQuantity > 0 ? 'Còn hàng' : 'Hết hàng';
 
-            // Lấy brand name thay vì object brand
-            $product->brand_name = optional($product->brand)->name;
-
-            return [
-                'name' => $product->name,
-                'slug' => $product->slug,
-                'sku' => $product->sku,
-                'price' => $product->price,
-                'sale_price' => $product->sale_price,
-                'brand_name' => $product->brand_name,
-                'images' => $product->images->take(2)->map(function($image) {
-                     return [
-                        'image_url' => $image->image_url
-                    ];
-                })->values()
-            ];
-        });
-
-        return response()->json([
-            'message' => 'success',
-            'data' => [
-                'promotion' => [
-                    'promotionName' => $promotion->name,
-                    'productPromotions' => $productPromotion,
-                    'remainingTime' => $promotionRemainingTime
-                ],
-                'productBestSelling' => $productBestSelling,
-                'productFaceWash' => $productFaceWash,
-                'productClearanceSale' => $productClearanceSale
-            ]
+        // trả về sản phẩm chi tiết
+        $listDetails->push([
+            'id' => $product->id,
+            'name' => $product->name,
+            'slug' => $product->slug,
+            'brand' => $product->brand->name ?? null,
+            'image' => $product->image,
+            'status' => $status,
+            'average_rating' => $averageRating,
+            'review_count' => $reviewCount,
+            'variants' => $variantLists,
         ]);
+
+        return ApiResponse::success('Data fetched successfully', data: $listDetails);
     }
+
 }

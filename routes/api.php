@@ -46,6 +46,12 @@ Route::prefix('v1/front')
         // Routes API Product
         Route::controller('ProductController')->group(function() {
             Route::get('/products','index');
+            Route::get('/product/{slug}','show');
+        });
+
+        // Routes API Promotion
+        Route::controller('PromotionController')->group(function() {
+            Route::get('/promotions','getPromotionMap');
         });
     });
 

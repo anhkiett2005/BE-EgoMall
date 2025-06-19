@@ -6,6 +6,7 @@ use App\Http\Resources\Front\FrontCategoryResource;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Response\ApiResponse;
 use Illuminate\Http\Request;
 
 class CategoryController extends Controller
@@ -18,50 +19,16 @@ class CategoryController extends Controller
         // Lấy tất cả danh mục gốc kèm danh mục con và brand
         $categories = Category::with('children')
                                 ->root()
-                                ->get();
+                                ->featured()
+                                ->select('id','name','slug','thumbnail','is_active','is_featured')
+                                ->get()
+                                ->map(function ($category) {
+                                    $category->children->each(function ($child) {
+                                        $child->makeHidden(['created_at', 'updated_at','parent_id','type']);
+                                    });
+                                    return $category;
+                                });
 
-         // Lấy danh mục nổi bật
-        $featuredCategories = Category::featured()
-                                       ->select('thumbnail','slug')
-                                       ->get();
-        return response()->json([
-            'message' => 'success',
-            'data' => [
-                'menu' => FrontCategoryResource::collection($categories),
-                'featuredCategories' => $featuredCategories,
-            ]
-        ]);
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Category $category)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Category $category)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Category $category)
-    {
-        //
+        return ApiResponse::success('Data fetched successfully',data: $categories);
     }
 }

@@ -27,7 +27,7 @@ class Category extends Model
     ];
 
     protected $hidden = [
-        'id'
+        // 'id'
     ];
 
     /**

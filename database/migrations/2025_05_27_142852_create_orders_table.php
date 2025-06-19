@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users');
             $table->integer('total_price');
-            $table->boolean('status');
+            $table->enum('status', ['ordered', 'confirmed', 'shipping', 'delivered','cancelled','return_sales'])->default('ordered');
             $table->string('note');
             $table->string('shipping_address');
             $table->string('shipping_phone');
