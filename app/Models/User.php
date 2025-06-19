@@ -6,7 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-
+use Illuminate\Support\Carbon;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;  // thêm use này
 
 class User extends Authenticatable implements JWTSubject
@@ -23,7 +23,6 @@ class User extends Authenticatable implements JWTSubject
         'phone',
         'google_id',
         'facebook_id',
-        'provider',
         'address',
         'image',
         'role_id',
@@ -52,6 +51,15 @@ class User extends Authenticatable implements JWTSubject
         'otp_expires_at' => 'datetime',
         'otp_sent_at'    => 'datetime',
     ];
+
+    public function setIsActiveAttribute($value)
+    {
+        $this->attributes['is_active'] = $value;
+
+        if ($value && (!array_key_exists('email_verified_at', $this->attributes) || is_null($this->attributes['email_verified_at']))) {
+            $this->attributes['email_verified_at'] = Carbon::now();
+        }
+    }
 
     /**
      * Phương thức bắt buộc của JWTSubject:

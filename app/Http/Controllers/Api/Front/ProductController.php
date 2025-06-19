@@ -89,7 +89,13 @@ class ProductController extends Controller
                     ->with([
                         'images',
                         'values.variantValue.option',
-                        'orderDetails.order.review'
+                        'orderDetails.order.user' => function ($q) {
+                            $q->where('is_active', '!=', 0)
+                              ->select('id','name','image');
+                        },
+                        'orderDetails.order.review' => function ($q) {
+                            $q->where('review_status', 'approved');
+                        }
                     ]);
             }
         ])
@@ -103,11 +109,12 @@ class ProductController extends Controller
 
         $listDetails = collect();
 
-        // Tính rating trung bình và số lượng đánh giá
+        // Tính rating trung bình và số lượng đánh giá và lấy ra đánh giá của sản phẩm đó
         $allReviews = collect();
+
         foreach ($product->variants as $variant) {
             foreach ($variant->orderDetails as $detail) {
-                if ($detail->order && $detail->order->review) {
+                if ($detail->order->review && $detail->order->user !== null) {
                     $allReviews->push($detail->order->review);
                 }
             }
@@ -115,6 +122,15 @@ class ProductController extends Controller
 
         $averageRating = $allReviews->avg('rating') ?? 0;
         $reviewCount = $allReviews->count();
+        $reviews = $allReviews->map(function ($review) {
+            return [
+                'name' => $review->order->user->name,
+                'image' => $review->order->user->image,
+                'rating' => $review->rating,
+                'comment' => $review->comment,
+                'date' => Carbon::parse($review->created_at)->format('d-m-Y H:i'),
+            ];
+        });
 
         // trả về các list variants của sản phẩm
         $variantLists = $product->variants->map(function ($variant) {
@@ -138,6 +154,59 @@ class ProductController extends Controller
         $totalQuantity = $product->variants->sum('quantity');
         $status = $totalQuantity > 0 ? 'Còn hàng' : 'Hết hàng';
 
+        // lấy sản phẩm cùng loại
+        $related = collect();
+
+        // Tính rating trung bình và số lượng đánh giá và lấy ra đánh giá của sản phẩm cùng loại
+        $allReviewRelateds = collect();
+
+        $relatedProducts = Product::with([
+                                    'brand',
+                                    'variants' => function ($query) {
+                                        $query->where('is_active', '!=', 0)
+                                        ->with([
+                                            'orderDetails.order.review' => function($q) {
+                                                $q->where('review_status', 'approved');
+                                            }
+                                        ]);
+                                    }
+                                  ])
+                            ->where('category_id', '=', $product->category_id)
+                            ->where('id', '!=', $product->id)
+                            ->where('is_active', '!=', 0)
+                            ->inRandomOrder()
+                            ->limit(5)
+                            ->get();
+
+        foreach ($relatedProducts as $relatedProduct) {
+            foreach ($relatedProduct->variants as $variant) {
+                foreach ($variant->orderDetails as $detail) {
+                    if ($detail->order && $detail->order->review) {
+                        $allReviewRelateds->push($detail->order->review);
+                    }
+                }
+            }
+        }
+
+        $averageRatingRelated = $allReviewRelateds->avg('rating') ?? 0;
+        $reviewCountRelated = $allReviewRelateds->count();
+
+        // trả về sản phẩm cùng loại
+        $relatedProducts->each(function ($relatedProduct) use (&$related, $averageRatingRelated, $reviewCountRelated) {
+            $related->push([
+                'id' => $relatedProduct->id,
+                'name' => $relatedProduct->name,
+                'slug' => $relatedProduct->slug,
+                'price' => $relatedProduct->variants->avg('price'),
+                'sale_price' => $relatedProduct->variants->avg('sale_price'),
+                'brand' => $relatedProduct->brand->name ?? null,
+                'image' => $relatedProduct->image,
+                'average_rating' => $averageRatingRelated,
+                'review_count' => $reviewCountRelated,
+            ]);
+        });
+
+
         // trả về sản phẩm chi tiết
         $listDetails->push([
             'id' => $product->id,
@@ -148,7 +217,9 @@ class ProductController extends Controller
             'status' => $status,
             'average_rating' => $averageRating,
             'review_count' => $reviewCount,
+            'reviews' => $reviews,
             'variants' => $variantLists,
+            'related' => $related
         ]);
 
         return ApiResponse::success('Data fetched successfully', data: $listDetails);

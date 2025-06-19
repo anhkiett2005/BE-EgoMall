@@ -15,6 +15,7 @@ class Brand extends Model
         'logo',
         'description',
         'is_active',
+        'is_featured'
     ];
 
     protected $hidden = [
@@ -23,7 +24,13 @@ class Brand extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_featured' => 'boolean'
     ];
+
+    public function scopeFeatured($query)
+    {
+        return $query->where('is_featured', '!=', 0);
+    }
 
     public function products()
     {

@@ -75,6 +75,14 @@ Route::prefix('v1/auth')->group(function () {
 
     Route::post('login',    [AuthController::class, 'login']);
 
+    // Login với google
+    Route::get('redirect/google',[AuthController::class, 'redirectToGoogle']);
+    Route::get('callback/google', [AuthController::class, 'handleGoogleCallback']);
+
+    // Login với facebook
+    Route::get('redirect/facebook', [AuthController::class, 'redirectToFacebook']);
+    Route::get('callback/facebook', [AuthController::class, 'handleFacebookCallback']);
+
     Route::middleware([JwtCookieAuth::class, Authenticate::class])->group(function () {
         // Lấy thông tin user
         Route::get('user',    [AuthController::class, 'user']);

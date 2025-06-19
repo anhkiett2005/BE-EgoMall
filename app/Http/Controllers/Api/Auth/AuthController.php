@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\LoginRequest;
@@ -13,13 +14,16 @@ use App\Http\Resources\UserResource;
 use App\Notifications\OtpNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use Symfony\Component\HttpFoundation\Cookie;
 use App\Models\User;
 use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\ResetPasswordWithOtpRequest;
-
+use App\Response\ApiResponse;
+use Exception;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -110,6 +114,115 @@ class AuthController extends Controller
         return (new UserResource($user))
             ->response()
             ->withCookie($cookie);
+    }
+
+
+    /**
+     * Đăng nhập với google
+     */
+    public function redirectToGoogle()
+    {
+        $redirectUrl = Socialite::driver('google')
+                                ->stateless()
+                                ->redirect()
+                                ->getTargetUrl();
+
+        return ApiResponse::success('Google redirect URL generated successfully',data: [
+            'url' => $redirectUrl
+        ]);
+    }
+
+    /**
+     * Xử lý call back google trả về và tạo phiên đăng nhập
+     */
+    public function handleGoogleCallback()
+    {
+        try {
+            $googleUser = Socialite::driver('google')->stateless()->user();
+
+            $user = User::where('google_id', $googleUser->getId())
+                        ->orWhere('email', $googleUser->getEmail())->first();
+
+            if(!$user) {
+                // nếu ch có tạo mới tài khoản
+                $user = User::create([
+                    'name' => $googleUser->getName(),
+                    'email' => $googleUser->getEmail(),
+                    'password' => Hash::make(Str::random(16)),
+                    'google_id' => $googleUser->getId(),
+                    'image' => $googleUser->getAvatar(),
+                    'role_id' => 4,
+                    'is_active' => true
+                ]);
+            }
+            // Tạo phiên đăng nhập và cấp token JWT
+            $token = JWTAuth::fromUser($user);
+            $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+
+            return ApiResponse::success('Login successfully')->withCookie($cookie);
+        } catch(Exception $e) {
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            return ApiResponse::error('some thing went wrong !!!');
+        }
+    }
+
+    /**
+     * Đăng nhập với facebook
+     */
+    public function redirectToFacebook()
+    {
+        $redirectUrl = Socialite::driver('facebook')
+                                ->stateless()
+                                ->redirect()
+                                ->getTargetUrl();
+
+        return ApiResponse::success('Facebook redirect URL generated successfully',data: [
+            'url' => $redirectUrl
+        ]);
+    }
+
+    /**
+     * Xử lý call back facebook trả về và tạo phiên đăng nhập
+     */
+
+    public function handleFacebookCallback()
+    {
+        try {
+            $facebookUser = Socialite::driver('facebook')->stateless()->user();
+
+            $user = User::where('facebook_id', $facebookUser->getId())->first();
+
+            if(!$user) {
+               // nếu ch código tạo mới tài khoản
+                $user = User::create([
+                    'name' => $facebookUser->getName(),
+                    'email' => $facebookUser->getEmail(),
+                    'password' => Hash::make(Str::random(16)),
+                    'facebook_id' => $facebookUser->getId(),
+                    'image' => $facebookUser->getAvatar(),
+                    'role_id' => 4,
+                    'is_active' => true
+                ]);
+            }
+
+            // Tạo phiên đăng nhập và cấp token JWT
+            $token = JWTAuth::fromUser($user);
+            $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            return ApiResponse::success('Login successfully')->withCookie($cookie);
+        } catch(Exception $e) {
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            return ApiResponse::error('some thing went wrong !!!');
+        }
     }
 
     /**

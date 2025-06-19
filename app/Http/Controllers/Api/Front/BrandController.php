@@ -16,6 +16,7 @@ class BrandController extends Controller
         // Lấy brand trả về frontend
         $brandsWithImage = Brand::whereNotNull('logo')
                                 ->whereNotNull('slug')
+                                ->featured()
                                 ->select('logo','slug')
                                 ->get();
         return response()->json([

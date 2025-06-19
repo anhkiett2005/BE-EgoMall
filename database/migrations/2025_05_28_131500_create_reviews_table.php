@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreign('order_id')->references('id')->on('orders');
             $table->integer('rating');
             $table->text('comment');
+            $table->enum('review_status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->timestamps();
         });
     }
