@@ -21,21 +21,21 @@ Route::prefix('v1/front')
         Route::controller('BrandController')->group(function () {
             Route::get('/brands', 'index');
         });
-        route::controller('BannerController')->group(function() {
+        route::controller('BannerController')->group(function () {
             Route::get('/banners', 'index');
             Route::post('/banners/create', 'store');
             Route::get('/banners/{id}', 'show');
             Route::put('/banners/update/{id}', 'update');
             Route::delete('/banners/delete/{id}', 'destroy');
         });
-        route::controller('SlidersController')->group(function() {
+        route::controller('SlidersController')->group(function () {
             Route::get('/sliders', 'index');
             Route::post('/sliders/create', 'store');
             Route::get('/sliders/{id}', 'show');
             Route::put('/sliders/update/{id}', 'update');
             Route::delete('/sliders/delete/{id}', 'destroy');
         });
-        route::controller('SliderImagesController')->group(function() {
+        route::controller('SliderImagesController')->group(function () {
             Route::get('/slider-images', 'index');
             Route::post('/slider-images/create', 'store');
             Route::get('/slider-images/{id}', 'show');
@@ -44,35 +44,35 @@ Route::prefix('v1/front')
         });
 
         // Routes API Product
-        Route::controller('ProductController')->group(function() {
-            Route::get('/products','index');
-            Route::get('/product/{slug}','show');
+        Route::controller('ProductController')->group(function () {
+            Route::get('/products', 'index');
+            Route::get('/product/{slug}', 'show');
         });
 
         // Routes API Promotion
-        Route::controller('PromotionController')->group(function() {
-            Route::get('/promotions','getPromotionMap');
+        Route::controller('PromotionController')->group(function () {
+            Route::get('/promotions', 'getPromotionMap');
         });
     });
 
 
 Route::prefix('v1/admin')
-     ->namespace('App\Http\Controllers\Api\Admin')
-     ->group(function() {
-         Route::controller('ProductController')->group(function() {
-            Route::get('/products','index')->name('admin.products.index');
-            Route::get('/product/{slug}','show')->name('admin.product.show');
-            Route::post('/products/create','store')->name('admin.products.store');
-         });
-     });
+    ->namespace('App\Http\Controllers\Api\Admin')
+    ->group(function () {
+        Route::controller('ProductController')->group(function () {
+            Route::get('/products', 'index')->name('admin.products.index');
+            Route::get('/product/{slug}', 'show')->name('admin.product.show');
+            Route::post('/products/create', 'store')->name('admin.products.store');
+        });
+    });
 
 Route::prefix('v1/auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('verify-otp', [AuthController::class, 'verifyOtp']);
     Route::post('resend-otp', [AuthController::class, 'resendOtp']);
     Route::post('forgot-password', [AuthController::class, 'sendForgotPasswordOtp']);
-    Route::post('reset-password-otp', [AuthController::class, 'resetPasswordWithOtp']);
-
+    Route::post('verify-reset-otp', [AuthController::class, 'verifyResetOtp']);
+    Route::post('set-new-password', [AuthController::class, 'setNewPassword']);
     Route::post('login',    [AuthController::class, 'login']);
 
     Route::middleware([JwtCookieAuth::class, Authenticate::class])->group(function () {

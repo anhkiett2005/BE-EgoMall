@@ -27,10 +27,14 @@ class OtpNotification extends Notification
     public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Mã Xác Thực OTP của bạn')
-            ->greeting("Chào {$notifiable->name},")
-            ->line("Mã xác thực của bạn là **{$this->otp}**.")
-            ->line("Mã này có hiệu lực trong {$this->ttl} phút.")
-            ->salutation('Trân trọng, Egomall Shop');
+        ->subject('Mã Xác Thực OTP - EgoMall')
+        ->view(
+            'emails.opt',
+            [
+                'otp' => $this->otp,
+                'expiresInMinutes' => $this->ttl,
+                'notifiable' => $notifiable,
+            ]
+        );
     }
 }

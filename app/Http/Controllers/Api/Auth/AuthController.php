@@ -283,34 +283,68 @@ class AuthController extends Controller
     /**
  * Đặt lại mật khẩu bằng OTP.
  */
-public function resetPasswordWithOtp(ResetPasswordWithOtpRequest $request): JsonResponse
+// public function resetPasswordWithOtp(ResetPasswordWithOtpRequest $request): JsonResponse
+// {
+//     // Lấy user theo email
+//     $user = User::where('email', $request->email)->first();
+
+//     // Kiểm tra OTP và TTL
+//     if (! $user
+//         || $user->otp !== $request->otp
+//         || now()->gt($user->otp_expires_at)
+//     ) {
+//         return response()->json([
+//             'error' => 'OTP không hợp lệ hoặc đã hết hạn'
+//         ], 422);
+//     }
+
+//     // Cập nhật mật khẩu mới
+//     $user->password = Hash::make($request->new_password);
+
+//     // Xóa các trường OTP để không tái sử dụng
+//     $user->otp               = null;
+//     $user->otp_expires_at    = null;
+//     $user->otp_sent_count    = 0;
+//     $user->otp_sent_at       = null;
+
+//     $user->save();
+
+//     return response()->json([
+//         'message' => 'Đặt lại mật khẩu thành công.'
+//     ], 200);
+// }
+public function verifyResetOtp(VerifyOtpRequest $request): JsonResponse
 {
-    // Lấy user theo email
     $user = User::where('email', $request->email)->first();
 
-    // Kiểm tra OTP và TTL
-    if (! $user
-        || $user->otp !== $request->otp
-        || now()->gt($user->otp_expires_at)
-    ) {
-        return response()->json([
-            'error' => 'OTP không hợp lệ hoặc đã hết hạn'
-        ], 422);
+    if (! $user || $user->otp !== $request->otp || now()->gt($user->otp_expires_at)) {
+        return response()->json(['error' => 'OTP không hợp lệ hoặc đã hết hạn'], 422);
     }
 
-    // Cập nhật mật khẩu mới
-    $user->password = Hash::make($request->new_password);
-
-    // Xóa các trường OTP để không tái sử dụng
-    $user->otp               = null;
-    $user->otp_expires_at    = null;
-    $user->otp_sent_count    = 0;
-    $user->otp_sent_at       = null;
-
+    $user->otp_verified = true;
     $user->save();
 
-    return response()->json([
-        'message' => 'Đặt lại mật khẩu thành công.'
-    ], 200);
+    return response()->json(['message' => 'Xác thực OTP thành công. Bạn có thể đặt lại mật khẩu.']);
 }
+
+public function setNewPassword(ResetPasswordWithOtpRequest $request): JsonResponse
+{
+
+    $user = User::where('email', $request->email)->first();
+
+    if (! $user || ! $user->otp_verified) {
+        return response()->json(['error' => 'Bạn chưa xác thực OTP.'], 403);
+    }
+
+    $user->password          = Hash::make($request->new_password);
+    $user->otp               = null;
+    $user->otp_expires_at    = null;
+    $user->otp_sent_at       = null;
+    $user->otp_sent_count    = 0;
+    $user->otp_verified      = false; 
+    $user->save();
+
+    return response()->json(['message' => 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.']);
+}
+
 }
