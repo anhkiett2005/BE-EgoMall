@@ -30,7 +30,7 @@ class AuthController extends Controller
     {
         $data = $request->validated();
         $data['password'] = Hash::make($data['password']);
-        $data['role_id'] = 4;
+        $data['role_id'] = User::where('name', 'customer')->first()->id ?? 16; // Lấy role_id của customer
 
         // Tạo user, is_active mặc định false
         $user = User::create(array_merge($data, ['is_active' => false]));
@@ -95,17 +95,35 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $credentials = $request->validated();
+        $account = $request->input('account');
+        $password = $request->input('password');
+
+        // Tìm user theo email hoặc phone
+        $user = User::where('email', $account)
+            ->orWhere('phone', $account)
+            ->first();
+
+        if (! $user || ! \Illuminate\Support\Facades\Hash::check($password, $user->password)) {
+            return response()->json(['error' => 'Email/SĐT hoặc mật khẩu không đúng'], 401);
+        }
+
         try {
-            if (! $token = JWTAuth::attempt($credentials)) {
-                return response()->json(['error' => 'Email hoặc mật khẩu không đúng'], 401);
-            }
+            $token = JWTAuth::fromUser($user);
         } catch (JWTException $e) {
             return response()->json(['error' => 'Không thể tạo token'], 500);
         }
 
-        $user = JWTAuth::user();
-        $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+        $cookie = new Cookie(
+            'token',
+            $token,
+            now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+            '/',
+            null,
+            config('app.env') === 'production',
+            true,
+            false,
+            Cookie::SAMESITE_LAX
+        );
 
         return (new UserResource($user))
             ->response()
@@ -280,37 +298,37 @@ class AuthController extends Controller
         ], 200);
     }
 
-    /**
- * Đặt lại mật khẩu bằng OTP.
- */
-public function resetPasswordWithOtp(ResetPasswordWithOtpRequest $request): JsonResponse
-{
-    // Lấy user theo email
-    $user = User::where('email', $request->email)->first();
+    public function verifyResetOtp(VerifyOtpRequest $request): JsonResponse
+    {
+        $user = User::where('email', $request->email)->first();
 
-    // Kiểm tra OTP và TTL
-    if (! $user
-        || $user->otp !== $request->otp
-        || now()->gt($user->otp_expires_at)
-    ) {
-        return response()->json([
-            'error' => 'OTP không hợp lệ hoặc đã hết hạn'
-        ], 422);
+        if (! $user || $user->otp !== $request->otp || now()->gt($user->otp_expires_at)) {
+            return response()->json(['error' => 'OTP không hợp lệ hoặc đã hết hạn'], 422);
+        }
+
+        $user->otp_verified = true;
+        $user->save();
+
+        return response()->json(['message' => 'Xác thực OTP thành công. Bạn có thể đặt lại mật khẩu.']);
     }
 
-    // Cập nhật mật khẩu mới
-    $user->password = Hash::make($request->new_password);
+    public function setNewPassword(ResetPasswordWithOtpRequest $request): JsonResponse
+    {
 
-    // Xóa các trường OTP để không tái sử dụng
-    $user->otp               = null;
-    $user->otp_expires_at    = null;
-    $user->otp_sent_count    = 0;
-    $user->otp_sent_at       = null;
+        $user = User::where('email', $request->email)->first();
 
-    $user->save();
+        if (! $user || ! $user->otp_verified) {
+            return response()->json(['error' => 'Bạn chưa xác thực OTP.'], 403);
+        }
 
-    return response()->json([
-        'message' => 'Đặt lại mật khẩu thành công.'
-    ], 200);
-}
+        $user->password          = Hash::make($request->new_password);
+        $user->otp               = null;
+        $user->otp_expires_at    = null;
+        $user->otp_sent_at       = null;
+        $user->otp_sent_count    = 0;
+        $user->otp_verified      = false;
+        $user->save();
+
+        return response()->json(['message' => 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.']);
+    }
 }

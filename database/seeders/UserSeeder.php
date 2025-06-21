@@ -3,63 +3,58 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Models\User;
+use App\Models\Role;
 
 class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        DB::table('users')->insert([
-            'name'              => 'Super Admin',
-            'email'             => 'superadmin@egomall.local',
-            'email_verified_at' => now(),
-            'password'          => Hash::make('Password123!'),
-            'phone'             => '0123456789',
-            'address'           => 'Hanoi, Vietnam',
-            'role_id'           => 1,  // **Super Admin**
-            'is_active'         => true,
-            'created_at'        => now(),
-            'updated_at'        => now(),
+        // Lấy role_id từ bảng roles
+        $superAdminRole = Role::where('name', 'super-admin')->first();
+        $adminRole      = Role::where('name', 'admin')->first();
+        $staffRole      = Role::where('name', 'staff')->first();
+        $customerRole   = Role::where('name', 'customer')->first();
+
+        // Tạo user Super Admin
+        User::firstOrCreate([
+            'email' => 'superadmin@example.com',
+        ], [
+            'name'      => 'Super Admin',
+            'password'  => Hash::make('password'), // 🔐 Mật khẩu mặc định: password
+            'role_id'   => $superAdminRole->id,
+            'is_active' => true,
         ]);
 
-        DB::table('users')->insert([
-            'name'              => 'Tran Thi B',
-            'email'             => 'admin@egomall.local',
-            'email_verified_at' => now(),
-            'password'          => Hash::make('Admin123!'),
-            'phone'             => '0912345678',
-            'address'           => 'Da Nang, Vietnam',
-            'role_id'           => 2,  // **Admin**
-            'is_active'         => true,
-            'created_at'        => now(),
-            'updated_at'        => now(),
+        // Tạo user Admin
+        User::firstOrCreate([
+            'email' => 'admin@example.com',
+        ], [
+            'name'      => 'Admin User',
+            'password'  => Hash::make('password'),
+            'role_id'   => $adminRole->id,
+            'is_active' => true,
         ]);
 
-        DB::table('users')->insert([
-            'name'              => 'Le Van C',
-            'email'             => 'staff@egomall.local',
-            'email_verified_at' => now(),
-            'password'          => Hash::make('Staff123!'),
-            'phone'             => '0909876543',
-            'address'           => 'Hue, Vietnam',
-            'role_id'           => 3,  // **Staff (Nhân viên)**
-            'is_active'         => true,
-            'created_at'        => now(),
-            'updated_at'        => now(),
+        // Tạo user Staff
+        User::firstOrCreate([
+            'email' => 'staff@example.com',
+        ], [
+            'name'      => 'Staff User',
+            'password'  => Hash::make('password'),
+            'role_id'   => $staffRole->id,
+            'is_active' => true,
         ]);
 
-        DB::table('users')->insert([
-            'name'              => 'Nguyen Van A',
-            'email'             => 'nguyenvana@egomall.local',
-            'email_verified_at' => now(),
-            'password'          => Hash::make('User12345!'),
-            'phone'             => '0987654321',
-            'address'           => 'HCM City, Vietnam',
-            'role_id'           => 4,
-            'is_active'         => true,
-            'created_at'        => now(),
-            'updated_at'        => now(),
+        // Tạo user Customer
+        User::firstOrCreate([
+            'email' => 'customer@example.com',
+        ], [
+            'name'      => 'Customer User',
+            'password'  => Hash::make('password'),
+            'role_id'   => $customerRole->id,
+            'is_active' => true,
         ]);
     }
 }

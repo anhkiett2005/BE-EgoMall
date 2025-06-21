@@ -19,12 +19,11 @@ class DatabaseSeeder extends Seeder
             // BrandSeeder::class,
             // CategorySeeder::class,
             // RoleSeeder::class,
-            // PermissionSeeder::class,
-            // RoleHasPermissionSeeder::class,
+            PermissionSeeder::class,
             // UserSeeder::class,
-            SliderSeeder::class,
-            SliderImageSeeder::class,
-            BannerSeeder::class
+            // SliderSeeder::class,
+            // SliderImageSeeder::class,
+            // BannerSeeder::class
         ]);
     }
 }
