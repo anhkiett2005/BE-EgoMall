@@ -221,4 +221,13 @@ class ProductServices {
         return null;
     }
 
+    public function update($request, string $slug)
+    {
+        try {
+            $product = Product::with(['brand','variants','variants.images'])
+        } catch(Exception $e) {
+
+        }
+    }
+
 }
