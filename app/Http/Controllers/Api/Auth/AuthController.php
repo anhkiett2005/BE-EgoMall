@@ -110,7 +110,7 @@ class AuthController extends Controller
                 ->first();
 
             // check tài khoản có hoạt động không
-            if($user && !$user->is_active !== true) {
+            if($user && $user->is_active !== true) {
                 throw new ApiException('Tài khoản không tồn tại, vui lòng liên hệ adminstrator', 401);
             }
 

@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Requests\StoreProductRequest;
+use App\Jobs\UpdateProductVariantsJob;
 use App\Models\CategoryOption;
 use App\Models\Product;
 use App\Models\VariantOption;
@@ -76,7 +77,7 @@ class ProductServices {
         return $result;
     }
 
-    public function store(StoreProductRequest $request)
+    public function store($request)
     {
         $data = $request->all();
         DB::beginTransaction();
@@ -87,7 +88,6 @@ class ProductServices {
                     'name' => $data['name'],
                     'slug' => Str::slug($data['name']) ?? null,
                     'category_id' => $data['category_id'],
-                    'is_variable' => $data['is_variable'] ?? false,
                     'is_active' => $data['is_active'],
                     'brand_id' => $data['brand_id'] ?? null,
                     'type_skin' => $data['type_skin'] ?? null,
@@ -223,13 +223,55 @@ class ProductServices {
 
     public function update($request, string $slug)
     {
+        DB::beginTransaction();
         try {
+            // Lấy data từ request
             $data = $request->all();
-            $product = Product::with(['brand','variants','variants.images'])
-                              ->where('slug', 'like', "%{$slug}%");
-                              dd($product->toRawSql());
-        } catch(Exception $e) {
 
+            // Tìm sản phẩm
+            $product = Product::where('slug', '=', $slug)
+                              ->first();
+
+            if(!$product) {
+                throw new ApiException('Không tìm thấy sản phẩm!!', 404);
+            }
+
+
+            // Update thông tin chung của product
+            $product->update([
+                'name' => $data['name'],
+                'slug' => $data['slug'],
+                'is_active' => $data['is_active'],
+                'brand_id' => $data['brand_id'],
+                'type_skin' => $data['type_skin'] ?? null,
+                'description' => $data['description'] ?? null,
+                'image' => $data['image'] ?? null,
+            ]);
+
+            DB::commit();
+
+            $variants = collect($data['variants'])->map(function ($variant) {
+                $variant['image'] = is_array($variant['image'] ?? null) ? $variant['image'] : [];
+                return $variant;
+            })->toArray();
+
+            // Đẩy variant vào queue để update
+            dispatch(new UpdateProductVariantsJob($product->id, $variants));
+
+            return $product;
+        } catch(ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        }
+        catch(Exception $e) {
+            DB::rollBack();
+            logger('Log bug update product',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Something went wrong!!!');
         }
     }
 

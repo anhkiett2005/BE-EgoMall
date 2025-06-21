@@ -72,9 +72,13 @@ class ProductController extends Controller
     public function update(UpdateProductRequest $request, string $slug)
     {
         try {
-            $this->productService->update($request, $slug);
-        } catch (ApiException $e) {
+            $isUpdated = $this->productService->update($request, $slug);
 
+            if($isUpdated) {
+                return ApiResponse::success('Cập nhật sản phẩm thành công');
+            }
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         }
     }
 

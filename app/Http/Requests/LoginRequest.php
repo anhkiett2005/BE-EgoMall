@@ -12,6 +12,13 @@ class LoginRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        $this->merge([
+            'account' => preg_replace('/\s+/', '', $this->account),
+        ]);
+    }
+
     public function rules(): array
     {
         return [
@@ -19,16 +26,15 @@ class LoginRequest extends FormRequest
                 'required',
                 'string',
                 function ($attribute, $value, $fail) {
-                    // Nếu có dấu @, coi là email
-                    if (Str::contains($value, '@')) {
-                        if (! filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                            $fail('Email không hợp lệ.');
-                        }
-                    }
-                    else {
-                        // Ngược lại coi là số điện thoại
-                        if (! preg_match('/^0[0-9]{9,10}$/', $value)) {
+                    if (preg_match('/^\d+$/', $value)) {
+                        // Là số thì check phải la so dien thoai
+                        if (!preg_match('/^0[0-9]{9,10}$/', $value)) {
                             $fail('Số điện thoại không hợp lệ.');
+                        }
+                    } else {
+                        // Là chuỗi thì check phải là email k
+                        if (!Str::contains($value, '@') && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                            $fail('Email không hợp lệ.');
                         }
                     }
                 },

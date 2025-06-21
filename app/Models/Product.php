@@ -14,7 +14,6 @@ class Product extends Model
         'name',
         'slug',
         'category_id',
-        'is_variable',
         'is_active',
         'brand_id',
         'type_skin',
@@ -27,7 +26,6 @@ class Product extends Model
     ];
 
     protected $casts = [
-        'is_variable' => 'boolean',
         'is_active' => 'boolean'
     ];
 

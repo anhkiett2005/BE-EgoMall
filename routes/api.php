@@ -63,7 +63,7 @@ Route::prefix('v1/admin')
             Route::get('/products', 'index')->name('admin.products.index');
             Route::get('/product/{slug}', 'show')->name('admin.product.show');
             Route::post('/products/create', 'store')->name('admin.products.store');
-            Route::patch('/products/{slug}','update')->name('admin.products.update');
+            Route::put('/products/{slug}','update')->name('admin.products.update');
         });
     });
 

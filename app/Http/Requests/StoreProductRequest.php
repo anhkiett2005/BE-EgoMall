@@ -32,7 +32,6 @@ class StoreProductRequest extends FormRequest
             // 'images.*' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'category_id' => 'required|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
-            'is_variable' => 'required|boolean|in:0,1',
             'is_active' => 'required|boolean|in:0,1',
             'type_skin' => 'nullable|string',
             'description' => 'nullable|string',
@@ -73,9 +72,9 @@ class StoreProductRequest extends FormRequest
 
             'brand_id.exists' => 'Thương hiệu không tồn tại.',
 
-            'is_variable.required' => 'Trường phân loại sản phẩm là bắt buộc.',
-            'is_variable.boolean' => 'Trường phân loại sản phẩm phải là true hoặc false.',
-            'is_variable.in' => 'Trường phân loại sản phẩm không hợp lệ.',
+            // 'is_variable.required' => 'Trường phân loại sản phẩm là bắt buộc.',
+            // 'is_variable.boolean' => 'Trường phân loại sản phẩm phải là true hoặc false.',
+            // 'is_variable.in' => 'Trường phân loại sản phẩm không hợp lệ.',
 
             'is_active.required' => 'Trạng thái hoạt động là bắt buộc.',
             'is_active.boolean' => 'Trạng thái hoạt động phải là true hoặc false.',
