@@ -15,9 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Nếu muốn thêm middleware toàn cục, dùng $middleware->push(...)
         // JWT middleware sẽ được gọi trực tiếp trong routes/api.php thông qua class name
         $middleware->alias([
-        'role'       => \App\Http\Middleware\RoleMiddleware::class,
-        'permission' => \App\Http\Middleware\PermissionMiddleware::class,
-    ]);
+            'role'       => \App\Http\Middleware\RoleMiddleware::class,
+            'permission' => \App\Http\Middleware\PermissionMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Cấu hình xử lý ngoại lệ

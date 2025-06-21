@@ -224,7 +224,10 @@ class ProductServices {
     public function update($request, string $slug)
     {
         try {
+            $data = $request->all();
             $product = Product::with(['brand','variants','variants.images'])
+                              ->where('slug', 'like', "%{$slug}%");
+                              dd($product->toRawSql());
         } catch(Exception $e) {
 
         }

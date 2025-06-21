@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
 use App\Response\ApiResponse;
 use App\Services\ProductServices;
@@ -68,9 +69,13 @@ class ProductController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateProductRequest $request, string $slug)
     {
-        //
+        try {
+            $this->productService->update($request, $slug);
+        } catch (ApiException $e) {
+
+        }
     }
 
     /**

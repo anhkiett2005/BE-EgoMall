@@ -99,39 +99,46 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $account = $request->input('account');
-        $password = $request->input('password');
-
-        // Tìm user theo email hoặc phone
-        $user = User::where('email', $account)
-            ->orWhere('phone', $account)
-            ->first();
-
-        if (! $user || ! \Illuminate\Support\Facades\Hash::check($password, $user->password)) {
-            return response()->json(['error' => 'Email/SĐT hoặc mật khẩu không đúng'], 401);
-        }
 
         try {
+            $account = $request->input('account');
+            $password = $request->input('password');
+
+            // Tìm user theo email hoặc phone
+            $user = User::where('email', $account)
+                ->orWhere('phone', $account)
+                ->first();
+
+            // check tài khoản có hoạt động không
+            if($user && !$user->is_active !== true) {
+                throw new ApiException('Tài khoản không tồn tại, vui lòng liên hệ adminstrator', 401);
+            }
+
+            if (! $user || ! \Illuminate\Support\Facades\Hash::check($password, $user->password)) {
+                throw new ApiException('Email/SĐT hoặc mật khẩu không đúng', 401);
+            }
+
+            // Tạo phiên đăng nhập
             $token = JWTAuth::fromUser($user);
+
+            $cookie = new Cookie(
+                'token',
+                $token,
+                now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+                '/',
+                null,
+                config('app.env') === 'production',
+                true,
+                false,
+                Cookie::SAMESITE_LAX
+            );
+
+            return ApiResponse::success('Đăng nhập thành công')->withCookie($cookie);
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         } catch (JWTException $e) {
-            return response()->json(['error' => 'Không thể tạo token'], 500);
+            return ApiResponse::error('Có lỗi xảy ra');
         }
-
-        $cookie = new Cookie(
-            'token',
-            $token,
-            now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
-            '/',
-            null,
-            config('app.env') === 'production',
-            true,
-            false,
-            Cookie::SAMESITE_LAX
-        );
-
-        return (new UserResource($user))
-            ->response()
-            ->withCookie($cookie);
     }
 
 
@@ -325,13 +332,13 @@ class AuthController extends Controller
     public function refresh(): JsonResponse
     {
         try {
-            $newToken = JWTAuth::refresh();
+            $newToken = JWTAuth::parseToken()->refresh();
+
+            $cookie = new Cookie('token', $newToken, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            return ApiResponse::success()->withCookie($cookie);
         } catch (JWTException $e) {
-            return response()->json(['error' => 'Không thể refresh token'], 500);
+            return ApiResponse::error('Có lỗi xảy ra, vui lòng thử lại', 500);
         }
-        $user = JWTAuth::authenticate($newToken);
-        $cookie = new Cookie('token', $newToken, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
-        return (new UserResource($user))->response()->withCookie($cookie);
     }
 
     /**
