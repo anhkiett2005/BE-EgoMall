@@ -58,6 +58,7 @@ Route::prefix('v1/front')
 
 Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
+    ->middleware([JwtCookieAuth::class, Authenticate::class, 'role:admin,super-admin','permission:manage-products'])
     ->group(function () {
         Route::controller('ProductController')->group(function () {
             Route::get('/products', 'index')->name('admin.products.index');
