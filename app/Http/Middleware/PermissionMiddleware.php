@@ -8,7 +8,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class PermissionMiddleware
 {
-    public function handle(Request $request, Closure $next, string $permissionName): Response
+    public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
         $user = $request->user();
 
@@ -16,13 +16,24 @@ class PermissionMiddleware
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        // Nếu là super-admin => luôn được phép
+        // Super-admin được phép tất cả
         if ($user->role->name === 'super-admin') {
             return $next($request);
         }
 
-        // Nếu role không có permission cần thiết
-        if (!$user->role->permissions->contains('name', $permissionName)) {
+        // Lấy danh sách quyền của role hiện tại
+        $userPermissions = $user->role->permissions->pluck('name')->toArray();
+
+        // Kiểm tra xem có ít nhất 1 quyền khớp
+        $hasPermission = false;
+        foreach ($permissions as $requiredPermission) {
+            if (in_array($requiredPermission, $userPermissions)) {
+                $hasPermission = true;
+                break;
+            }
+        }
+
+        if (!$hasPermission) {
             return response()->json(['message' => 'Forbidden: Permission denied.'], 403);
         }
 
