@@ -143,6 +143,11 @@ class AuthController extends Controller
             $user = User::where('google_id', $googleUser->getId())
                         ->orWhere('email', $googleUser->getEmail())->first();
 
+            // check nếu tài khoản này đã login bằng facebook rồi thì trả về lỗi duplicate email
+            if($user && $user->facebook_id !== null) {
+                throw new ApiException("Email {$user->email} đã được sử dụng bởi một phương thức đăng nhập khác " . ucfirst('google'), 409);
+            }
+
             if(!$user) {
                 // nếu ch có tạo mới tài khoản
                 $user = User::create([
@@ -160,7 +165,10 @@ class AuthController extends Controller
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
             return ApiResponse::success('Login successfully')->withCookie($cookie);
-        } catch(Exception $e) {
+        } catch(ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
+        catch(Exception $e) {
             logger('Log bug',[
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
@@ -195,7 +203,14 @@ class AuthController extends Controller
         try {
             $facebookUser = Socialite::driver('facebook')->stateless()->user();
 
-            $user = User::where('facebook_id', $facebookUser->getId())->first();
+            $user = User::where('facebook_id', $facebookUser->getId())
+                        ->orWhere('email', $facebookUser->getEmail())
+                        ->first();
+
+            // check nếu tài khoản này đã login bằng google rồi thì trả về lỗi duplicate email
+            if($user && $user->google_id !== null) {
+                throw new ApiException("Email {$user->email} đã được sử dụng bởi một phương thức đăng nhập khác " . ucfirst('facebook'), 409);
+            }
 
             if(!$user) {
                // nếu ch código tạo mới tài khoản
@@ -214,6 +229,8 @@ class AuthController extends Controller
             $token = JWTAuth::fromUser($user);
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
             return ApiResponse::success('Login successfully')->withCookie($cookie);
+        } catch(ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         } catch(Exception $e) {
             logger('Log bug',[
                 'error_message' => $e->getMessage(),
@@ -232,10 +249,11 @@ class AuthController extends Controller
     {
         try {
             $user = JWTAuth::user();
+            $info = (new UserResource($user))->toArray(request());
         } catch (JWTException $e) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
-        return (new UserResource($user))->response();
+        return ApiResponse::success('Lấy thông tin thành công!!',data: $info);
     }
 
     /**

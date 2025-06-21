@@ -79,6 +79,11 @@ class User extends Authenticatable implements JWTSubject
         return [];
     }
 
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
+
     public function blogs()
     {
         return $this->hasMany(Blog::class, 'author_id');
