@@ -21,7 +21,6 @@ return new class extends Migration
             $table->string('phone')->nullable()->comment('Số điện thoại người dùng');
             $table->string('google_id')->nullable()->comment('Lưu Google OAuth ID nếu đăng nhập bằng Google');
             $table->string('facebook_id')->nullable()->comment('Lưu Facebook OAuth ID nếu đăng nhập bằng Facebook');
-            $table->text('address')->nullable()->comment('Địa chỉ người dùng');
             $table->string('image')->nullable()->comment('URL hoặc đường dẫn avatar người dùng');
 
             // Quan hệ role (foreign key)

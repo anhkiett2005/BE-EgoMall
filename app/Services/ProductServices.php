@@ -16,6 +16,9 @@ use Illuminate\Support\Str;
 
 class ProductServices {
 
+    /**
+     * Lấy toàn bộ danh sách products
+     */
     public function modifyIndex()
     {
         $products = Product::with(['category','brand','images','variants'])
@@ -77,6 +80,9 @@ class ProductServices {
         return $result;
     }
 
+    /**
+     * Tạo mới một product
+     */
     public function store($request)
     {
         $data = $request->all();
@@ -161,6 +167,9 @@ class ProductServices {
 
     }
 
+    /**
+     * Show chi tiết một product
+     */
     public static function showProduct(string $slug): ?array
     {
         // Tìm theo slug của sản phẩm chính
@@ -221,6 +230,9 @@ class ProductServices {
         return null;
     }
 
+    /**
+     * Cập nhật một product
+     */
     public function update($request, string $slug)
     {
         DB::beginTransaction();
@@ -275,4 +287,41 @@ class ProductServices {
         }
     }
 
+    /**
+     * Xóa một product
+     */
+    public function destroy(string $slug)
+    {
+        DB::beginTransaction();
+
+        try {
+            // Tìm sản phẩm muốn xóa
+            $product = Product::where('slug', '=', $slug)
+                              ->first();
+
+            // Nếu không tìm thấy trả về lỗi
+            if(!$product) {
+                throw new ApiException('Không tìm thấy sản phẩm!!', 404);
+            }
+
+            // Xóa product
+            $product->delete();
+
+            DB::commit();
+
+            return $product;
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (Exception $e) {
+            DB::rollBack();
+            logger('Log bug delete product',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Something went wrong!!!');
+        }
+    }
 }

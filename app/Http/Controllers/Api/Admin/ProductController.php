@@ -29,10 +29,7 @@ class ProductController extends Controller
     {
         $products = $this->productService->modifyIndex();
 
-        return response()->json([
-            'message' => 'Data Fetched Successfully',
-            'data' => $products
-        ]);
+        return ApiResponse::success('Lấy danh sách sản phẩm thành công!!',data: $products);
     }
 
     /**
@@ -85,8 +82,16 @@ class ProductController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(string $slug)
     {
-        //
+        try {
+            $isDeleted = $this->productService->destroy($slug);
+
+            if($isDeleted) {
+                return ApiResponse::success('Xóa sản phẩm thành công!!');
+            }
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
     }
 }

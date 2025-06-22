@@ -17,8 +17,10 @@ return new class extends Migration
             $table->integer('total_price');
             $table->enum('status', ['ordered', 'confirmed', 'shipping', 'delivered','cancelled','return_sales'])->default('ordered');
             $table->string('note');
-            $table->string('shipping_address');
+            $table->string('shipping_name');
             $table->string('shipping_phone');
+            $table->string('shipping_email');
+            $table->string('shipping_address');
             $table->string('payment_method');
             $table->string('payment_status');
             $table->timestamp('payment_date');

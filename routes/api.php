@@ -65,6 +65,7 @@ Route::prefix('v1/admin')
             Route::get('/product/{slug}', 'show')->name('admin.product.show');
             Route::post('/products/create', 'store')->name('admin.products.store');
             Route::put('/products/{slug}','update')->name('admin.products.update');
+            Route::delete('/products/{slug}','destroy')->name('admin.products.destroy');
         });
     });
 
