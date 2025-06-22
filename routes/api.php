@@ -60,12 +60,18 @@ Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
     ->middleware([JwtCookieAuth::class, Authenticate::class, 'role:admin,super-admin','permission:manage-products'])
     ->group(function () {
+        // Routes API Product
         Route::controller('ProductController')->group(function () {
             Route::get('/products', 'index')->name('admin.products.index');
             Route::get('/product/{slug}', 'show')->name('admin.product.show');
             Route::post('/products/create', 'store')->name('admin.products.store');
             Route::put('/products/{slug}','update')->name('admin.products.update');
             Route::delete('/products/{slug}','destroy')->name('admin.products.destroy');
+        });
+
+        // Routes API Promotion
+        Route::controller('PromotionController')->group(function() {
+            Route::get('/promotions','index')->name('admin.promotions.index');
         });
     });
 

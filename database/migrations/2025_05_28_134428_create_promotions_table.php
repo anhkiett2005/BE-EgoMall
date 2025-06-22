@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('promotion_type')->comment('Loại khuyến mãi: % hoặc quà tặng');
             $table->string('discount_type')->nullable()->comment('Loại giảm: phần trăm hoặc số tiền');
             $table->decimal('discount_value', 10, 2)->nullable();
-            $table->date('start_date');
-            $table->date('end_date');
+            $table->dateTime('start_date');
+            $table->dateTime('end_date');
             $table->boolean('status')->default(true);
             $table->integer('buy_quantity')->nullable();
             $table->integer('get_quantity')->nullable();
