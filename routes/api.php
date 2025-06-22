@@ -72,6 +72,7 @@ Route::prefix('v1/admin')
         // Routes API Promotion
         Route::controller('PromotionController')->group(function() {
             Route::get('/promotions','index')->name('admin.promotions.index');
+            Route::get('/promotion/{id}', 'show')->name('admin.promotions.show');
         });
     });
 

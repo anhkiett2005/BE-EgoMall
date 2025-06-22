@@ -46,7 +46,15 @@ class PromotionController extends Controller
      */
     public function show(string $id)
     {
-        //
+        try {
+            $promotion = $this->promotionServices->show($id);
+
+            if($promotion) {
+                return ApiResponse::success('Lấy thông tin chương trình thành công!!',data: $promotion);
+            }
+        } catch(ApiException $e) {
+            return ApiResponse::error($e->getMessage(),$e->getCode(),$e->getErrors());
+        }
     }
 
     /**
