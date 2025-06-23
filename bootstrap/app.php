@@ -17,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role'       => \App\Http\Middleware\RoleMiddleware::class,
             'permission' => \App\Http\Middleware\PermissionMiddleware::class,
+            'inject.api.auth.header' => \App\Http\Middleware\JwtCookieAuth::class,
+            'api.auth.check' => \App\Http\Middleware\ApiAuthMiddleware::class
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

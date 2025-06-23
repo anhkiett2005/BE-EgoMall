@@ -58,7 +58,7 @@ Route::prefix('v1/front')
 
 Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
-    ->middleware([JwtCookieAuth::class, Authenticate::class, 'role:admin,super-admin','permission:manage-products'])
+    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin','permission:manage-products'])
     ->group(function () {
         // Routes API Product
         Route::controller('ProductController')->group(function () {
@@ -93,7 +93,7 @@ Route::prefix('v1/auth')->group(function () {
     Route::get('redirect/facebook', [AuthController::class, 'redirectToFacebook']);
     Route::get('callback/facebook', [AuthController::class, 'handleFacebookCallback']);
 
-    Route::middleware([JwtCookieAuth::class, Authenticate::class])->group(function () {
+    Route::middleware(['inject.api.auth.header', 'api.auth.check'])->group(function () {
         Route::get('user',    [AuthController::class, 'user']);
         Route::post('user',    [AuthController::class, 'update']);
         Route::post('change-password', [AuthController::class, 'changePassword']);

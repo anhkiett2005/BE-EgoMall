@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Response\ApiResponse;
 use Closure;
 use Illuminate\Http\Request; // Thêm Request nếu cần
 use Symfony\Component\HttpFoundation\Response; // Thêm Response nếu cần
@@ -13,8 +14,11 @@ class JwtCookieAuth
      */
     public function handle($request, Closure $next)
     {
-        if ($token = $request->cookie('token')) {
+        $token = $request->cookie('token');
+        if ($token) {
             $request->headers->set('Authorization', 'Bearer ' . $token);
+        } else {
+            return ApiResponse::error('Không thể xác thực!!', Response::HTTP_UNAUTHORIZED);
         }
         return $next($request);
     }
