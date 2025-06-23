@@ -56,10 +56,7 @@ class ProductController extends Controller
         $product = $this->productService->showProduct($slug);
 
         if($product) {
-            return response()->json([
-                'message' => 'Data Fetched Successfully',
-                'data' => $product
-            ]);
+            return ApiResponse::success('Lấy chi tiết sản phẩm thành công!!',data: $product);
         }
     }
 
