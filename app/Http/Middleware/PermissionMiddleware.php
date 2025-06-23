@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Response\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -10,7 +11,7 @@ class PermissionMiddleware
 {
     public function handle(Request $request, Closure $next, string ...$permissions): Response
     {
-        $user = $request->user();
+        $user = auth('api')->user();
 
         if (!$user) {
             return response()->json(['message' => 'Unauthorized.'], 403);
@@ -34,7 +35,7 @@ class PermissionMiddleware
         }
 
         if (!$hasPermission) {
-            return response()->json(['message' => 'Forbidden: Permission denied.'], 403);
+            return ApiResponse::error('Cấm: Quyền truy cập bị từ chối!!', Response::HTTP_FORBIDDEN);
         }
 
         return $next($request);
