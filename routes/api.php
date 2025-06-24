@@ -58,7 +58,7 @@ Route::prefix('v1/front')
 
 Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
-    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin','permission:manage-products'])
+    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin','permission:manage-products,manage-categories'])
     ->group(function () {
         // Routes API Product
         Route::controller('ProductController')->group(function () {
@@ -67,6 +67,16 @@ Route::prefix('v1/admin')
             Route::post('/products/create', 'store')->name('admin.products.store');
             Route::put('/products/{slug}','update')->name('admin.products.update');
             Route::delete('/products/{slug}','destroy')->name('admin.products.destroy');
+        });
+
+        // Routes API Category
+        Route::controller('CategoryController')->group(function () {
+            Route::get('/categories', 'index')->name('admin.categories.index');
+        });
+
+        // Routes API Brand
+        Route::controller('BrandController')->group(function () {
+            Route::get('/brands', 'index')->name('admin.brands.index');
         });
 
         // Routes API Promotion

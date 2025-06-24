@@ -27,6 +27,11 @@ class Brand extends Model
         'is_featured' => 'boolean'
     ];
 
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', '!=', 0);
+    }
+
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', '!=', 0);
