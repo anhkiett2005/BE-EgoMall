@@ -69,6 +69,7 @@ class AuthController extends Controller
         $user->is_active = true;
         $user->otp = null;
         $user->otp_expires_at = null;
+        $user->otp_sent_count = 0;
         $user->save();
 
         // Cấp JWT
@@ -346,20 +347,20 @@ class AuthController extends Controller
      */
     public function resendOtp(ResendOtpRequest $request): JsonResponse
     {
-        // 1. Validate email
-        $request->validate([
-            'email' => 'required|email|exists:users,email',
-        ]);
-
-        // 2. Lấy user
+        // Lấy user
         $user = User::where('email', $request->email)->first();
+
+        // Kiểm tra user nếu đã xác thục rồi không cho resend lại OTP
+        if($user->is_active !== false) {
+            throw new ApiException('Tài khoản đã được kích hoạt, không thể gửi lại OTP!!',409);
+        }
 
         $now   = now();
         $start = $user->otp_sent_at ?? $now;
         $count = $user->otp_sent_count;
 
         // Nếu đã qua 1 giờ kể từ otp_sent_at, reset quota
-        if ($start->diffInMinutes($now) >= 60) {
+        if ($start->diffInMinutes($now) >= 5) {
             $user->otp_sent_count = 0;
             $user->otp_sent_at    = $now;
             $count = 0;
@@ -367,10 +368,8 @@ class AuthController extends Controller
 
         // 3. Kiểm quota gửi lại
         if ($count >= 3) {
-            $remaining = 60 - $start->diffInMinutes($now);
-            return response()->json([
-                'error' => "Bạn đã gửi quá 3 lần. Vui lòng thử lại sau {$remaining} phút."
-            ], 429);
+            // $remaining = 60 - $start->diffInMinutes($now);
+            throw new ApiException("Bạn đã gửi quá 3 lần. Vui lòng thử lại sau 5 phút.", 429);
         }
 
         // 4. Sinh OTP mới & cập nhật TTL, quota
@@ -386,9 +385,7 @@ class AuthController extends Controller
         // 5. Gửi mail OTP
         $user->notify(new OtpNotification($otp, 5));
 
-        return response()->json([
-            'message' => 'OTP mới đã được gửi. Vui lòng kiểm tra email.'
-        ], 200);
+        return ApiResponse::success('OTP mới đã được gửi. Vui lòng kiểm tra email.');
     }
 
     /**

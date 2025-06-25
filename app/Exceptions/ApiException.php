@@ -20,7 +20,7 @@ class ApiException extends Exception
 
     public function render($request): JsonResponse
     {
-        return ApiResponse::error($this->message, $this->errors, $this->statusCode);
+        return ApiResponse::error($this->message,$this->statusCode , $this->errors);
     }
 
     public function getErrors()
