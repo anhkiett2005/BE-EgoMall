@@ -34,7 +34,7 @@ class AuthController extends Controller
     {
         $data = $request->validated();
         $data['password'] = Hash::make($data['password']);
-        $data['role_id'] = User::where('name', 'customer')->first()->id ?? 16; // Lấy role_id của customer
+        $data['role_id'] = User::where('name', 'customer')->first()->id ?? 4; // Lấy role_id của customer
 
         // Tạo user, is_active mặc định false
         $user = User::create(array_merge($data, ['is_active' => false]));
