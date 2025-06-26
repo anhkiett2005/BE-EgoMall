@@ -19,11 +19,11 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH' , 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => [env('FRONTEND_URL')],
+    'allowed_origins' => ['http://localhost:3000'],
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Content-Type', 'X-Requested-With', 'Accept'],
+    'allowed_headers' => ['*'],
 
     'exposed_headers' => [],
 
