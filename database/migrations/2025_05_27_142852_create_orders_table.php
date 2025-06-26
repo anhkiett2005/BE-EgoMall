@@ -24,7 +24,8 @@ return new class extends Migration
             $table->string('payment_method');
             $table->string('payment_status');
             $table->timestamp('payment_date');
-            $table->string('transaction_id');
+            $table->string('transaction_id')->nullable();
+            $table->foreignId('coupon_id')->nullable()->references('id')->on('coupons')->nullOnDelete();
             $table->timestamp('created_at');
         });
     }
