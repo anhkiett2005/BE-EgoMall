@@ -24,7 +24,7 @@ class CategoryController extends Controller
                                 ->get()
                                 ->map(function ($category) {
                                     $category->children->each(function ($child) {
-                                        $child->makeHidden(['created_at', 'updated_at','parent_id','type']);
+                                        $child->makeHidden(['created_at', 'updated_at','parent_id']);
                                     });
                                     return $category;
                                 });
