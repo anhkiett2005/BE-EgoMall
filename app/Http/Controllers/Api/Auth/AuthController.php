@@ -131,7 +131,7 @@ class AuthController extends Controller
                 config('app.env') === 'production',
                 true,
                 false,
-                // Cookie::SAMESITE_NONE
+                Cookie::SAMESITE_LAX
             );
 
             return ApiResponse::success('Đăng nhập thành công')->withCookie($cookie);
