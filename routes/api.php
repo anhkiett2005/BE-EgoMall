@@ -56,7 +56,7 @@ Route::prefix('v1/front')
 
         // Routes API Coupon
         Route::controller('CouponController')->group(function () {
-            Route::get('/coupons', 'index');
+            Route::get('/vouchers', 'index');
         });
     });
 

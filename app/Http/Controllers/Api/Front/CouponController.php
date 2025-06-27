@@ -36,14 +36,14 @@ class CouponController extends Controller
                         'code' => $coupon->code,
                         'description' => $coupon->description,
                         'discount_type' => $coupon->discount_type,
-                        'discount_value' => $coupon->discount_value,
-                        'conditions' => $coupon->min_order_value,
+                        'discount_value' => (int) $coupon->discount_value,
+                        'conditions' => (int) $coupon->min_order_value,
                         'end_date' => $coupon->end_date->format('d-m-Y H:i'),
                     ];
 
                     // Nếu loại là percent thì thêm max_discount
                     if ($coupon->discount_type === 'percent') {
-                        $data['max_discount'] = $coupon->max_discount;
+                        $data['max_discount'] = (int) $coupon->max_discount;
                     }
 
                     $listCoupon->push($data);
