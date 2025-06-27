@@ -43,7 +43,7 @@ class UpdateProductVariantsJob implements ShouldQueue
                 $model = $product->variants->firstWhere('id','=',$data['id']);
 
                 if($model) {
-                    $model->update([
+                    $model->updateOrInsert([
                         'sku' => $data['sku'],
                         'price' => $data['price'],
                         'sale_price' => $data['sale_price'],
@@ -60,7 +60,7 @@ class UpdateProductVariantsJob implements ShouldQueue
                         foreach ($images as $img) {
                             $imageRecord = $model->images->firstWhere('id', $img['id']);
                             if ($imageRecord) {
-                                $imageRecord->update([
+                                $imageRecord->updateOrInsert([
                                     'image_url' => $img['url']
                                 ]);
                             }

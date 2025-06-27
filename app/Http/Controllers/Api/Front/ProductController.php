@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Front;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Product;
@@ -18,141 +19,152 @@ class ProductController extends Controller
      */
     public function index()
     {
-        // lấy product and các vairant và đánh giá trung bình review về sản phẩm này and filter
-        $request = request();
-        $sub = DB::table('product_variants')
-                 ->selectRaw('MAX(COALESCE(sale_price, price))')
-                 ->whereColumn('product_variants.product_id', 'products.id');
+        try {
+            // lấy product and các vairant và đánh giá trung bình review về sản phẩm này and filter
+            $request = request();
+            $sub = DB::table('product_variants')
+                    ->selectRaw('MAX(COALESCE(sale_price, price))')
+                    ->whereColumn('product_variants.product_id', 'products.id');
 
-        $query = Product::query()
-                ->select('*')
-                ->selectSub($sub, 'max_price')
-                ->with([
-                    'category',
-                    'brand',
-                    'variants' => function($query) {
-                        $query->where('is_active', '!=', 0)
-                            ->with([
-                                'images',
-                                'values.variantValue.option',
-                                'orderDetails.order.review'
-                            ]);
-                    }
-                ])
-                ->where('is_active', '!=', 0);
+            $query = Product::query()
+                    ->select('*')
+                    ->selectSub($sub, 'max_price')
+                    ->with([
+                        'category',
+                        'brand',
+                        'variants' => function($query) {
+                            $query->where('is_active', '!=', 0)
+                                ->with([
+                                    'images',
+                                    'values.variantValue.option',
+                                    'orderDetails.order.review'
+                                ]);
+                        }
+                    ])
+                    ->where('is_active', '!=', 0);
 
-        // Lọc theo category
-        if($request->has('category')) {
-            $query->where('category_id', '=', $request->category);
-        }
-
-        // Lọc theo brand (nếu có từ fe)
-        if($request->has('brand')) {
-            $query->where('brand_id', '=', $request->brand);
-        }
-
-        // Lọc theo loại da
-        if($request->has('type_skin')) {
-            $query->where('type_skin', '=', $request->type_skin);
-        }
-
-        // Lọc theo loại sản phẩm
-        if ($request->filled('type')) {
-            $type = $request->type;
-
-            $query->where(function ($q) use ($type) {
-                // Sản phẩm có tên giống từ khoá
-                $q->where('name', 'like', '%' . $type . '%')
-
-                // Hoặc thuộc danh mục (cha hoặc con) có tên giống từ khoá
-                ->orWhereHas('category', function ($catQ) use ($type) {
-                    $catQ->where('name', 'like', '%' . $type . '%');
-                });
-            });
-        }
-
-        // lọc theo mức giá từ min-> max
-        if($request->filled('price_range')) {
-            //Xử lý tách giá min và max
-            [$min, $max] = array_map('intval',explode('-', $request->price_range));
-            $query->whereHas('variants', function ($q) use($min, $max) {
-               $q->where(function($subQ) use($min, $max) {
-                   $subQ->where(function($hasSalePriceQ) use($min, $max) {
-                        // nếu có sale_price  thì lọc theo giá sale vì variant áp dụng theo giá sale
-                        $hasSalePriceQ->whereNotNull('sale_price')
-                                      ->whereBetween('sale_price', [$min, $max]);
-                   })
-                   ->orWhere(function($noSalePriceQ) use($min, $max) {
-                        // nếu sale_price null thì lọc theo price
-                        $noSalePriceQ->whereNull('sale_price')
-                                     ->whereBetween('price', [$min, $max]);
-                   });
-               });
-            });
-        }
-
-        // Sort theo các tiêu chí
-        if($request->has('sort')) {
-            $this->sortProduct($request, $query);
-        }
-
-
-
-        // xử lý dữ liệu và trả về
-        $products = $query->get();
-
-
-
-        $productLists = $products->map(function($product): array {
-            $allReviews = collect();
-
-            foreach ($product->variants as $variant) {
-                foreach ($variant->orderDetails as $detail) {
-                    if ($detail->order && $detail->order->review) {
-                        $allReviews->push($detail->order->review);
-                    }
-                }
+            // Lọc theo category
+            if($request->has('category')) {
+                $query->where('category_id', '=', $request->category);
             }
 
-            $averageRating = $allReviews->avg('rating') ?? 0;
-            $reviewCount = $allReviews->count();
+            // Lọc theo brand (nếu có từ fe)
+            if($request->has('brand')) {
+                $query->where('brand_id', '=', $request->brand);
+            }
 
-            return [
-                'id' => $product->id,
-                'name' => $product->name,
-                'slug' => $product->slug,
-                'category' => $product->category->id,
-                'brand' => $product->brand->id ?? null,
-                'type_skin' => $product->type_skin ?? null,
-                'description' => $product->description ?? null,
-                'image' => $product->image ?? null,
-                'average_rating' => $averageRating,
-                'review_count' => $reviewCount,
-                'variants' => $product->variants->map(function($variant) {
-                    return [
-                        'id' => $variant->id,
-                        'sku' => $variant->sku,
-                        'price' => $variant->price,
-                        'sale_price' => $variant->sale_price,
-                        'options' => $variant->values->map(function ($value) {
-                            return [
-                                'name' => $value->variantValue->option->name,
-                                'value' => $value->variantValue->value
-                            ];
-                        })->values(),
-                    ];
-                })->values(),
-            ];
-        });
+            // Lọc theo loại da
+            if($request->has('type_skin')) {
+                $query->where('type_skin', '=', $request->type_skin);
+            }
 
-        return ApiResponse::success('Lấy danh sách sản phẩm thành công!!', data: $productLists);
+            // Lọc theo loại sản phẩm
+            if ($request->filled('type')) {
+                $type = $request->type;
+
+                $query->where(function ($q) use ($type) {
+                    // Sản phẩm có tên giống từ khoá
+                    $q->where('name', 'like', '%' . $type . '%')
+
+                    // Hoặc thuộc danh mục (cha hoặc con) có tên giống từ khoá
+                    ->orWhereHas('category', function ($catQ) use ($type) {
+                        $catQ->where('name', 'like', '%' . $type . '%');
+                    });
+                });
+            }
+
+            // lọc theo mức giá từ min-> max
+            if($request->filled('price_range')) {
+                //Xử lý tách giá min và max
+                [$min, $max] = array_map('intval',explode('-', $request->price_range));
+                $query->whereHas('variants', function ($q) use($min, $max) {
+                $q->where(function($subQ) use($min, $max) {
+                    $subQ->where(function($hasSalePriceQ) use($min, $max) {
+                            // nếu có sale_price  thì lọc theo giá sale vì variant áp dụng theo giá sale
+                            $hasSalePriceQ->whereNotNull('sale_price')
+                                        ->whereBetween('sale_price', [$min, $max]);
+                    })
+                    ->orWhere(function($noSalePriceQ) use($min, $max) {
+                            // nếu sale_price null thì lọc theo price
+                            $noSalePriceQ->whereNull('sale_price')
+                                        ->whereBetween('price', [$min, $max]);
+                    });
+                });
+                });
+            }
+
+            // Sort theo các tiêu chí
+            if($request->has('sort')) {
+                $this->sortProduct($request, $query);
+            }
+
+
+
+            // xử lý dữ liệu và trả về
+            $products = $query->get();
+
+
+
+            $productLists = $products->map(function($product): array {
+                $allReviews = collect();
+
+                foreach ($product->variants as $variant) {
+                    foreach ($variant->orderDetails as $detail) {
+                        if ($detail->order && $detail->order->review) {
+                            $allReviews->push($detail->order->review);
+                        }
+                    }
+                }
+
+                $averageRating = $allReviews->avg('rating') ?? 0;
+                $reviewCount = $allReviews->count();
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'category' => $product->category->id,
+                    'brand' => $product->brand->id ?? null,
+                    'type_skin' => $product->type_skin ?? null,
+                    'description' => $product->description ?? null,
+                    'image' => $product->image ?? null,
+                    'average_rating' => $averageRating,
+                    'review_count' => $reviewCount,
+                    'variants' => $product->variants->map(function($variant) {
+                        return [
+                            'id' => $variant->id,
+                            'sku' => $variant->sku,
+                            'price' => $variant->price,
+                            'sale_price' => $variant->sale_price,
+                            'options' => $variant->values->map(function ($value) {
+                                return [
+                                    'name' => $value->variantValue->option->name,
+                                    'value' => $value->variantValue->value
+                                ];
+                            })->values(),
+                        ];
+                    })->values(),
+                ];
+            });
+
+            return ApiResponse::success('Lấy danh sách sản phẩm thành công!!', data: $productLists);
+        } catch(\Exception $e) {
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!');
+        }
     }
 
 
 
     public function show($slug)
     {
-        $product = Product::with([
+        try {
+            $product = Product::with([
             'brand',
             'variants' => function ($query) {
                 $query->where('is_active', '!=', 0)
@@ -293,6 +305,15 @@ class ProductController extends Controller
         ]);
 
         return ApiResponse::success('Data fetched successfully', data: $listDetails);
+        } catch(\Exception $e) {
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!');
+        }
     }
 
 

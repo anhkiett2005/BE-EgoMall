@@ -24,6 +24,7 @@ use App\Http\Requests\ResetPasswordWithOtpRequest;
 use App\Response\ApiResponse;
 use Exception;
 use Laravel\Socialite\Facades\Socialite;
+use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
 {
@@ -32,27 +33,35 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request): JsonResponse
     {
-        $data = $request->validated();
-        $data['password'] = Hash::make($data['password']);
-        $data['role_id'] = User::where('name', 'customer')->first()->id ?? 4; // Lấy role_id của customer
+        try {
+            $data = $request->all();
+            $data['password'] = Hash::make($data['password']);
+            $data['role_id'] = User::where('name', 'customer')->first()->id ?? 4; // Lấy role_id của customer
 
-        // Tạo user, is_active mặc định false
-        $user = User::create(array_merge($data, ['is_active' => false]));
+            // Tạo user, is_active mặc định false
+            $user = User::create(array_merge($data, ['is_active' => false]));
 
-        // Sinh OTP 6 chữ số
-        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $user->otp = $otp;
-        $user->otp_expires_at = now()->addMinutes(5);
-        $user->otp_sent_count = 1;
-        $user->otp_sent_at = now();
-        $user->save();
+            // Sinh OTP 6 chữ số
+            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $user->otp = $otp;
+            $user->otp_expires_at = now()->addMinutes(5);
+            $user->otp_sent_count = 1;
+            $user->otp_sent_at = now();
+            $user->save();
 
-        // Gửi mail OTP
-        $user->notify(new OtpNotification($otp, 5));
+            // Gửi mail OTP
+            $user->notify(new OtpNotification($otp, 5));
 
-        return response()->json([
-            'message' => 'OTP đã được gửi về email của bạn. Vui lòng kiểm tra.'
-        ]);
+            return ApiResponse::success('OTP đã được gửi về email của bạn. Vui lòng kiểm tra.');
+        } catch (\Exception $e) {
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!');
+        }
     }
 
     /**
@@ -60,25 +69,25 @@ class AuthController extends Controller
      */
     public function verifyOtp(VerifyOtpRequest $request): JsonResponse
     {
-        $user = User::where('email', $request->email)->first();
-        if (!$user || $user->otp !== $request->otp || now()->gt($user->otp_expires_at)) {
-            return response()->json(['error' => 'OTP không hợp lệ hoặc đã hết hạn'], 422);
-        }
 
-        // Kích hoạt user
-        $user->is_active = true;
-        $user->otp = null;
-        $user->otp_expires_at = null;
-        $user->otp_sent_count = 0;
-        $user->save();
-
-        // Cấp JWT
         try {
+            // Check OTP
+            $user = User::where('email', $request->email)->first();
+            if (!$user || $user->otp !== $request->otp || now()->gt($user->otp_expires_at)) {
+                return ApiResponse::error('OTP không hợp lệ hoặc đã hết hạn!!', Response::HTTP_UNAUTHORIZED);
+            }
+
+            // Kích hoạt user
+            $user->is_active = true;
+            $user->otp = null;
+            $user->otp_expires_at = null;
+            $user->otp_sent_count = 0;
+            $user->save();
+
+            // Cấp JWT
             $token = JWTAuth::fromUser($user);
-        } catch (JWTException $e) {
-            return response()->json(['error' => 'Không thể tạo token'], 500);
-        }
-        $cookie = new Cookie(
+
+            $cookie = new Cookie(
             'token',
             $token,
             now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
@@ -90,9 +99,24 @@ class AuthController extends Controller
             Cookie::SAMESITE_LAX
         );
 
-        return (new UserResource($user))
-            ->response()
-            ->withCookie($cookie);
+        return ApiResponse::success('Xác thực OTP thành công!!')->withCookie($cookie);
+        } catch (JWTException $e) {
+            logger('Log bug create auth token verify otp',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!');
+        } catch (\Exception $e) {
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!');
+        }
     }
 
     /**
@@ -148,14 +172,24 @@ class AuthController extends Controller
      */
     public function redirectToGoogle()
     {
-        $redirectUrl = Socialite::driver('google')
+        try {
+            $redirectUrl = Socialite::driver('google')
                                 ->stateless()
                                 ->redirect()
                                 ->getTargetUrl();
 
-        return ApiResponse::success('Google redirect URL generated successfully',data: [
-            'url' => $redirectUrl
-        ]);
+            return ApiResponse::success('URL chuyển hướng Google đã được tạo thành công',data: [
+                'url' => $redirectUrl
+            ]);
+        } catch(\Exception $e) {
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!');
+        }
     }
 
     /**
@@ -201,7 +235,7 @@ class AuthController extends Controller
                 'error_line' => $e->getLine(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
-            return ApiResponse::error('some thing went wrong !!!');
+            return ApiResponse::error('Có lỗi xảy ra !!!');
         }
     }
 
@@ -210,14 +244,24 @@ class AuthController extends Controller
      */
     public function redirectToFacebook()
     {
-        $redirectUrl = Socialite::driver('facebook')
+        try {
+            $redirectUrl = Socialite::driver('facebook')
                                 ->stateless()
                                 ->redirect()
                                 ->getTargetUrl();
 
-        return ApiResponse::success('Facebook redirect URL generated successfully',data: [
-            'url' => $redirectUrl
-        ]);
+            return ApiResponse::success('Facebook redirect URL generated successfully',data: [
+                'url' => $redirectUrl
+            ]);
+        }catch (\Exception $e) {
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!');
+        }
     }
 
     /**

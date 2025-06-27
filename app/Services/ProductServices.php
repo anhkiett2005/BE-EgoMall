@@ -108,7 +108,7 @@ class ProductServices {
             ]);
 
             // Nếu có biến thể
-            if($data['is_variable'] && !empty($data['variants'])) {
+            if(!empty($data['variants'])) {
                 foreach($data['variants'] as $variant) {
                     // // Tạo name cho variant
                     // $variantName = Common::generateVariantName($product->name, $variant['options']);
@@ -168,7 +168,7 @@ class ProductServices {
                 'error_line' => $e->getLine(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
-            throw new ApiException('Something went wrong!!!');
+            throw new ApiException('Có lỗi xảy ra!!!');
         }
 
     }
