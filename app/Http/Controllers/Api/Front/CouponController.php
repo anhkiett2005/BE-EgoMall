@@ -48,7 +48,7 @@ class CouponController extends Controller
 
                     $listCoupon->push($data);
             }
-            return ApiResponse::success('Lấy danh sách coupon thành công!!', data: $listCoupon);
+            return ApiResponse::success('Lấy danh sách voucher thành công!!', data: $listCoupon);
         } catch(Exception $e) {
             logger('Log bug',[
                 'error_message' => $e->getMessage(),
