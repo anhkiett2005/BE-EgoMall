@@ -58,6 +58,11 @@ Route::prefix('v1/front')
         Route::controller('CouponController')->group(function () {
             Route::get('/vouchers', 'index');
         });
+
+        // Routes API Search
+        Route::controller('SearchController')->group(function () {
+            Route::get('/search', 'index');
+        });
     });
 
 
