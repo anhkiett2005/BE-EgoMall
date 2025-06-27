@@ -84,8 +84,8 @@ class UpdateProductVariantsJob implements ShouldQueue
                     if (!empty($data['options']) && is_array($data['options'])) {
                         foreach ($data['options'] as $optionId => $value) {
                             $variantValue = VariantValue::firstOrCreate([
-                                'option_id' => $optionId,
-                                'value' => $value,
+                                ['option_id' => $optionId],
+                                ['value' => $value],
                             ]);
 
                             $model->values()->create([
