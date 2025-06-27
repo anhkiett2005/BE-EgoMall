@@ -53,6 +53,11 @@ Route::prefix('v1/front')
         Route::controller('PromotionController')->group(function () {
             Route::get('/promotions', 'getPromotionMap');
         });
+
+        // Routes API Coupon
+        Route::controller('CouponController')->group(function () {
+            Route::get('/coupons', 'index');
+        });
     });
 
 
