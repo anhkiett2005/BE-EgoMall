@@ -300,10 +300,10 @@ class ProductController extends Controller
     {
         switch ($request->sort) {
              case 'a-z':
-                $query->orderBy('id', 'asc');
+                $query->orderBy('name', 'asc');
                 break;
             case 'z-a':
-                $query->orderBy('id', 'desc');
+                $query->orderBy('name', 'desc');
                 break;
              case 'price_asc':
                 $query->orderBy('max_price', 'asc'); // Đã có sẵn từ selectSub
