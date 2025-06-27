@@ -6,6 +6,8 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Response;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class UpdateProductRequest extends FormRequest
 {
@@ -24,29 +26,92 @@ class UpdateProductRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:products,slug',
+            'slug' => ['required','string', Rule::unique('products', 'slug')->ignore($this->product)],
             'is_active' => 'nullable|boolean|in:0,1',
             'brand_id' => 'required|exists:brands,id',
             'type_skin' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'image' => ['required','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
-
-            // Không cho update danh mục
             'category_id' => 'prohibited',
-
             'variants' => 'required|array|min:1',
-            'variants.*.id'         => 'exists:product_variants,id',
-            'variants.*.sku'        => 'required|numeric|unique:product_variants,sku',
-            'variants.*.price'      => 'required|numeric|gt:0',
-            'variants.*.sale_price' => 'nullable|numeric|gt:0|lte:variants.*.price',
-            'variants.*.quantity'   => 'required|numeric|gt:0',
-            'variants.*.is_active'  => 'nullable|boolean|in:0,1',
-            'variants.*.image' => 'required|array|min:1',
-            'variants.*.image.*.id' => 'required|exists:product_images,id',
-            'variants.*.image.*.url' => ['required','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
         ];
+
+        foreach ($this->input('variants', []) as $index => $variant) {
+            $isNew = !isset($variant['id']); // nếu không có id là biến thể mới
+
+            // Nếu biến thể cũ thì check id exists và sku unique bỏ qua id
+            if (!$isNew) {
+                $rules["variants.$index.id"] = 'exists:product_variants,id';
+                $rules["variants.$index.sku"] = [
+                    'required',
+                    'numeric',
+                    Rule::unique('product_variants', 'sku')->ignore($variant['id'])
+                ];
+            } else {
+                // biến thể mới thì bắt buộc option_id, value
+                $rules["variants.$index.sku"] = ['required','numeric','unique:product_variants,sku'];
+
+                $rules["variants.$index.options"] = 'required|array|min:1';
+            }
+
+            $rules["variants.$index.price"] = 'required|numeric|gt:0';
+            $rules["variants.$index.sale_price"] = 'nullable|numeric|gt:0|lte:'.($variant['price'] ?? 'variants.'.$index.'.price');
+            $rules["variants.$index.quantity"] = 'required|numeric|gt:0';
+            $rules["variants.$index.is_active"] = 'nullable|boolean|in:0,1';
+            $rules["variants.$index.image"] = 'required|array|min:1';
+
+            foreach ($variant['image'] ?? [] as $imgIndex => $img) {
+                // Nếu ảnh có id thì check exists, nếu không có thì bỏ qua
+                if (isset($img['id'])) {
+                    $rules["variants.$index.image.$imgIndex.id"] = 'exists:product_images,id';
+                }
+                $rules["variants.$index.image.$imgIndex.url"] = [
+                    'required', 'url', 'regex:/\.(jpg|jpeg|png|gif|webp)$/i'
+                ];
+            }
+        }
+
+        return $rules;
+    }
+
+    public function withValidator(Validator $validator)
+    {
+        $validator->after(function ($validator) {
+            $validOptionIds = DB::table('variant_options')->pluck('id')->toArray(); // kiểm tra variant_option_id, đúng tên bảng
+
+            foreach ($this->input('variants', []) as $index => $variant) {
+                if (!isset($variant['options']) || !is_array($variant['options'])) {
+                    continue;
+                }
+
+                foreach ($variant['options'] as $optionId => $optionValue) {
+                    if (!in_array((int)$optionId, $validOptionIds)) {
+                        $validator->errors()->add("variants.$index.options.$optionId", "Option ID $optionId không hợp lệ.");
+                    }
+
+                    // Validate thêm option value (required, string, max:255)
+
+                    // Kiểm tra required
+                    if ($optionValue === null || $optionValue === '' || (is_array($optionValue) && empty($optionValue))) {
+                        $validator->errors()->add("variants.$index.options.$optionId", "Giá trị của Option là bắt buộc.");
+                        continue;
+                    }
+
+                    // Kiểm tra kiểu chuỗi
+                    if (!is_string($optionValue)) {
+                        $validator->errors()->add("variants.$index.options.$optionId", "Giá trị của Option phải là chuỗi.");
+                        continue;
+                    }
+
+                    // Kiểm tra độ dài tối đa
+                    if (mb_strlen($optionValue) > 255) {
+                        $validator->errors()->add("variants.$index.options.$optionId", "Giá trị của Option không được vượt quá 255 ký tự.");
+                    }
+                }
+            }
+        });
     }
 
     public function messages()
@@ -109,6 +174,10 @@ class UpdateProductRequest extends FormRequest
             'variants.*.image.*.url.required' => 'Hình ảnh của biến thể là bắt buộc.',
             'variants.*.image.*.url.url' => 'Hình ảnh biến thể phải là URL.',
             'variants.*.image.*.url.regex' => 'Hình ảnh biến thể phải có định dạng jpg, jpeg, png, gif, webp.',
+
+            'variants.*.options.required' => 'Giá trị của option là bắt buộc.',
+            'variants.*.options.array'    => 'Giá trị của option phải là mảng.',
+            'variants.*.options.min'      => 'Phải có ít nhất một option',
         ];
     }
 

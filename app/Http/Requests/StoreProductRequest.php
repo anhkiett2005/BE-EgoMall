@@ -139,6 +139,25 @@ class StoreProductRequest extends FormRequest
                     if (!in_array((int)$optionId, $validOptionIds)) {
                         $validator->errors()->add("variants.$index.options.$optionId", "Option Id $optionId không hợp lệ.");
                     }
+
+                    // Validate thêm option value (required, string, max:255)
+
+                    // Kiểm tra required
+                    if ($optionValue === null || $optionValue === '' || (is_array($optionValue) && empty($optionValue))) {
+                        $validator->errors()->add("variants.$index.options.$optionId", "Giá trị của Option là bắt buộc.");
+                        continue;
+                    }
+
+                    // Kiểm tra kiểu chuỗi
+                    if (!is_string($optionValue)) {
+                        $validator->errors()->add("variants.$index.options.$optionId", "Giá trị của Option phải là chuỗi.");
+                        continue;
+                    }
+
+                    // Kiểm tra độ dài tối đa
+                    if (mb_strlen($optionValue) > 255) {
+                        $validator->errors()->add("variants.$index.options.$optionId", "Giá trị của Option không được vượt quá 255 ký tự.");
+                    }
                 }
             }
         });
