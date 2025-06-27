@@ -28,7 +28,8 @@ class UpdateProductRequest extends FormRequest
     {
         $rules = [
             'name' => 'required|string|max:255',
-            'slug' => ['required','string', Rule::unique('products', 'slug')->ignore($this->product)],
+            // 'slug' => ['required','string', Rule::unique('products', 'slug')->ignore($this->product)],
+            'slug' => 'required|string',
             'is_active' => 'nullable|boolean|in:0,1',
             'brand_id' => 'required|exists:brands,id',
             'type_skin' => 'nullable|string|max:255',
@@ -47,7 +48,7 @@ class UpdateProductRequest extends FormRequest
                 $rules["variants.$index.sku"] = [
                     'required',
                     'numeric',
-                    Rule::unique('product_variants', 'sku')->ignore($variant['id'])
+                    // Rule::unique('product_variants', 'sku')->ignore($variant['id'])
                 ];
             } else {
                 // biến thể mới thì bắt buộc option_id, value
@@ -60,14 +61,14 @@ class UpdateProductRequest extends FormRequest
             $rules["variants.$index.sale_price"] = 'nullable|numeric|gt:0|lte:'.($variant['price'] ?? 'variants.'.$index.'.price');
             $rules["variants.$index.quantity"] = 'required|numeric|gt:0';
             $rules["variants.$index.is_active"] = 'nullable|boolean|in:0,1';
-            $rules["variants.$index.image"] = 'required|array|min:1';
+            $rules["variants.$index.images"] = 'required|array|min:1';
 
-            foreach ($variant['image'] ?? [] as $imgIndex => $img) {
+            foreach ($variant['images'] ?? [] as $imgIndex => $img) {
                 // Nếu ảnh có id thì check exists, nếu không có thì bỏ qua
                 if (isset($img['id'])) {
-                    $rules["variants.$index.image.$imgIndex.id"] = 'exists:product_images,id';
+                    $rules["variants.$index.images.$imgIndex.id"] = 'exists:product_images,id';
                 }
-                $rules["variants.$index.image.$imgIndex.url"] = [
+                $rules["variants.$index.images.$imgIndex.url"] = [
                     'required', 'url', 'regex:/\.(jpg|jpeg|png|gif|webp)$/i'
                 ];
             }
@@ -123,7 +124,7 @@ class UpdateProductRequest extends FormRequest
 
             'slug.required' => 'Slug sản phẩm là trường bắt buộc',
             'slug.string' => 'Slug sản phẩm phải là chuỗi.',
-            'slug.unique' => 'Slug sản phẩm đã tồn tại.',
+            // 'slug.unique' => 'Slug sản phẩm đã tồn tại.',
 
             'is_active.boolean' => 'Trạng thái hoạt động phải là true hoặc false.',
             'is_active.in' => 'Trạng thái hoạt động không hợp lệ.',
@@ -166,14 +167,14 @@ class UpdateProductRequest extends FormRequest
             'variants.*.is_active.boolean' => 'Trạng thái hoạt động của biến thể phải là true hoặc false.',
             'variants.*.is_active.in' => 'Trạng thái hoạt động của biến thể không hợp lệ.',
 
-            'variants.*.image.required' => 'Danh sách hình ảnh biến thể là bắt buộc.',
-            'variants.*.image.array' => 'Hình ảnh biến thể phải là mảng.',
-            'variants.*.image.min' => 'Hình ảnh biến thể phải có ít nhất một hình ảnh.',
-            'variants.*.image.*.id.required' => 'Mã hình ảnh của sản phẩm biến thể không hợp lệ',
-            'variants.*.image.*.id.exists' => 'Mã hình ảnh của sản phẩm biến thể không tốn tại',
-            'variants.*.image.*.url.required' => 'Hình ảnh của biến thể là bắt buộc.',
-            'variants.*.image.*.url.url' => 'Hình ảnh biến thể phải là URL.',
-            'variants.*.image.*.url.regex' => 'Hình ảnh biến thể phải có định dạng jpg, jpeg, png, gif, webp.',
+            'variants.*.images.required' => 'Danh sách hình ảnh biến thể là bắt buộc.',
+            'variants.*.images.array' => 'Hình ảnh biến thể phải là mảng.',
+            'variants.*.images.min' => 'Hình ảnh biến thể phải có ít nhất một hình ảnh.',
+            'variants.*.images.*.id.required' => 'Mã hình ảnh của sản phẩm biến thể không hợp lệ',
+            'variants.*.images.*.id.exists' => 'Mã hình ảnh của sản phẩm biến thể không tốn tại',
+            'variants.*.images.*.url.required' => 'Hình ảnh của biến thể là bắt buộc.',
+            'variants.*.images.*.url.url' => 'Hình ảnh biến thể phải là URL.',
+            'variants.*.images.*.url.regex' => 'Hình ảnh biến thể phải có định dạng jpg, jpeg, png, gif, webp.',
 
             'variants.*.options.required' => 'Giá trị của option là bắt buộc.',
             'variants.*.options.array'    => 'Giá trị của option phải là mảng.',
