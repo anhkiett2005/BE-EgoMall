@@ -19,8 +19,7 @@ class CouponController extends Controller
             // Lấy coupon trả về cho fe
             $coupons = Coupon::with('orders')
                              ->where(function ($q) {
-                                    $q->whereNull('usage_limit')
-                                        ->orWhereRaw('(
+                                    $q->orWhereRaw('(
                                                 SELECT COUNT(*) FROM `orders` WHERE `orders`.`coupon_id` = `coupons`.`id`
                                         ) < `usage_limit`');
                                 })
