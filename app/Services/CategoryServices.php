@@ -4,6 +4,7 @@ namespace App\Services;
 use App\Exceptions\ApiException;
 use App\Models\Category;
 use Exception;
+use Illuminate\Support\Facades\DB;
 
 class CategoryServices {
 
@@ -58,4 +59,48 @@ class CategoryServices {
             throw new ApiException('Có lỗi xảy ra!!', 500);
         }
      }
+
+     /**
+     * Tạo mới một category
+     */
+
+    public function store($request)
+    {
+        $data = $request->all();
+        DB::beginTransaction();
+        try {
+            // tạo danh mục
+            $category = Category::create([
+                'name' => $data['name'],
+                'slug' => $data['slug'],
+                'parent_id' => $data['parent_id'] ?? null,
+                'description' => $data['description'] ?? null,
+                'thumbnail' => $data['thumbnail'] ?? null,
+                'is_featured' => $data['is_featured'] ?? 0,
+                'type' => $data['type'] ?? 'product',
+            ]);
+
+            // Nếu có gán các options cho variants thì thêm vào category_options
+            if(!empty($data['options']) && is_array($data['options'])) {
+                foreach($data['options'] as $optionId) {
+                    $category->categoryOptions()->create([
+                        'variant_option_id' => $optionId,
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return $category;
+
+        } catch(Exception $e) {
+            DB::rollBack();
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!');
+        }
+    }
 }
