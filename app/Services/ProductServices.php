@@ -65,6 +65,7 @@ class ProductServices {
                         })->values(),
                         'options' => $variant->values->map(function ($value) {
                             return [
+                                'id' => $value->variantValue->option->id,
                                 'name' => $value->variantValue->option->name,
                                 'value' => $value->variantValue->value
                             ];

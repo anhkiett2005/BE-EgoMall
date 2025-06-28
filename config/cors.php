@@ -23,7 +23,7 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Content-Type', 'X-Requested-With', 'Accept'],
+    'allowed_headers' => ['Content-Type', 'X-Requested-With', 'Accept', 'ngrok-skip-browser-warning'],
 
     'exposed_headers' => [],
 
