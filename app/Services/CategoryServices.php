@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Models\Category;
 use Exception;
@@ -23,29 +24,8 @@ class CategoryServices {
             $listCategories = collect();
 
             $categories->each(function ($category) use ($listCategories) {
-                $listCategories->push([
-                    'id' => $category->id,
-                    'name' => $category->name,
-                    'slug' => $category->slug,
-                    'description' => $category->description,
-                    'thumbnail' => $category->thumbnail,
-                    'is_active' => $category->is_active,
-                    'is_featured' => $category->is_featured,
-                    'type' => $category->type,
-                    'children' => $category->children->map(function ($child) {
-                        return [
-                            'id' => $child->id,
-                            'name' => $child->name,
-                            'slug' => $child->slug,
-                            'description' => $child->description,
-                            'thumbnail' => $child->thumbnail,
-                            'is_active' => $child->is_active,
-                            'is_featured' => $child->is_featured,
-                        ];
-                    }),
-                    'created_at' => $category->created_at->format('Y-m-d H:i:s'),
-                    'updated_at' => $category->updated_at->format('Y-m-d H:i:s'),
-                ]);
+                // Đệ quy lấy all cây danh mục
+                $listCategories->push(Common::formatCategoryWithChildren($category));
             });
 
             return $listCategories;

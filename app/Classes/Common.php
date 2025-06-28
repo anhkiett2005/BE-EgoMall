@@ -13,4 +13,23 @@ class Common {
 
         return $variantName;
     }
+
+    public static function formatCategoryWithChildren($category)
+    {
+        return [
+            'id' => $category->id,
+            'name' => $category->name,
+            'slug' => $category->slug,
+            'description' => $category->description,
+            'thumbnail' => $category->thumbnail,
+            'is_active' => $category->is_active,
+            'is_featured' => $category->is_featured,
+            'type' => $category->type,
+            'children' => $category->children->map(function ($child) {
+                return self::formatCategoryWithChildren($child); // <--- đệ quy tại đây
+            }),
+            'created_at' => $category->created_at->format('Y-m-d H:i:s'),
+            'updated_at' => $category->updated_at->format('Y-m-d H:i:s'),
+        ];
+    }
 }
