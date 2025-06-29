@@ -16,7 +16,7 @@ class CategoryServices {
      public function modifyIndex()
      {
         try {
-            $categories = Category::with('children')
+            $categories = Category::with(['children.categoryOptions.variantOption'])
                                   ->root()
                                   ->where('is_active', '!=', 0)
                                   ->get();
@@ -72,6 +72,31 @@ class CategoryServices {
             DB::commit();
             return $category;
 
+        } catch(Exception $e) {
+            DB::rollBack();
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!');
+        }
+    }
+
+    /**
+     * Cập nhật một category
+     */
+
+    public function update($request, string $slug)
+    {
+        DB::beginTransaction();
+
+        try {
+            $data = $request->all();
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
         } catch(Exception $e) {
             DB::rollBack();
             logger('Log bug',[

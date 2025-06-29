@@ -146,6 +146,18 @@ class AuthController extends Controller
             // Tạo phiên đăng nhập
             $token = JWTAuth::fromUser($user);
 
+            // $cookie = new Cookie(
+            //     'token',
+            //     $token,
+            //     now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+            //     '/',
+            //     null,
+            //     config('app.env') === 'production',
+            //     true,
+            //     false,
+            //     Cookie::SAMESITE_LAX
+            // );
+
             $cookie = new Cookie(
                 'token',
                 $token,
