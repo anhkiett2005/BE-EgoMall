@@ -47,6 +47,12 @@ class Common {
             'is_active' => $category->is_active,
             'is_featured' => $category->is_featured,
             'type' => $category->type,
+            'options' => $category->categoryOptions->map(function ($categoryOption) {
+                return [
+                    'id' => $categoryOption->variantOption->id ?? null,
+                    'name' => $categoryOption->variantOption->name ?? null,
+                ];
+            }),
             'children' => $category->children->map(function ($child) {
                 return self::formatCategoryWithChildren($child); // <--- đệ quy tại đây
             }),
