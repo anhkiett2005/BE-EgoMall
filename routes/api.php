@@ -63,15 +63,15 @@ Route::prefix('v1/front')
 
 Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
-    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin','permission:manage-products,manage-categories'])
+    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin', 'permission:manage-products,manage-categories'])
     ->group(function () {
         // Routes API Product
         Route::controller('ProductController')->group(function () {
             Route::get('/products', 'index')->name('admin.products.index');
             Route::get('/product/{slug}', 'show')->name('admin.product.show');
             Route::post('/products/create', 'store')->name('admin.products.store');
-            Route::put('/products/{slug}','update')->name('admin.products.update');
-            Route::delete('/products/{slug}','destroy')->name('admin.products.destroy');
+            Route::put('/products/{slug}', 'update')->name('admin.products.update');
+            Route::delete('/products/{slug}', 'destroy')->name('admin.products.destroy');
         });
 
         // Routes API Category
@@ -82,11 +82,17 @@ Route::prefix('v1/admin')
         // Routes API Brand
         Route::controller('BrandController')->group(function () {
             Route::get('/brands', 'index')->name('admin.brands.index');
+            Route::get('/brands/trashed', 'trashed')->name('admin.brands.trashed');
+            Route::patch('/brands/restore/{id}', 'restore')->name('admin.brands.restore');
+            Route::get('/brands/{id}', 'show')->name('admin.brands.show');
+            Route::post('/brands', 'store')->name('admin.brands.store');
+            Route::put('/brands/{id}', 'update')->name('admin.brands.update');
+            Route::delete('/brands/{id}', 'destroy')->name('admin.brands.destroy');
         });
 
         // Routes API Promotion
-        Route::controller('PromotionController')->group(function() {
-            Route::get('/promotions','index')->name('admin.promotions.index');
+        Route::controller('PromotionController')->group(function () {
+            Route::get('/promotions', 'index')->name('admin.promotions.index');
             Route::get('/promotion/{id}', 'show')->name('admin.promotions.show');
         });
     });
@@ -101,7 +107,7 @@ Route::prefix('v1/auth')->group(function () {
     Route::post('login',    [AuthController::class, 'login']);
 
     // Login với google
-    Route::get('redirect/google',[AuthController::class, 'redirectToGoogle']);
+    Route::get('redirect/google', [AuthController::class, 'redirectToGoogle']);
     Route::get('callback/google', [AuthController::class, 'handleGoogleCallback']);
 
     // Login với facebook

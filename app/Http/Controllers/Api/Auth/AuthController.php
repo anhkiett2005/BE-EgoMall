@@ -34,6 +34,8 @@ class AuthController extends Controller
     public function register(RegisterRequest $request): JsonResponse
     {
         try {
+            logger('--- Start Register ---');
+            
             $data = $request->all();
             $data['password'] = Hash::make($data['password']);
             $data['role_id'] = User::where('name', 'customer')->first()->id ?? 4; // Lấy role_id của customer
