@@ -160,6 +160,18 @@ class AuthController extends Controller
                 Cookie::SAMESITE_LAX
             );
 
+            // $cookie = new Cookie(
+            //     'token',
+            //     $token,
+            //     now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+            //     '/',
+            //     config('app.url'), // Cụ thể domain
+            //     true, // Secure
+            //     true, // HttpOnly
+            //     false,
+            //     Cookie::SAMESITE_NONE // <-- phải là None để gửi cross-origin
+            // );
+
             return ApiResponse::success('Đăng nhập thành công')->withCookie($cookie);
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());

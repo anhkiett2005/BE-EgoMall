@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCategoryRequest;
 use App\Response\ApiResponse;
 use App\Services\CategoryServices;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class CategoryController extends Controller
 {
@@ -28,9 +31,17 @@ class CategoryController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreCategoryRequest $request)
     {
-        //
+        try {
+            $category = $this->categoryService->store($request);
+
+            if($category) {
+                return ApiResponse::success('Thêm danh mục thành công!!',Response::HTTP_CREATED);
+            }
+        }catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
     }
 
     /**

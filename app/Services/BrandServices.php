@@ -112,25 +112,6 @@ class BrandServices
         }
     }
 
-    private function uploadLogoToCloudinary($file)
-    {
-        $cloudName = 'dnj08gvqi';
-        $uploadPreset = 'upload-egomall';
-        $apiKey = '2jBRbJSnVeE6ZKLR3npXonsOQuA';
-
-        $response = Http::asMultipart()->post("https://api.cloudinary.com/v1_1/{$cloudName}/image/upload", [
-            ['name' => 'file', 'contents' => fopen($file->getRealPath(), 'r')],
-            ['name' => 'upload_preset', 'contents' => $uploadPreset],
-            ['name' => 'api_key', 'contents' => $apiKey],
-        ]);
-
-        if (!$response->successful()) {
-            throw new ApiException('Upload ảnh thất bại', 500, [$response->body()]);
-        }
-
-        return $response->json()['secure_url'] ?? null;
-    }
-
     public function modifyTrashed()
     {
         try {

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Product;
+use App\Models\VariantValue;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
@@ -35,15 +36,16 @@ class UpdateProductVariantsJob implements ShouldQueue
 
         try {
             // tìm variant để update
-            $product = Product::with(['variants.images'])
+            $product = Product::with(['variants.values','variants.images'])
                               ->find($this->productId);
 
             // update variant
             foreach($this->variants as $data) {
-                $model = $product->variants->firstWhere('id','=',$data['id']);
+            if (isset($data['id'])) {
+                $model = $product->variants->firstWhere('id', $data['id']);
 
-                if($model) {
-                    $model->updateOrInsert([
+                if ($model) {
+                    $model->update([
                         'sku' => $data['sku'],
                         'price' => $data['price'],
                         'sale_price' => $data['sale_price'],
@@ -51,23 +53,59 @@ class UpdateProductVariantsJob implements ShouldQueue
                         'is_active' => $data['is_active'],
                     ]);
 
+                    $images = $data['image'] ?? [];
 
-
-                    $images = $data['image'];
-
-                    // tạo lại ảnh cho variant
                     if (is_array($images)) {
                         foreach ($images as $img) {
                             $imageRecord = $model->images->firstWhere('id', $img['id']);
+
                             if ($imageRecord) {
-                                $imageRecord->updateOrInsert([
+                                $imageRecord->update([
+                                    'image_url' => $img['url']
+                                ]);
+                            } else {
+                                $model->images()->create([
                                     'image_url' => $img['url']
                                 ]);
                             }
                         }
                     }
                 }
-            }
+                } else {
+                    // Tạo mới variant nếu không có id
+                    $model = $product->variants()->create([
+                        'sku' => $data['sku'],
+                        'price' => $data['price'],
+                        'sale_price' => $data['sale_price'],
+                        'quantity' => $data['quantity'],
+                        'is_active' => $data['is_active'],
+                    ]);
+
+                    if (!empty($data['options']) && is_array($data['options'])) {
+                        foreach ($data['options'] as $optionId => $value) {
+                            $variantValue = VariantValue::firstOrCreate([
+                                ['option_id' => $optionId],
+                                ['value' => $value],
+                            ]);
+
+                            $model->values()->create([
+                                'variant_value_id' => $variantValue->id,
+                            ]);
+                        }
+                    }
+
+                    $images = $data['image'] ?? [];
+
+                    if (is_array($images)) {
+                        foreach ($images as $img) {
+                            $model->images()->create([
+                                'image_url' => $img['url']
+                            ]);
+                        }
+                    }
+                }
+        }
+
 
             DB::commit();
         } catch (\Exception $e) {

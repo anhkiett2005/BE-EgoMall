@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Front;
 
+use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Resources\Front\FrontCategoryResource;
 use App\Http\Controllers\Controller;
@@ -26,12 +27,12 @@ class CategoryController extends Controller
                                     ->get()
                                     ->map(function ($category) {
                                         $category->children->each(function ($child) {
-                                            $child->makeHidden(['created_at', 'updated_at','parent_id']);
+                                            Common::formatCategoryWithChildren($child->makeHidden(['created_at', 'updated_at','parent_id']));
                                         });
                                         return $category;
                                     });
 
-            return ApiResponse::success('Data fetched successfully',data: $categories);
+            return ApiResponse::success('Lấy danh sách danh mục thành công!!',data: $categories);
         } catch(\Exception $e) {
             logger('Log bug',[
                 'error_message' => $e->getMessage(),
