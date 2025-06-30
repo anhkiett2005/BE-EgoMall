@@ -47,4 +47,9 @@ return [
         'redirect' => env('FACEBOOK_REDIRECT_URI'),
     ],
 
+    'cloudinary' => [
+        'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+        'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET'),
+        'api_key' => env('CLOUDINARY_API_KEY'),
+    ]
 ];
