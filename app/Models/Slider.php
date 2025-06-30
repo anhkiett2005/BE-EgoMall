@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Testing\Fluent\Concerns\Has;
 
-class Sliders extends Model
+class Slider extends Model
 {
     use HasFactory;
     protected $fillable = [
@@ -15,4 +15,9 @@ class Sliders extends Model
         'position',
         'status',
     ];
+
+    public function images()
+    {
+        return $this->hasMany(SliderImage::class);
+    }
 }

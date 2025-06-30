@@ -303,7 +303,7 @@ class ProductServices {
                 'error_line' => $e->getLine(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
-            throw new ApiException('Something went wrong!!!');
+            throw new ApiException('Có lỗi xảy ra!!');
         }
     }
 
