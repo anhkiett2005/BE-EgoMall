@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCategoryRequest;
+use App\Http\Requests\UpdateCategoryRequest;
 use App\Response\ApiResponse;
 use App\Services\CategoryServices;
 use Illuminate\Http\Request;
@@ -55,16 +56,32 @@ class CategoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(UpdateCategoryRequest $request, string $slug)
     {
-        //
+        try {
+            $isUpdated = $this->categoryService->update($request, $slug);
+
+            if($isUpdated) {
+                return ApiResponse::success('Cập nhật danh mục thành công!!');
+            }
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(string $slug)
     {
-        //
+        try {
+            $isDeleted = $this->categoryService->destroy($slug);
+
+            if($isDeleted) {
+                return ApiResponse::success('Xóa danh mục thành công!!');
+            }
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
     }
 }

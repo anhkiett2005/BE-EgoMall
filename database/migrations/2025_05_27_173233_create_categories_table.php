@@ -22,6 +22,7 @@ return new class extends Migration
             $table->boolean('is_featured')->default(false);
             $table->enum('type', ['product', 'blog'])->default('product');
             $table->timestamps();
+            $table->softDeletes();
         });
 
     }

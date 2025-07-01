@@ -87,6 +87,8 @@ Route::prefix('v1/admin')
         Route::controller('CategoryController')->group(function () {
             Route::get('/categories', 'index')->name('admin.categories.index');
             Route::post('/categories/create', 'store')->name('admin.categories.store');
+            Route::put('/categories/{slug}', 'update')->name('admin.categories.update');
+            Route::delete('/categories/{slug}', 'destroy')->name('admin.categories.destroy');
         });
 
         // Routes API Brand
