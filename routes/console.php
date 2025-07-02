@@ -8,5 +8,9 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
+// schedule handle promotions expire and activate
 Schedule::command('promotions:expire')
-        ->dailyAt('00:00');
+    ->dailyAt('00:00')
+    ->after(function () {
+        Artisan::call('promotions:activate');
+    });

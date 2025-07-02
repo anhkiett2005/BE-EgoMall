@@ -41,7 +41,7 @@ class ProductController extends Controller
             $product = $this->productService->store($request);
 
             if($product) {
-                return ApiResponse::success('Resource Created Successfully',Response::HTTP_CREATED);
+                return ApiResponse::success('Tạo sản phẩm thành công!!',Response::HTTP_CREATED);
             }
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());

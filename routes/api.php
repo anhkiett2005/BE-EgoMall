@@ -106,6 +106,7 @@ Route::prefix('v1/admin')
         Route::controller('PromotionController')->group(function () {
             Route::get('/promotions', 'index')->name('admin.promotions.index');
             Route::get('/promotion/{id}', 'show')->name('admin.promotions.show');
+            Route::post('/promotions/create', 'store')->name('admin.promotions.store');
         });
     });
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StorePromotionRequest;
 use App\Response\ApiResponse;
 use App\Services\PromotionServices;
 use Illuminate\Http\Request;
@@ -36,9 +37,17 @@ class PromotionController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StorePromotionRequest $request)
     {
-        //
+        try {
+            $promotion = $this->promotionServices->store($request);
+
+            if($promotion) {
+                return ApiResponse::success('Tạo chương trình khuyến mãi thành công!!');
+            }
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(),$e->getCode(),$e->getErrors());
+        }
     }
 
     /**

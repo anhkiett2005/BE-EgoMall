@@ -3,7 +3,11 @@ namespace App\Services;
 
 use App\Exceptions\ApiException;
 use App\Models\Promotion;
+use App\Models\PromotionProduct;
 use Exception;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 
 class PromotionServices {
 
@@ -93,7 +97,9 @@ class PromotionServices {
         }
     }
 
-
+    /**
+     * Lấy một promotion
+     */
     public function show(string $id)
     {
         try {
@@ -179,4 +185,103 @@ class PromotionServices {
         }
     }
 
+    /**
+     *  Tạo mới một promotion
+     */
+
+     public function store($request)
+     {
+        DB::beginTransaction();
+
+        try {
+            $data = $request->all();
+
+            $start = Carbon::parse($data['start_date']);
+            $end = Carbon::parse($data['end_date']);
+
+            // Lấy toàn bộ product_id và variant_id (lọc null và không trùng)
+            $productIds = collect($data['applicable_products'])->pluck('product_id')->filter()->unique();
+            $variantIds = collect($data['applicable_products'])->pluck('variant_id')->filter()->unique();
+
+            // Check trùng khuyến mãi
+            $isExist = DB::table('promotion_product as pp')
+                         ->join('promotions as p', 'p.id', '=', 'pp.promotion_id')
+                         ->whereIn('p.status', [0,1])
+                          ->where(function ($q1) use ($start, $end) {
+                                    // Chỉ cần có giao là từ chối (bao gồm trùng start hoặc end)
+                                    $q1->where('p.start_date', '<=', $end)
+                                       ->where('p.end_date', '>=', $start);
+                                })
+                          ->exists();
+
+            if ($isExist) {
+                throw new ApiException('Đã có chương trình khuyến mãi áp dụng trong thời gian đã chọn!!', Response::HTTP_CONFLICT);
+            }
+
+            // Xử lý các field theo loại promotion
+            if ($data['promotion_type'] === 'buy_get') {
+                $data['discount_type'] = null;
+                $data['discount_value'] = null;
+            } else {
+                $data['buy_quantity'] = null;
+                $data['get_quantity'] = null;
+                $data['gift_product_id'] = null;
+                $data['gift_product_variant_id'] = null;
+            }
+
+            // Kiểm tra xem có chương trình đang active không
+            // $hasActivePromotion = Promotion::where('status', '=', 1)
+            //     ->where(function ($q) use ($start, $end) {
+            //         $q->whereBetween('start_date', [$start, $end])
+            //           ->orWhereBetween('end_date', [$start, $end])
+            //           ->orWhere(function ($q1) use ($start, $end) {
+            //                 $q1->where('start_date', '<', $start)
+            //                     ->where('end_date', '>', $end);
+            //           });
+            //     })
+            //     ->exists();
+
+            $hasActivePromotion = Promotion::where('status', '=', 1)->exists();
+
+            // Tạo promotion
+            $promotion = Promotion::create([
+                'name' => $data['name'],
+                'description' => $data['description'] ?? null,
+                'promotion_type' => $data['promotion_type'],
+                'discount_type' => $data['discount_type'],
+                'discount_value' => $data['discount_value'],
+                'start_date' => $data['start_date'],
+                'end_date' => $data['end_date'],
+                'status' => $hasActivePromotion ? 0 : 1,
+                'buy_quantity' => $data['buy_quantity'],
+                'get_quantity' => $data['get_quantity'],
+                'gift_product_id' => $data['gift_product_id'],
+                'gift_product_variant_id' => $data['gift_product_variant_id'],
+            ]);
+
+            // Gắn các sản phẩm áp dụng vào promotion
+            foreach ($data['applicable_products'] as $item) {
+                PromotionProduct::create([
+                    'promotion_id' => $promotion->id,
+                    'product_id' => $item['product_id'] ?? null,
+                    'product_variant_id' => $item['variant_id'] ?? null,
+                ]);
+            }
+
+            DB::commit();
+            return $promotion; // Trả về model instance (có thể query tiếp)
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (Exception $e) {
+            DB::rollBack();
+            logger('Log bug', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!!');
+        }
+    }
 }
