@@ -35,7 +35,7 @@ class AuthController extends Controller
     {
         try {
             logger('--- Start Register ---');
-            
+
             $data = $request->all();
             $data['password'] = Hash::make($data['password']);
             $data['role_id'] = User::where('name', 'customer')->first()->id ?? 4; // Lấy role_id của customer
@@ -226,7 +226,8 @@ class AuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
 
-            $user = User::where('google_id', $googleUser->getId())
+            $user = User::with('role')
+                        ->where('google_id', $googleUser->getId())
                         ->orWhere('email', $googleUser->getEmail())->first();
 
             // check nếu tài khoản này đã login bằng facebook rồi thì trả về lỗi duplicate email
@@ -246,11 +247,16 @@ class AuthController extends Controller
                     'is_active' => true
                 ]);
             }
-            // Tạo phiên đăng nhập và cấp token JWT
+            // Tạo phiên đăng nhập và cấp token JWT và check role để redirect
             $token = JWTAuth::fromUser($user);
+
+
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
-            return ApiResponse::success('Login successfully')->withCookie($cookie);
+            $hasManagementAccess = $this->checkAuthPermision($user->role->name,'super-admin','admin','staff');
+            $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
+
+            return redirect($redirectUrl)->withCookie($cookie);
         } catch(ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         }
@@ -299,7 +305,8 @@ class AuthController extends Controller
         try {
             $facebookUser = Socialite::driver('facebook')->stateless()->user();
 
-            $user = User::where('facebook_id', $facebookUser->getId())
+            $user = User::with('role')
+                        ->where('facebook_id', $facebookUser->getId())
                         ->orWhere('email', $facebookUser->getEmail())
                         ->first();
 
@@ -323,8 +330,15 @@ class AuthController extends Controller
 
             // Tạo phiên đăng nhập và cấp token JWT
             $token = JWTAuth::fromUser($user);
+
+
+
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
-            return ApiResponse::success('Login successfully')->withCookie($cookie);
+
+            $hasManagementAccess = $this->checkAuthPermision($user->role->name,'super-admin','admin','staff');
+            $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
+
+            return redirect($redirectUrl)->withCookie($cookie);
         } catch(ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         } catch(Exception $e) {
@@ -535,5 +549,10 @@ class AuthController extends Controller
         $user->save();
 
         return response()->json(['message' => 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.']);
+    }
+
+    private function checkAuthPermision($roleName,...$permission)
+    {
+       return in_array($roleName, $permission);
     }
 }
