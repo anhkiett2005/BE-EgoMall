@@ -74,4 +74,37 @@ class Common
             'updated_at' => $category->updated_at->format('Y-m-d H:i:s'),
         ];
     }
+
+    public static function generateUploadToken()
+    {
+        $secretKey = env('UPLOAD_IMAGE_TOKEN');
+
+        $payload = [
+            'purpose' => 'upload_image',
+            'timestamp' => now()->timestamp, // thêm timestamp để tạo token khác nhau mỗi lần
+        ];
+
+        $payloadJson = json_encode($payload);
+        $signature = hash_hmac('sha256', $payloadJson, $secretKey);
+
+        return base64_encode($payloadJson) . '.' . $signature;
+    }
+
+    public static function isValidUploadToken(string $token): bool
+    {
+        $secretKey = env('UPLOAD_IMAGE_TOKEN');
+
+        $parts = explode('.', $token);
+        if (count($parts) !== 2) {
+            return false;
+        }
+
+        [$encodedPayload, $signature] = $parts;
+
+        $payloadJson = base64_decode($encodedPayload);
+        $expectedSignature = hash_hmac('sha256', $payloadJson, $secretKey);
+
+        return hash_equals($expectedSignature, $signature);
+    }
+
 }

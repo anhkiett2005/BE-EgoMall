@@ -67,8 +67,12 @@ Route::prefix('v1/front')
         Route::controller('SearchController')->group(function () {
             Route::get('/search', 'index');
         });
-    });
 
+        // Routes API Upload Image to Cloudinary
+        Route::controller('UploadController')->group(function () {
+            Route::post('/uploads', 'upload')->middleware('check.token.upload');
+        });
+    });
 
 Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
