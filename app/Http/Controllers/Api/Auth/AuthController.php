@@ -355,15 +355,29 @@ class AuthController extends Controller
     /**
      * Lấy thông tin user hiện tại.
      */
+    // public function user(): JsonResponse
+    // {
+    //     try {
+    //         $user = JWTAuth::user();
+    //         $info = (new UserResource($user))->toArray(request());
+    //     } catch (JWTException $e) {
+    //         return response()->json(['error' => 'Unauthorized'], 401);
+    //     }
+    //     return ApiResponse::success('Lấy thông tin thành công!!',data: $info);
+    // }
+
     public function user(): JsonResponse
     {
         try {
-            $user = JWTAuth::user();
+            $user = JWTAuth::parseToken()->authenticate();
+            if (!$user) {
+                return ApiResponse::error('Token không hợp lệ hoặc hết hạn', 401);
+            }
             $info = (new UserResource($user))->toArray(request());
+            return ApiResponse::success('Lấy thông tin thành công!!', data: $info);
         } catch (JWTException $e) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return ApiResponse::error('Không thể xác thực người dùng', 401);
         }
-        return ApiResponse::success('Lấy thông tin thành công!!',data: $info);
     }
 
     /**
@@ -400,14 +414,36 @@ class AuthController extends Controller
     /**
      * Đăng xuất: vô hiệu token và xóa cookie.
      */
-    public function logout(): JsonResponse
+    // public function logout(): JsonResponse
+    // {
+    //     try {
+    //         JWTAuth::invalidate();
+    //     } catch (JWTException $e) {
+    //         return response()->json(['error' => 'Không thể đăng xuất'], 500);
+    //     }
+    //     $cookie = new Cookie('token', '', now()->subMinute()->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+    //     return response()->json(['message' => 'Đã đăng xuất'])->withCookie($cookie);
+    // }
+        public function logout(): JsonResponse
     {
         try {
-            JWTAuth::invalidate();
+            JWTAuth::parseToken()->invalidate(); // ✅ parse token trước
         } catch (JWTException $e) {
             return response()->json(['error' => 'Không thể đăng xuất'], 500);
         }
-        $cookie = new Cookie('token', '', now()->subMinute()->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+
+        $cookie = new Cookie(
+            'token',
+            '',
+            now()->subMinute()->getTimestamp(),
+            '/',
+            null,
+            config('app.env') === 'production',
+            true,
+            false,
+            Cookie::SAMESITE_LAX
+        );
+
         return response()->json(['message' => 'Đã đăng xuất'])->withCookie($cookie);
     }
 
