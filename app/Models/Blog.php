@@ -3,36 +3,40 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Blog extends Model
 {
-    use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'title',
-        'image_url',
-        'excerpt',
-        'published_at',
-        'status',
-        'category_blog_id',
-        'author_id',
-        'view_count',
         'slug',
-        'content'
+        'content',
+        'excerpt',
+        'image_url',
+        'status',
+        'views',
+        'category_id',
+        'created_by',
+        'is_published',
+        'published_at',
     ];
 
     protected $casts = [
+        'is_published' => 'boolean',
         'published_at' => 'datetime',
     ];
 
+    // Danh mục bài viết
     public function category()
     {
-        return $this->belongsTo(Category::class,'category_blog_id');
+        return $this->belongsTo(Category::class)->where('type', 'blog');
     }
 
-    public function author()
+    // Người tạo bài viết
+    public function creator()
     {
-        return $this->belongsTo(User::class,'author_id');
+        return $this->belongsTo(User::class, 'created_by');
     }
 }
