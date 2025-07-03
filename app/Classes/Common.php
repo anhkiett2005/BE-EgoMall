@@ -1,10 +1,12 @@
 <?php
+
 namespace App\Classes;
 
 use App\Exceptions\ApiException;
 use Illuminate\Support\Facades\Http;
 
-class Common {
+class Common
+{
 
     public static function generateVariantName(string $parentName, array $options)
     {
@@ -17,16 +19,25 @@ class Common {
         return $variantName;
     }
 
-        public static function uploadImageToCloudinary($file): ?string
+    public static function uploadImageToCloudinary($file, ?string $folder = null): ?string
     {
-        $cloudName = 'dnj08gvqi';
-        $uploadPreset = 'upload-egomall';
-        $apiKey = '2jBRbJSnVeE6ZKLR3npXonsOQuA';
+        $cloudName = config('cloudinary.cloud_name');
+        $uploadPreset = config('cloudinary.upload_preset');
+        $apiKey = config('cloudinary.api_key');
+        $uploadUrl = config('cloudinary.upload_url');
+        $defaultFolder = config('cloudinary.default_folder');
 
-        $response = Http::asMultipart()->post("https://api.cloudinary.com/v1_1/{$cloudName}/image/upload", [
-            ['name' => 'file', 'contents' => fopen($file->getRealPath(), 'r')],
+        if (!$cloudName || !$uploadPreset || !$apiKey) {
+            throw new ApiException('Thiếu thông tin cấu hình Cloudinary', 500);
+        }
+
+        $targetFolder = $folder ?? $defaultFolder;
+
+        $response = Http::asMultipart()->post($uploadUrl, [
+            ['name' => 'file', 'contents' => fopen($file->getPathname(), 'r')],
             ['name' => 'upload_preset', 'contents' => $uploadPreset],
             ['name' => 'api_key', 'contents' => $apiKey],
+            ['name' => 'folder', 'contents' => $targetFolder],
         ]);
 
         if (!$response->successful()) {
@@ -35,6 +46,9 @@ class Common {
 
         return $response->json()['secure_url'] ?? null;
     }
+
+
+
 
     public static function formatCategoryWithChildren($category)
     {

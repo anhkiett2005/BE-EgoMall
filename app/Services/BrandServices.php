@@ -68,7 +68,7 @@ class BrandServices
     {
         try {
             if (request()->hasFile('logo')) {
-                $data['logo'] = Common::uploadImageToCloudinary(request()->file('logo'));
+                $data['logo'] = Common::uploadImageToCloudinary(request()->file('logo'), 'egomall/brands');
             }
 
             $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
@@ -85,7 +85,7 @@ class BrandServices
             $brand = Brand::findOrFail($id);
 
             if (request()->hasFile('logo')) {
-                $data['logo'] = Common::uploadImageToCloudinary(request()->file('logo'));
+                $data['logo'] = Common::uploadImageToCloudinary(request()->file('logo'), 'egomall/brands');
             }
 
             $data['slug'] = $data['slug'] ?? Str::slug($data['name']);

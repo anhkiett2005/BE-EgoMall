@@ -98,7 +98,7 @@ Route::prefix('v1/admin')
             Route::patch('/brands/restore/{id}', 'restore')->name('admin.brands.restore');
             Route::get('/brands/{id}', 'show')->name('admin.brands.show');
             Route::post('/brands', 'store')->name('admin.brands.store');
-            Route::put('/brands/{id}', 'update')->name('admin.brands.update');
+            Route::post('/brands/{id}', 'update')->name('admin.brands.update');
             Route::delete('/brands/{id}', 'destroy')->name('admin.brands.destroy');
         });
 
