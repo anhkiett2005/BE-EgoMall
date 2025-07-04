@@ -34,9 +34,9 @@ class BlogController extends Controller
         return ApiResponse::success('Lấy danh sách bài viết thành công', 200, $blogs);
     }
 
-    public function show(string $id): JsonResponse
+    public function showBySlug(string $slug): JsonResponse
     {
-        $blog = $this->blogService->show((int) $id);
+        $blog = $this->blogService->showBySlug($slug);
         return ApiResponse::success('Lấy chi tiết bài viết thành công', 200, $blog->toArray());
     }
 

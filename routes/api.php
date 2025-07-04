@@ -31,6 +31,12 @@ Route::prefix('v1/front')
             // Route::delete('/banners/delete/{id}', 'destroy');
         });
 
+        Route::controller('BlogController')->group(function () {
+            Route::get('/blogs', 'index');
+            Route::get('/blogs/top-viewed', 'topViewed');
+            Route::get('/blogs/{slug}', 'showBySlug');
+        });
+
         // Routes API Sliders
         Route::controller('SliderController')->group(function () {
             Route::get('/sliders', 'index');
@@ -121,6 +127,7 @@ Route::prefix('v1/admin')
             Route::post('/blogs', 'store')->name('admin.blogs.store');
             Route::post('/blogs/{id}', 'update')->name('admin.blogs.update');
             Route::delete('/blogs/{id}', 'destroy')->name('admin.blogs.destroy');
+            Route::patch('/blogs/restore/{id}', 'restore')->name('admin.blogs.restore');
             Route::post('/blogs/upload-image', 'uploadCkeditorImage')->name('admin.blogs.uploadImage');
         });
     });

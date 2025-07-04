@@ -64,6 +64,11 @@ class BlogController extends Controller
         return ApiResponse::success('Xóa bài viết thành công', 200);
     }
 
+    public function restore(string $id): JsonResponse
+    {
+        $blog = $this->blogService->restore((int) $id);
+        return ApiResponse::success('Khôi phục bài viết thành công', 200);
+    }
 
     public function topViewed(): JsonResponse
     {

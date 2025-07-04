@@ -22,10 +22,13 @@ class BlogService
         return $query->get();
     }
 
-
-    public function show(int $id): Blog
+    public function showBySlug(string $slug): Blog
     {
-        $blog = Blog::with(['category', 'creator'])->find($id);
+        $blog = Blog::with(['category', 'creator'])
+            ->where('slug', $slug)
+            ->where('status', 'published')
+            ->where('is_published', true)
+            ->first();
 
         if (!$blog) {
             throw new ApiException('Không tìm thấy bài viết', 404);
@@ -34,16 +37,28 @@ class BlogService
         // === Đếm lượt xem, tránh spam trong 1 tiếng ===
         /** @var \Illuminate\Contracts\Auth\Guard $auth */
         $auth = auth();
-
         $viewer = $auth->check()
             ? 'user_' . $auth->id()
             : 'ip_' . request()->ip();
 
-        $cacheKey = "blog_viewed_{$id}_{$viewer}";
+        $cacheKey = "blog_viewed_slug_{$slug}_{$viewer}";
 
         if (!cache()->has($cacheKey)) {
             $blog->increment('views');
             cache()->put($cacheKey, true, now()->addHour());
+        }
+
+        return $blog;
+    }
+
+
+
+    public function show(int $id): Blog
+    {
+        $blog = Blog::with(['category', 'creator'])->find($id);
+
+        if (!$blog) {
+            throw new ApiException('Không tìm thấy bài viết', 404);
         }
 
         return $blog;
@@ -103,6 +118,23 @@ class BlogService
             throw new ApiException('Xóa bài viết thất bại!', 500, [$e->getMessage()]);
         }
     }
+
+    public function restore(int $id): Blog
+    {
+        $blog = Blog::onlyTrashed()->find($id);
+
+        if (!$blog) {
+            throw new ApiException('Không tìm thấy bài viết để khôi phục', 404);
+        }
+
+        try {
+            $blog->restore();
+            return $blog;
+        } catch (\Exception $e) {
+            throw new ApiException('Khôi phục bài viết thất bại!', 500, [$e->getMessage()]);
+        }
+    }
+
 
     public function topViewed(int $limit = 4)
     {
