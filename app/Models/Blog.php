@@ -28,7 +28,7 @@ class Blog extends Model
         'published_at' => 'datetime',
     ];
 
-    // Danh mục bài viết
+    // Danh mục bài viết (lọc đúng loại "blog")
     public function category()
     {
         return $this->belongsTo(Category::class)->where('type', 'blog');

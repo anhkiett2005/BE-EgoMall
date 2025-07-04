@@ -14,19 +14,22 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->longText('content'); // Nội dung HTML từ CKEditor
             $table->string('excerpt')->nullable(); // Mô tả ngắn
-            $table->string('image_url')->nullable(); // Ảnh đại diện (Cloudinary)
+            $table->string('image_url')->nullable();
 
             $table->enum('status', ['draft', 'published', 'archived'])->default('draft'); // Trạng thái
             $table->unsignedBigInteger('views')->default(0); // Lượt xem
 
-            $table->foreignId('category_id')->constrained('categories')->nullOnDelete(); // Danh mục
-            $table->foreignId('created_by')->constrained('users')->nullOnDelete(); // Người tạo
+            $table->unsignedBigInteger('category_id')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
 
-            $table->boolean('is_published')->default(false); // Hiển thị ra frontend không
-            $table->timestamp('published_at')->nullable();   // Ngày bài đăng chính thức
+            $table->boolean('is_published')->default(false);
+            $table->timestamp('published_at')->nullable();
 
-            $table->timestamps(); // created_at & updated_at
-            $table->softDeletes(); // deleted_at
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->foreign('category_id')->references('id')->on('categories')->nullOnDelete();
+            $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
         });
     }
 

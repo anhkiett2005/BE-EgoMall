@@ -108,6 +108,17 @@ Route::prefix('v1/admin')
             Route::get('/promotion/{id}', 'show')->name('admin.promotions.show');
             Route::post('/promotions/create', 'store')->name('admin.promotions.store');
         });
+
+        // Routes API Blog
+        Route::controller('BlogController')->group(function () {
+            Route::get('/blogs', 'index')->name('admin.blogs.index');
+            Route::get('/blogs/top-viewed', 'topViewed')->name('admin.blogs.topViewed');
+            Route::get('/blogs/{id}', 'show')->name('admin.blogs.show');
+            Route::post('/blogs', 'store')->name('admin.blogs.store');
+            Route::post('/blogs/{id}', 'update')->name('admin.blogs.update');
+            Route::delete('/blogs/{id}', 'destroy')->name('admin.blogs.destroy');
+            Route::post('/blogs/upload-image', 'uploadCkeditorImage')->name('admin.blogs.uploadImage');
+        });
     });
 
 Route::prefix('v1/auth')->group(function () {
