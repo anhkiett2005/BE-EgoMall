@@ -10,7 +10,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
-class StorePromotionRequest extends FormRequest
+class UpdatePromotionRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -33,6 +33,7 @@ class StorePromotionRequest extends FormRequest
             'promotion_type' => ['required', Rule::in(['percentage', 'buy_get'])],
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
+            'status' => ['required', Rule::in([0, 1])],
 
             // Validate khi promotion_type là percentage
             'discount_type' => ['required_if:promotion_type,percentage', 'nullable', Rule::in(['percentage', 'fixed'])],
@@ -43,7 +44,6 @@ class StorePromotionRequest extends FormRequest
             'get_quantity' => ['required_if:promotion_type,buy_get', 'nullable', 'integer', 'min:1'],
             'gift_product_id' => 'nullable',
             'gift_product_variant_id' => 'nullable',
-
 
             // Gắn sản phẩm khuyến mãi
             'applicable_products' => 'required|array|min:1',
@@ -71,6 +71,28 @@ class StorePromotionRequest extends FormRequest
         ];
     }
 
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            if ($this->promotion_type === 'buy_get') {
+                $giftProductId = $this->input('gift_product_id');
+                $giftProductVariantId = $this->input('gift_product_variant_id');
+
+                if (!$giftProductId && !$giftProductVariantId) {
+                    $validator->errors()->add('gift', 'Bạn phải chọn sản phẩm hoặc biến thể để làm quà tặng cho chương trình này.');
+                }
+
+                if ($giftProductId && !Product::where('id', $giftProductId)->exists()) {
+                    $validator->errors()->add('gift', 'Sản phẩm quà tặng không tồn tại.');
+                }
+
+                if ($giftProductVariantId && !ProductVariant::where('id', $giftProductVariantId)->exists()) {
+                    $validator->errors()->add('gift', 'Biến thể quà tặng không tồn tại.');
+                }
+            }
+        });
+    }
+
     public function messages()
     {
         return [
@@ -88,6 +110,9 @@ class StorePromotionRequest extends FormRequest
             'end_date.date' => 'Ngày kết thúc không đúng định dạng.',
             'end_date.after_or_equal' => 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.',
 
+            'status.required' => 'Trạng thái là bắt buộc.',
+            'status.in' => 'Trạng thái không hợp lệ. Chỉ chấp nhận true hoặc false.',
+
             // Percentage
             'discount_type.required_if' => 'Loại giảm giá là bắt buộc khi chọn kiểu khuyến mãi phần trăm.',
             'discount_type.in' => 'Loại giảm giá không hợp lệ. Chỉ chấp nhận "percentage" hoặc "fixed_amount".',
@@ -103,15 +128,6 @@ class StorePromotionRequest extends FormRequest
             'get_quantity.integer' => 'Số lượng tặng phải là số nguyên.',
             'get_quantity.min' => 'Số lượng tặng phải ít nhất là 1.',
 
-            'gift_product_id.required_if' => 'Vui lòng chọn sản phẩm hoặc biến thể làm quà tặng khi áp dụng khuyến mãi mua tặng.',
-            'gift_product_id.required_without' => 'Vui lòng chọn sản phẩm làm quà tặng hoặc chọn một biến thể cụ thể.',
-            'gift_product_id.exists' => 'Sản phẩm được chọn để làm quà tặng không tồn tại.',
-
-            // Gift Product Variant ID
-            'gift_product_variant_id.required_if' => 'Vui lòng chọn sản phẩm hoặc biến thể làm quà tặng khi áp dụng khuyến mãi mua tặng.',
-            'gift_product_variant_id.required_without' => 'Vui lòng chọn một biến thể làm quà tặng hoặc chọn sản phẩm chung.',
-            'gift_product_variant_id.exists' => 'Biến thể được chọn để làm quà tặng không tồn tại.',
-
             // Sản phẩm áp dụng
             'applicable_products.required' => 'Vui lòng chọn ít nhất một sản phẩm áp dụng khuyến mãi.',
             'applicable_products.array' => 'Danh sách sản phẩm áp dụng phải là mảng.',
@@ -119,27 +135,8 @@ class StorePromotionRequest extends FormRequest
         ];
     }
 
-    public function withValidator($validator)
-    {
-        $validator->after(function ($validator) {
-            if ($this->promotion_type === 'buy_get') {
-                $giftProductId = $this->input('gift_product_id');
-                $giftProductVariantId = $this->input('gift_product_variant_id');
 
-                if (!$giftProductId && !$giftProductVariantId) {
-                    $validator->errors()->add('gift_id', 'Bạn phải chọn sản phẩm hoặc biến thể để làm quà tặng cho chương trình này.');
-                }
 
-                if ($giftProductId && !Product::where('id', $giftProductId)->exists()) {
-                    $validator->errors()->add('gift_id', 'Sản phẩm quà tặng không tồn tại.');
-                }
-
-                if ($giftProductVariantId && !ProductVariant::where('id', $giftProductVariantId)->exists()) {
-                    $validator->errors()->add('gift_id', 'Biến thể quà tặng không tồn tại.');
-                }
-            }
-        });
-    }
 
     protected function failedValidation(Validator $validator)
     {

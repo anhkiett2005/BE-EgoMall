@@ -284,4 +284,183 @@ class PromotionServices {
             throw new ApiException('Có lỗi xảy ra!!!');
         }
     }
+
+    /**
+     *  Cập nhật một promotion
+     */
+
+    public function update($request, string $id) {
+        DB::beginTransaction();
+
+        try {
+            // Lấy data từ request
+            $data = $request->all();
+
+            $data = $this->normalizePromotionFields($data);
+
+            $start = Carbon::parse($data['start_date']);
+            $end = Carbon::parse($data['end_date']);
+
+            // Tìm promotion
+            $promotion = Promotion::with(['products', 'productVariants'])
+                                  ->find($id);
+
+            if(!$promotion) {
+                throw new ApiException('Không tìm thấy chương trình khuyến mãi!!', Response::HTTP_NOT_FOUND);
+            }
+
+            // check nếu có 1 promotion đang diễn ra throw exception luôn k cho update nữa
+            if($promotion->status !== 0) {
+                // Lấy số ngày còn lại của chương trình đang hoat động
+                $now = Carbon::now();
+                $endDate = Carbon::parse($promotion->end_date);
+
+                // Nếu còn thời gian tính cả phần giờ phút giây thì dùng diffInRealDays (Carbon 2+)
+                $daysLeft = ceil($now->floatDiffInDays($endDate));
+
+
+                throw new ApiException('Không thể cập nhật vì có chương trình đang diễn ra, thử lại sau '.$daysLeft.' ngày!!', Response::HTTP_CONFLICT);
+            }
+
+            // Check trùng khuyến mãi
+            $isExist = DB::table('promotion_product as pp')
+                         ->join('promotions as p', 'p.id', '=', 'pp.promotion_id')
+                         ->whereIn('p.status', [0,1])
+                          ->where(function ($q1) use ($start, $end) {
+                                    // Chỉ cần có giao là từ chối (bao gồm trùng start hoặc end)
+                                    $q1->where('p.start_date', '<=', $end)
+                                       ->where('p.end_date', '>=', $start);
+                                })
+                          ->exists();
+
+            if ($isExist) {
+                throw new ApiException('Đã có chương trình khuyến mãi áp dụng trong thời gian đã chọn!!', Response::HTTP_CONFLICT);
+            }
+
+            // Xử lý các field theo loại promotion
+            if ($data['promotion_type'] === 'buy_get') {
+                $data['discount_type'] = null;
+                $data['discount_value'] = null;
+            } else {
+                $data['buy_quantity'] = null;
+                $data['get_quantity'] = null;
+                $data['gift_product_id'] = null;
+                $data['gift_product_variant_id'] = null;
+            }
+
+
+            // cập nhật promotion
+            $promotion->update([
+                'name' => $data['name'],
+                'description' => $data['description'] ?? null,
+                'promotion_type' => $data['promotion_type'],
+                'discount_type' => $data['discount_type'] ?? null,
+                'discount_value' => $data['discount_value'] ?? null,
+                'start_date' => $start,
+                'end_date' => $end,
+                'buy_quantity' => $data['buy_quantity'] ?? null,
+                'get_quantity' => $data['get_quantity'] ?? null,
+                'gift_product_id' => $data['gift_product_id'] ?? null,
+                'gift_product_variant_id' => $data['gift_product_variant_id'] ?? null,
+                'status' => $data['status'] ?? true,
+            ]);
+
+             // Sync sản phẩm áp dụng
+             $this->syncApplicableProducts($promotion, $data['applicable_products']);
+
+            DB::commit();
+            return $promotion;
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!!');
+        }
+    }
+
+    /**
+     *  Xóa một promotion
+     */
+
+    public function destroy(string $id)
+    {
+        DB::beginTransaction();
+
+        try {
+            // Tìm promotion
+            $promotion = Promotion::find($id);
+
+            if(!$promotion) {
+                throw new ApiException('Không tìm thấy chương trình khuyến mãi!!', Response::HTTP_NOT_FOUND);
+            }
+
+            // Xóa promotion
+            $promotion->delete();
+
+            DB::commit();
+            return $promotion;
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (Exception $e) {
+            DB::rollBack();
+            logger('Log bug',[
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!!');
+        }
+    }
+
+
+
+    private function normalizePromotionFields(array $data): array
+    {
+        if (($data['promotion_type'] ?? null) === 'buy_get') {
+            $data['discount_type'] = null;
+            $data['discount_value'] = null;
+        } else {
+            $data['buy_quantity'] = null;
+            $data['get_quantity'] = null;
+            $data['gift_product_id'] = null;
+            $data['gift_product_variant_id'] = null;
+        }
+
+        return $data;
+    }
+
+
+
+    private function syncApplicableProducts(Promotion $promotion, array $items): void
+    {
+        $productIds = collect();
+        $variantIds = collect();
+
+        foreach ($items as $item) {
+            if (!empty($item['product_id'])) {
+                $productIds->push($item['product_id']);
+            }
+            if (!empty($item['variant_id'])) {
+                $variantIds->push($item['variant_id']);
+            }
+        }
+
+        if ($productIds->isNotEmpty()) {
+            $promotion->products()->sync($productIds->filter()->unique());
+        }
+
+        if ($variantIds->isNotEmpty()) {
+            $promotion->productVariants()->sync($variantIds->filter()->unique());
+        }
+    }
+
 }

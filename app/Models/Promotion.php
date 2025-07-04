@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Promotion extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'promotions';
     protected $fillable = [
@@ -37,11 +38,11 @@ class Promotion extends Model
 
     public function products()
     {
-        return $this->hasManyThrough(Product::class, PromotionProduct::class, 'promotion_id', 'id', 'id', 'product_id');
+        return $this->belongsToMany(Product::class, 'promotion_product', 'promotion_id', 'product_id');
     }
 
     public function productVariants()
     {
-        return $this->hasManyThrough(ProductVariant::class, PromotionProduct::class, 'promotion_id', 'id', 'id', 'product_variant_id');
+        return $this->belongsToMany(ProductVariant::class, 'promotion_product', 'promotion_id', 'product_variant_id');
     }
 }

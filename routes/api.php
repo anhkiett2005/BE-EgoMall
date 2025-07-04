@@ -111,6 +111,8 @@ Route::prefix('v1/admin')
             Route::get('/promotions', 'index')->name('admin.promotions.index');
             Route::get('/promotion/{id}', 'show')->name('admin.promotions.show');
             Route::post('/promotions/create', 'store')->name('admin.promotions.store');
+            Route::put('/promotions/{id}', 'update')->name('admin.promotions.update');
+            Route::delete('/promotions/{id}', 'destroy')->name('admin.promotions.destroy');
         });
     });
 

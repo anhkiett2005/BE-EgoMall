@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePromotionRequest;
+use App\Http\Requests\UpdatePromotionRequest;
 use App\Response\ApiResponse;
 use App\Services\PromotionServices;
 use Illuminate\Http\Request;
@@ -43,10 +44,10 @@ class PromotionController extends Controller
             $promotion = $this->promotionServices->store($request);
 
             if($promotion) {
-                return ApiResponse::success('Tạo chương trình khuyến mãi thành công!!');
+                return ApiResponse::success('Tạo chương trình khuyến mãi thành công và chương trình đã được lên lịch!!');
             }
         } catch (ApiException $e) {
-            return ApiResponse::error($e->getMessage(),$e->getCode(),$e->getErrors());
+                return ApiResponse::error($e->getMessage(),$e->getCode(),$e->getErrors());
         }
     }
 
@@ -69,9 +70,17 @@ class PromotionController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(UpdatePromotionRequest $request, string $id)
     {
-        //
+        try {
+          $isUpdated =  $this->promotionServices->update($request,$id);
+
+          if($isUpdated) {
+            return ApiResponse::success('Cập nhật chương trình khuyến mãi thành công!!');
+          }
+        }catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(),$e->getCode(),$e->getErrors());
+        }
     }
 
     /**
@@ -79,6 +88,14 @@ class PromotionController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        try {
+            $isDeleted = $this->promotionServices->destroy($id);
+
+            if($isDeleted) {
+                return ApiResponse::success('Xóa chương trình khuyến mãi thành công!!');
+            }
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(),$e->getCode(),$e->getErrors());
+        }
     }
 }
