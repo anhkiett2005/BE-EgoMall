@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Classes\Common;
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BlogRequest;
 use App\Models\Blog;
@@ -74,33 +75,5 @@ class BlogController extends Controller
     {
         $blogs = $this->blogService->topViewed();
         return ApiResponse::success('Top bài viết nổi bật', 200, $blogs);
-    }
-
-
-    public function uploadCkeditorImage(Request $request)
-    {
-        if (!$request->hasFile('upload')) {
-            return response()->json([
-                'uploaded' => false,
-                'error' => ['message' => 'Không có file được gửi lên']
-            ], 422);
-        }
-
-        try {
-            $url = Common::uploadImageToCloudinary(
-                $request->file('upload'),
-                'egomall/blogs/ckeditor'
-            );
-
-            return response()->json([
-                'uploaded' => true,
-                'url' => $url
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'uploaded' => false,
-                'error' => ['message' => 'Upload thất bại: ' . $e->getMessage()]
-            ], 500);
-        }
     }
 }

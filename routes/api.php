@@ -128,7 +128,6 @@ Route::prefix('v1/admin')
             Route::post('/blogs/{id}', 'update')->name('admin.blogs.update');
             Route::delete('/blogs/{id}', 'destroy')->name('admin.blogs.destroy');
             Route::patch('/blogs/restore/{id}', 'restore')->name('admin.blogs.restore');
-            Route::post('/blogs/upload-image', 'uploadCkeditorImage')->name('admin.blogs.uploadImage');
         });
     });
 
