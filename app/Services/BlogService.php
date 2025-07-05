@@ -11,7 +11,8 @@ use Illuminate\Support\Str;
 
 class BlogService
 {
-    public function list(array $filters = [])
+    // DÙNG CHO ADMIN
+    public function listAllForAdmin(array $filters = [])
     {
         $query = Blog::with(['category', 'creator'])->latest();
 
@@ -21,36 +22,6 @@ class BlogService
 
         return $query->get();
     }
-
-    public function showBySlug(string $slug): Blog
-    {
-        $blog = Blog::with(['category', 'creator'])
-            ->where('slug', $slug)
-            ->where('status', 'published')
-            ->where('is_published', true)
-            ->first();
-
-        if (!$blog) {
-            throw new ApiException('Không tìm thấy bài viết', 404);
-        }
-
-        // === Đếm lượt xem, tránh spam trong 1 tiếng ===
-        /** @var \Illuminate\Contracts\Auth\Guard $auth */
-        $auth = auth();
-        $viewer = $auth->check()
-            ? 'user_' . $auth->id()
-            : 'ip_' . request()->ip();
-
-        $cacheKey = "blog_viewed_slug_{$slug}_{$viewer}";
-
-        if (!cache()->has($cacheKey)) {
-            $blog->increment('views');
-            cache()->put($cacheKey, true, now()->addHour());
-        }
-
-        return $blog;
-    }
-
 
 
     public function show(int $id): Blog
@@ -63,8 +34,6 @@ class BlogService
 
         return $blog;
     }
-
-
 
     public function create(array $data): Blog
     {
@@ -135,12 +104,66 @@ class BlogService
         }
     }
 
+    // DÙNG CHUNG
+
+
+
+
+
+
+    // DÙNG CHO uSER
+    public function listPublished(array $filters = [])
+    {
+        $query = Blog::with(['category', 'creator'])
+            ->where('status', 'published')
+            ->where('is_published', true)
+            ->where('published_at', '<=', now())
+            ->latest();
+
+        if (!empty($filters['category_id'])) {
+            $query->where('category_id', $filters['category_id']);
+        }
+
+        return $query->get();
+    }
+
+
+    public function showBySlug(string $slug): Blog
+    {
+        $blog = Blog::with(['category', 'creator'])
+            ->where('slug', $slug)
+            ->where('status', 'published')
+            ->where('is_published', true)
+            ->where('published_at', '<=', now())
+            ->first();
+
+        if (!$blog) {
+            throw new ApiException('Không tìm thấy bài viết', 404);
+        }
+
+        // === Đếm lượt xem, tránh spam trong 1 tiếng ===
+        /** @var \Illuminate\Contracts\Auth\Guard $auth */
+        $auth = auth();
+        $viewer = $auth->check()
+            ? 'user_' . $auth->id()
+            : 'ip_' . request()->ip();
+
+        $cacheKey = "blog_viewed_slug_{$slug}_{$viewer}";
+
+        if (!cache()->has($cacheKey)) {
+            $blog->increment('views');
+            cache()->put($cacheKey, true, now()->addMinutes(15));
+        }
+
+        return $blog;
+    }
 
     public function topViewed(int $limit = 4)
     {
         return Blog::with(['category', 'creator'])
             ->where('status', 'published')
             ->where('is_published', true)
+            ->where('published_at', '<=', now())
             ->orderByDesc('views')
             ->limit($limit)
             ->get();

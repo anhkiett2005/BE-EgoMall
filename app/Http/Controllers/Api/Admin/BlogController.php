@@ -23,21 +23,9 @@ class BlogController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $categoryId = $request->query('category_id');
-
-        if ($categoryId) {
-            $blogs = Blog::with(['category', 'creator'])
-                ->where('category_id', $categoryId)
-                ->get();
-
-            return ApiResponse::success('Lọc bài viết theo danh mục thành công', 200, $blogs);
-        }
-
-        $blogs = Blog::with(['category', 'creator'])->latest()->get();
+        $blogs = $this->blogService->listAllForAdmin($request->all());
         return ApiResponse::success('Lấy danh sách bài viết thành công', 200, $blogs);
     }
-
-
 
     public function show(string $id): JsonResponse
     {

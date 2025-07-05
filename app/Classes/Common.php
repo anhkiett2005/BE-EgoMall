@@ -3,6 +3,7 @@
 namespace App\Classes;
 
 use App\Exceptions\ApiException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
 class Common
@@ -107,4 +108,8 @@ class Common
         return hash_equals($expectedSignature, $signature);
     }
 
+    public static function formatDateVN(?Carbon $date): ?string
+    {
+        return $date?->timezone('Asia/Ho_Chi_Minh')->toDateTimeString();
+    }
 }
