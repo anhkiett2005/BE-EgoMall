@@ -72,6 +72,13 @@ Route::prefix('v1/front')
         Route::controller('UploadController')->group(function () {
             Route::post('/uploads', 'upload')->middleware('check.token.upload');
         });
+
+        // Routes API Orders
+        Route::controller('OrderController')
+             ->middleware(['inject.api.auth.header', 'api.auth.check'])
+             ->group(function () {
+                 Route::post('/checkout-orders', 'checkOutOrders');
+        });
     });
 
 Route::prefix('v1/admin')
