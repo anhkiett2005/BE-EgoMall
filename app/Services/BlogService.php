@@ -43,7 +43,7 @@ class BlogService
             }
 
             $data['slug'] = $data['slug'] ?? Str::slug($data['title']);
-            $data['created_by'] = Auth::id();
+            $data['created_by'] = auth('api')->user()->id;
 
             return Blog::create($data);
         } catch (\Exception $e) {
