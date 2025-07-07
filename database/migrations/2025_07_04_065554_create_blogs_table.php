@@ -16,13 +16,18 @@ return new class extends Migration
             $table->string('excerpt')->nullable(); // Mô tả ngắn
             $table->string('image_url')->nullable();
 
-            $table->enum('status', ['draft', 'published', 'archived'])->default('draft'); // Trạng thái
+            $table->enum('status', [
+                'draft',        // Bản nháp, chưa đăng
+                'scheduled',    // Đã lên lịch, chờ đến ngày
+                'published',    // Đã đăng
+                'archived'      // Lưu trữ, không hiển thị
+            ])->default('draft');
+
             $table->unsignedBigInteger('views')->default(0); // Lượt xem
 
             $table->unsignedBigInteger('category_id')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
 
-            $table->boolean('is_published')->default(false);
             $table->timestamp('published_at')->nullable();
 
             $table->timestamps();
