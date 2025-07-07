@@ -42,6 +42,10 @@ class BlogService
             }
 
             $data['slug'] = Str::slug($data['slug'] ?? $data['title']);
+            // Kiểm tra trùng slug
+            if (Blog::where('slug', $data['slug'])->exists()) {
+                throw new ApiException('Slug đã tồn tại, vui lòng chọn slug khác', 422);
+            }
 
             $data['created_by'] = auth('api')->user()->id;
 
@@ -79,6 +83,10 @@ class BlogService
             }
 
             $data['slug'] = Str::slug($data['slug'] ?? $data['title']);
+            // Kiểm tra trùng slug, ngoại trừ bản thân bài viết hiện tại
+            if (Blog::where('slug', $data['slug'])->where('id', '!=', $id)->exists()) {
+                throw new ApiException('Slug đã tồn tại, vui lòng chọn slug khác', 422);
+            }
 
             $productIds = $data['product_ids'] ?? null;
             unset($data['product_ids']);
@@ -134,7 +142,6 @@ class BlogService
     {
         $query = Blog::with(['category', 'creator', 'products'])
             ->where('status', 'published')
-            ->where('is_published', true)
             ->where('published_at', '<=', now())
             ->latest();
 
@@ -150,7 +157,6 @@ class BlogService
         $blog = Blog::with(['category', 'creator', 'products'])
             ->where('slug', $slug)
             ->where('status', 'published')
-            ->where('is_published', true)
             ->where('published_at', '<=', now())
             ->first();
 
@@ -180,7 +186,6 @@ class BlogService
         return Blog::where('category_id', $blog->category_id)
             ->where('id', '!=', $blog->id)
             ->where('status', 'published')
-            ->where('is_published', true)
             ->where('published_at', '<=', now())
             ->inRandomOrder()
             ->take($limit)
@@ -193,7 +198,6 @@ class BlogService
         return Cache::remember("top_viewed_blogs_$limit", now()->addMinutes(10), function () use ($limit) {
             return Blog::with(['category', 'creator'])
                 ->where('status', 'published')
-                ->where('is_published', true)
                 ->where('published_at', '<=', now())
                 ->orderByDesc('views')
                 ->limit($limit)
@@ -205,7 +209,6 @@ class BlogService
     {
         return Blog::with(['category', 'creator'])
             ->where('status', 'published')
-            ->where('is_published', true)
             ->where('published_at', '<=', now())
             ->orderByDesc('published_at')
             ->limit($limit)

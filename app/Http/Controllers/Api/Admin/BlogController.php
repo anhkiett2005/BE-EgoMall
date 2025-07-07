@@ -34,7 +34,7 @@ class BlogController extends Controller
     public function store(BlogRequest $request): JsonResponse
     {
         $blog = $this->blogService->create($request->validated());
-        return ApiResponse::success('Tạo bài viết thành công', 201, (new BlogResource($blog))->toArray(request()));
+        return ApiResponse::success('Tạo bài viết thành công', 201);
     }
 
     public function update(BlogRequest $request, string $id): JsonResponse
