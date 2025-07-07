@@ -48,4 +48,9 @@ class Product extends Model
     {
         return $this->hasMany(Promotion::class, 'gift_product_id');
     }
+
+    public function blogs()
+    {
+        return $this->belongsToMany(Blog::class, 'blog_product');
+    }
 }

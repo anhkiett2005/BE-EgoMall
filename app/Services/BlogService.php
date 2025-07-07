@@ -5,16 +5,16 @@ namespace App\Services;
 use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Models\Blog;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
-
+use Illuminate\Support\Facades\DB;
 
 class BlogService
 {
     // DÙNG CHO ADMIN
     public function listAllForAdmin(array $filters = [])
     {
-        $query = Blog::with(['category', 'creator'])->latest();
+        $query = Blog::with(['category', 'creator', 'products'])->latest();
 
         if (!empty($filters['category_id'])) {
             $query->where('category_id', $filters['category_id']);
@@ -23,10 +23,9 @@ class BlogService
         return $query->get();
     }
 
-
     public function show(int $id): Blog
     {
-        $blog = Blog::with(['category', 'creator'])->find($id);
+        $blog = Blog::with(['category', 'creator', 'products'])->find($id);
 
         if (!$blog) {
             throw new ApiException('Không tìm thấy bài viết', 404);
@@ -42,10 +41,25 @@ class BlogService
                 $data['image_url'] = Common::uploadImageToCloudinary(request()->file('image_url'), 'egomall/blogs');
             }
 
-            $data['slug'] = $data['slug'] ?? Str::slug($data['title']);
+            $data['slug'] = Str::slug($data['slug'] ?? $data['title']);
+
             $data['created_by'] = auth('api')->user()->id;
 
-            return Blog::create($data);
+            $productIds = $data['product_ids'] ?? [];
+            unset($data['product_ids']);
+
+            // Sử dụng transaction để đảm bảo đồng bộ
+            $blog = DB::transaction(function () use ($data, $productIds) {
+                $blog = Blog::create($data);
+
+                if (!empty($productIds)) {
+                    $blog->products()->sync($productIds);
+                }
+
+                return $blog;
+            });
+
+            return $blog;
         } catch (\Exception $e) {
             throw new ApiException('Tạo bài viết thất bại!', 500, [$e->getMessage()]);
         }
@@ -64,8 +78,19 @@ class BlogService
                 $data['image_url'] = Common::uploadImageToCloudinary(request()->file('image_url'), 'egomall/blogs');
             }
 
-            $data['slug'] = $data['slug'] ?? Str::slug($data['title']);
-            $blog->update($data);
+            $data['slug'] = Str::slug($data['slug'] ?? $data['title']);
+
+            $productIds = $data['product_ids'] ?? null;
+            unset($data['product_ids']);
+
+            DB::transaction(function () use ($blog, $data, $productIds) {
+                $blog->update($data);
+
+                // Nếu truyền lên product_ids thì cập nhật lại sản phẩm liên quan
+                if (is_array($productIds)) {
+                    $blog->products()->sync($productIds);
+                }
+            });
 
             return $blog;
         } catch (\Exception $e) {
@@ -104,17 +129,10 @@ class BlogService
         }
     }
 
-    // DÙNG CHUNG
-
-
-
-
-
-
-    // DÙNG CHO uSER
+    // DÙNG CHO USER
     public function listPublished(array $filters = [])
     {
-        $query = Blog::with(['category', 'creator'])
+        $query = Blog::with(['category', 'creator', 'products'])
             ->where('status', 'published')
             ->where('is_published', true)
             ->where('published_at', '<=', now())
@@ -127,10 +145,9 @@ class BlogService
         return $query->get();
     }
 
-
     public function showBySlug(string $slug): Blog
     {
-        $blog = Blog::with(['category', 'creator'])
+        $blog = Blog::with(['category', 'creator', 'products'])
             ->where('slug', $slug)
             ->where('status', 'published')
             ->where('is_published', true)
@@ -158,13 +175,39 @@ class BlogService
         return $blog;
     }
 
+    public function getRelatedBlogs(Blog $blog, int $limit = 3)
+    {
+        return Blog::where('category_id', $blog->category_id)
+            ->where('id', '!=', $blog->id)
+            ->where('status', 'published')
+            ->where('is_published', true)
+            ->where('published_at', '<=', now())
+            ->inRandomOrder()
+            ->take($limit)
+            ->get();
+    }
+
+
     public function topViewed(int $limit = 4)
+    {
+        return Cache::remember("top_viewed_blogs_$limit", now()->addMinutes(10), function () use ($limit) {
+            return Blog::with(['category', 'creator'])
+                ->where('status', 'published')
+                ->where('is_published', true)
+                ->where('published_at', '<=', now())
+                ->orderByDesc('views')
+                ->limit($limit)
+                ->get();
+        });
+    }
+
+    public function latestBlogs(int $limit = 4)
     {
         return Blog::with(['category', 'creator'])
             ->where('status', 'published')
             ->where('is_published', true)
             ->where('published_at', '<=', now())
-            ->orderByDesc('views')
+            ->orderByDesc('published_at')
             ->limit($limit)
             ->get();
     }

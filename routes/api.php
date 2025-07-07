@@ -33,6 +33,7 @@ Route::prefix('v1/front')
 
         Route::controller('BlogController')->group(function () {
             Route::get('/blogs', 'index');
+            Route::get('/blogs/latest', 'latest');
             Route::get('/blogs/top-viewed', 'topViewed');
             Route::get('/blogs/{slug}', 'showBySlug');
         });

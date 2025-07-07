@@ -39,4 +39,9 @@ class Blog extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'blog_product');
+    }
 }

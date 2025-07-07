@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Classes\Common;
-use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\BlogRequest;
-use App\Models\Blog;
+use App\Http\Resources\Admin\BlogResource;
 use App\Response\ApiResponse;
 use App\Services\BlogService;
 use Illuminate\Http\JsonResponse;
@@ -24,27 +22,25 @@ class BlogController extends Controller
     public function index(Request $request): JsonResponse
     {
         $blogs = $this->blogService->listAllForAdmin($request->all());
-        return ApiResponse::success('Lấy danh sách bài viết thành công', 200, $blogs);
+        return ApiResponse::success('Lấy danh sách bài viết thành công', 200, BlogResource::collection($blogs)->toArray($request));
     }
 
     public function show(string $id): JsonResponse
     {
         $blog = $this->blogService->show((int) $id);
-        return ApiResponse::success('Lấy chi tiết bài viết thành công', 200, $blog->toArray());
+        return ApiResponse::success('Lấy chi tiết bài viết thành công', 200, (new BlogResource($blog))->toArray(request()));
     }
 
     public function store(BlogRequest $request): JsonResponse
     {
         $blog = $this->blogService->create($request->validated());
-        return ApiResponse::success('Tạo bài viết thành công', 201, $blog->toArray());
+        return ApiResponse::success('Tạo bài viết thành công', 201, (new BlogResource($blog))->toArray(request()));
     }
 
     public function update(BlogRequest $request, string $id): JsonResponse
     {
         $blog = $this->blogService->update((int) $id, $request->validated());
-        return ApiResponse::success('Cập nhật bài viết thành công', 200, [
-            'blog' => $blog,
-        ]);
+        return ApiResponse::success('Cập nhật bài viết thành công', 200);
     }
 
     public function destroy(string $id): JsonResponse
@@ -57,11 +53,5 @@ class BlogController extends Controller
     {
         $blog = $this->blogService->restore((int) $id);
         return ApiResponse::success('Khôi phục bài viết thành công', 200);
-    }
-
-    public function topViewed(): JsonResponse
-    {
-        $blogs = $this->blogService->topViewed();
-        return ApiResponse::success('Top bài viết nổi bật', 200, $blogs);
     }
 }
