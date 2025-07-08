@@ -14,15 +14,18 @@ Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
         // Routes API User Addresses
-        Route::middleware(['inject.api.auth.header', 'api.auth.check'])->controller('UserAddressController')->prefix('user/addresses')->group(function () {
-            Route::get('/', 'index');
-            Route::get('/{id}', 'show');
-            Route::post('/', 'store');
-            Route::put('/{id}', 'update');
-            Route::delete('/{id}', 'destroy');
-            Route::patch('/{id}/default', 'setDefault');
-            // Route::patch('/{id}/restore', 'restore');
-        });
+        Route::middleware(['inject.api.auth.header', 'api.auth.check'])
+            ->controller('UserAddressController')
+            ->prefix('user/addresses')
+            ->group(function () {
+                Route::get('/', 'index');
+                Route::get('/{id}', 'show');
+                Route::post('/', 'store');
+                Route::put('/{id}', 'update');
+                Route::delete('/{id}', 'destroy');
+                Route::patch('/{id}/default', 'setDefault');
+                // Route::patch('/{id}/restore', 'restore');
+            });
 
 
         // Routes API Location
