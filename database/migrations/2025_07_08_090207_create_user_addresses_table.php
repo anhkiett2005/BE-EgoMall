@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -55,9 +56,6 @@ return new class extends Migration
             $table->foreign('ward_code')
                 ->references('code')
                 ->on('wards');
-
-            $table->unique('user_id', 'unique_default_address_per_user')
-                ->where('is_default', true);
         });
     }
 
