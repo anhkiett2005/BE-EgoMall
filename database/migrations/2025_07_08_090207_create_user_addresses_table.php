@@ -18,9 +18,9 @@ return new class extends Migration
                 ->onDelete('cascade');
 
             // Địa chỉ hành chính
-            $table->string('province_code');
-            $table->string('district_code');
-            $table->string('ward_code');
+            $table->string('province_code', 20)->collation('utf8mb4_0900_ai_ci');
+            $table->string('district_code', 20)->collation('utf8mb4_0900_ai_ci');
+            $table->string('ward_code', 20)->collation('utf8mb4_0900_ai_ci');
             $table->string('address_detail');
 
             // Người nhận
