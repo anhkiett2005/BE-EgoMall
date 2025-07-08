@@ -13,6 +13,13 @@ use PHPOpenSourceSaver\JWTAuth\Http\Middleware\Authenticate;
 Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
+        // Routes API Location
+        Route::controller('LocationController')->group(function () {
+            Route::get('/location/provinces', 'getProvinces');
+            Route::get('/location/provinces/{code}/districts', 'getDistricts');
+            Route::get('/location/districts/{code}/wards', 'getWards');
+        });
+
         // Routes API Category
         Route::controller('CategoryController')->group(function () {
             Route::get('/categories', 'index');
