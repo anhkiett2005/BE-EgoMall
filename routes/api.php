@@ -13,6 +13,32 @@ use PHPOpenSourceSaver\JWTAuth\Http\Middleware\Authenticate;
 Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
+        Route::controller('AIChatController')->group(function () {
+            Route::post('/chat-ai', 'chat');
+        });
+
+        // Routes API User Addresses
+        Route::middleware(['inject.api.auth.header', 'api.auth.check'])
+            ->controller('UserAddressController')
+            ->prefix('user/addresses')
+            ->group(function () {
+                Route::get('/', 'index');
+                Route::get('/{id}', 'show');
+                Route::post('/', 'store');
+                Route::put('/{id}', 'update');
+                Route::delete('/{id}', 'destroy');
+                Route::patch('/{id}/default', 'setDefault');
+                // Route::patch('/{id}/restore', 'restore');
+            });
+
+
+        // Routes API Location
+        Route::controller('LocationController')->group(function () {
+            Route::get('/location/provinces', 'getProvinces');
+            Route::get('/location/provinces/{code}/districts', 'getDistricts');
+            Route::get('/location/districts/{code}/wards', 'getWards');
+        });
+
         // Routes API Category
         Route::controller('CategoryController')->group(function () {
             Route::get('/categories', 'index');
@@ -29,6 +55,13 @@ Route::prefix('v1/front')
             // Route::get('/banners/{id}', 'show');
             // Route::put('/banners/update/{id}', 'update');
             // Route::delete('/banners/delete/{id}', 'destroy');
+        });
+
+        Route::controller('BlogController')->group(function () {
+            Route::get('/blogs', 'index');
+            Route::get('/blogs/latest', 'latest');
+            Route::get('/blogs/top-viewed', 'topViewed');
+            Route::get('/blogs/{slug}', 'showBySlug');
         });
 
         // Routes API Sliders
@@ -113,6 +146,17 @@ Route::prefix('v1/admin')
             Route::post('/promotions/create', 'store')->name('admin.promotions.store');
             Route::put('/promotions/{id}', 'update')->name('admin.promotions.update');
             Route::delete('/promotions/{id}', 'destroy')->name('admin.promotions.destroy');
+        });
+
+        // Routes API Blog
+        Route::controller('BlogController')->group(function () {
+            Route::get('/blogs', 'index')->name('admin.blogs.index');
+            Route::get('/blogs/top-viewed', 'topViewed')->name('admin.blogs.topViewed');
+            Route::get('/blogs/{id}', 'show')->name('admin.blogs.show');
+            Route::post('/blogs', 'store')->name('admin.blogs.store');
+            Route::post('/blogs/{id}', 'update')->name('admin.blogs.update');
+            Route::delete('/blogs/{id}', 'destroy')->name('admin.blogs.destroy');
+            Route::patch('/blogs/restore/{id}', 'restore')->name('admin.blogs.restore');
         });
     });
 
