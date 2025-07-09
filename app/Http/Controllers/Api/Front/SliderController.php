@@ -17,8 +17,11 @@ class SliderController extends Controller
     public function index()
     {
         try {
-            $sliders = Slider::with('images')
-                             ->get();
+            $sliders = Slider::with(['images' => function ($query) {
+                            $query->where('status', '!=', 0);
+                        }])
+                        ->get();
+
 
 
             // Xử lý dữ liệu trả về
@@ -27,6 +30,13 @@ class SliderController extends Controller
             $sliders->each(function ($slider) use ($listSlider) {
                 $listSlider->push([
                     'name' => $slider->name,
+                    'image' => $slider->images->map(function ($image) {
+                        return [
+                            'url' => $image->image_url,
+                            'link' => $image->link_url,
+                            'display_order' => $image->display_order
+                        ];
+                    }),
                     'description' => $slider->description,
                     'position' => $slider->position,
                     'status' => $slider->status,
