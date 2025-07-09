@@ -16,7 +16,7 @@ class BrandStoreRequest extends FormRequest
         return [
             'name' => 'required|string|max:255|unique:brands,name',
             'slug' => 'nullable|string|unique:brands,slug',
-            'logo' => 'required|image|mimes:jpg,jpeg,png,svg,webp|max:2048',
+            'logo' => 'required|image|mimes:jpg,jpeg,png,svg,webp|max:10240',
             'description' => 'nullable|string',
             'is_active' => 'boolean',
             'is_featured' => 'boolean',

@@ -3,6 +3,7 @@
 namespace App\Classes;
 
 use App\Exceptions\ApiException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
 class Common
@@ -45,6 +46,49 @@ class Common
         }
 
         return $response->json()['secure_url'] ?? null;
+    }
+
+    public static function deleteImageFromCloudinary(string $publicId): bool
+    {
+        $cloudName = config('cloudinary.cloud_name');
+        $apiKey = config('cloudinary.api_key');
+        $apiSecret = config('cloudinary.api_secret');
+
+        if (!$cloudName || !$apiKey || !$apiSecret) {
+            throw new ApiException('Thiếu thông tin cấu hình Cloudinary', 500);
+        }
+
+        $timestamp = time();
+        $signature = sha1("public_id={$publicId}&timestamp={$timestamp}{$apiSecret}");
+
+        $response = Http::asForm()->post("https://api.cloudinary.com/v1_1/{$cloudName}/image/destroy", [
+            'public_id' => $publicId,
+            'api_key' => $apiKey,
+            'timestamp' => $timestamp,
+            'signature' => $signature,
+        ]);
+
+        if (!$response->successful()) {
+            throw new ApiException('Xóa ảnh thất bại', 500, [$response->body()]);
+        }
+
+        return $response->json()['result'] === 'ok';
+    }
+
+    public static function getCloudinaryPublicIdFromUrl(string $url): ?string
+    {
+        if (empty($url)) return null;
+        // Tìm phần sau '/upload/' và bỏ phần mở rộng
+        $parts = explode('/upload/', $url, 2);
+        if (count($parts) < 2) return null;
+
+        // Loại bỏ version (v1234567890/) nếu có
+        $path = preg_replace('#^v\d+/#', '', $parts[1]);
+
+        // Bỏ phần mở rộng (.jpg, .png, ...)
+        $path = preg_replace('/\.[a-zA-Z0-9]+$/', '', $path);
+
+        return $path;
     }
 
 
@@ -107,4 +151,8 @@ class Common
         return hash_equals($expectedSignature, $signature);
     }
 
+    public static function formatDateVN(?Carbon $date): ?string
+    {
+        return $date?->timezone('Asia/Ho_Chi_Minh')->toDateTimeString();
+    }
 }
