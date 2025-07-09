@@ -13,6 +13,10 @@ use PHPOpenSourceSaver\JWTAuth\Http\Middleware\Authenticate;
 Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
+        Route::controller('AIChatController')->group(function () {
+            Route::post('/chat-ai', 'chat');
+        });
+
         // Routes API User Addresses
         Route::middleware(['inject.api.auth.header', 'api.auth.check'])
             ->controller('UserAddressController')
