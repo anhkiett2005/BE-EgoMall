@@ -60,6 +60,7 @@ class ProductServices {
                         'is_active' => $variant->is_active,
                         'images' => $variant->images->map(function($img) {
                             return [
+                                'id' => $img->id,
                                 'url' => $img->image_url
                             ];
                         })->values(),
@@ -288,8 +289,8 @@ class ProductServices {
             })->toArray();
 
             // Đẩy variant vào queue để update
-            dispatch(new UpdateProductVariantsJob($product->id, $variants));
-
+            dispatch_sync(new UpdateProductVariantsJob($product->id, $variants));
+            $this->modifyIndex();
             return $product;
         } catch(ApiException $e) {
             DB::rollBack();

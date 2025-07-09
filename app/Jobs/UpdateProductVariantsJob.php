@@ -36,7 +36,7 @@ class UpdateProductVariantsJob implements ShouldQueue
 
         try {
             // tìm variant để update
-            $product = Product::with(['variants.values','variants.images'])
+            $product = Product::with(['variants.values.variantValue','variants.images'])
                               ->find($this->productId);
 
             // update variant
@@ -53,7 +53,18 @@ class UpdateProductVariantsJob implements ShouldQueue
                         'is_active' => $data['is_active'],
                     ]);
 
-                    $images = $data['image'] ?? [];
+                    if (!empty($data['options']) && is_array($data['options'])) {
+                        foreach ($data['options'] as $optionId => $value) {
+                            foreach ($model->values as $pivot) {
+                                if ($pivot->variantValue && $pivot->variantValue->option_id == $optionId) {
+                                    $pivot->variantValue->update([
+                                        'value' => $value
+                                    ]);
+                                }
+                            }
+                    }
+
+                    $images = $data['images'] ?? [];
 
                     if (is_array($images)) {
                         foreach ($images as $img) {
@@ -61,10 +72,6 @@ class UpdateProductVariantsJob implements ShouldQueue
 
                             if ($imageRecord) {
                                 $imageRecord->update([
-                                    'image_url' => $img['url']
-                                ]);
-                            } else {
-                                $model->images()->create([
                                     'image_url' => $img['url']
                                 ]);
                             }
@@ -84,8 +91,8 @@ class UpdateProductVariantsJob implements ShouldQueue
                     if (!empty($data['options']) && is_array($data['options'])) {
                         foreach ($data['options'] as $optionId => $value) {
                             $variantValue = VariantValue::firstOrCreate([
-                                ['option_id' => $optionId],
-                                ['value' => $value],
+                                'option_id' => $optionId,
+                                'value' => $value,
                             ]);
 
                             $model->values()->create([
@@ -94,7 +101,7 @@ class UpdateProductVariantsJob implements ShouldQueue
                         }
                     }
 
-                    $images = $data['image'] ?? [];
+                    $images = $data['images'] ?? [];
 
                     if (is_array($images)) {
                         foreach ($images as $img) {
@@ -105,8 +112,7 @@ class UpdateProductVariantsJob implements ShouldQueue
                     }
                 }
         }
-
-
+    }
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
