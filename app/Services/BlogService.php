@@ -205,7 +205,7 @@ class BlogService
         });
     }
 
-    public function latestBlogs(int $limit = 4)
+    public function latestBlogs(int $limit = 1)
     {
         return Blog::with(['category', 'creator'])
             ->where('status', 'published')
