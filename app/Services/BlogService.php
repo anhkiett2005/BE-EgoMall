@@ -154,7 +154,19 @@ class BlogService
 
     public function showBySlug(string $slug): Blog
     {
-        $blog = Blog::with(['category', 'creator', 'products'])
+        $blog = Blog::with([
+            'category',
+            'creator',
+            'products.category',
+            'products.brand',
+            'products.variants' => function ($query) {
+                $query->where('is_active', '!=', 0)
+                    ->with([
+                        'values.variantValue.option',
+                        'orderDetails.order.review'
+                    ]);
+            }
+        ])
             ->where('slug', $slug)
             ->where('status', 'published')
             ->where('published_at', '<=', now())
