@@ -19,6 +19,7 @@ class AIChatController extends Controller
             throw new ApiException('Bạn chưa nhập câu hỏi!', 422);
         }
 
+        // Gọi service xử lý logic gửi và lưu
         $answer = app(GeminiChatService::class)->ask($question);
 
         return ApiResponse::success(
