@@ -30,12 +30,6 @@ class CategoryController extends Controller
         return ApiResponse::success('Lấy danh sách danh mục thành công!!', data: $categories);
     }
 
-    public function blogCategoriesForAdmin()
-    {
-        $blogcategorys = $this->categoryService->blogCategoriesForAdmin();
-        return ApiResponse::success('Danh mục blog (admin) thành công', data: $blogcategorys);
-    }
-
     /**
      * Store a newly created resource in storage.
      */

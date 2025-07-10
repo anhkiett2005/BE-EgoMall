@@ -43,60 +43,6 @@ class CategoryServices
         }
     }
 
-    public function blogCategories()
-    {
-        try {
-            $categories = Category::with(['children.categoryOptions.variantOption'])
-                ->root()
-                ->where('is_active', 1)
-                ->where('type', 'blog')
-                ->get();
-
-            $listCategories = collect();
-
-            $categories->each(function ($category) use ($listCategories) {
-                $listCategories->push(Common::formatCategoryWithChildren($category));
-            });
-
-            return $listCategories;
-        } catch (\Exception $e) {
-            logger('Log bug blogCategories', [
-                'error_message' => $e->getMessage(),
-                'error_file' => $e->getFile(),
-                'error_line' => $e->getLine(),
-                'stack_trace' => $e->getTraceAsString()
-            ]);
-            throw new ApiException('Lỗi khi lấy danh mục blog!', 500);
-        }
-    }
-
-    public function blogCategoriesForAdmin()
-    {
-        try {
-            $categories = Category::with(['children.categoryOptions.variantOption'])
-                ->root()
-                ->where('type', 'blog')
-                ->get();
-
-            $listCategories = collect();
-
-            $categories->each(function ($category) use ($listCategories) {
-                $listCategories->push(Common::formatCategoryWithChildren($category));
-            });
-
-            return $listCategories;
-        } catch (\Exception $e) {
-            logger('Log bug blogCategoriesForAdmin', [
-                'error_message' => $e->getMessage(),
-                'error_file' => $e->getFile(),
-                'error_line' => $e->getLine(),
-                'stack_trace' => $e->getTraceAsString()
-            ]);
-            throw new ApiException('Lỗi khi lấy danh mục blog (admin)!');
-        }
-    }
-
-
 
     /**
      * Tạo mới một category

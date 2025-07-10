@@ -25,37 +25,38 @@ class CategoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        try {
-            // Lấy tất cả danh mục gốc kèm danh mục con và brand
-            $categories = Category::with('children')
-                ->root()
-                ->featured()
-                ->select('id', 'name', 'slug', 'thumbnail', 'is_active', 'is_featured')
-                ->get()
-                ->map(function ($category) {
-                    $category->children->each(function ($child) {
-                        Common::formatCategoryWithChildren($child->makeHidden(['created_at', 'updated_at', 'parent_id']));
-                    });
-                    return $category;
-                });
+public function index(Request $request)
+{
+    try {
+        $type = $request->get('type');
 
-            return ApiResponse::success('Lấy danh sách danh mục thành công!!', data: $categories);
-        } catch (\Exception $e) {
-            logger('Log bug', [
-                'error_message' => $e->getMessage(),
-                'error_file' => $e->getFile(),
-                'error_line' => $e->getLine(),
-                'stack_trace' => $e->getTraceAsString()
-            ]);
-            throw new ApiException('Có lỗi xảy ra!!');
+        $query = Category::with('children')
+            ->root()
+            ->where('is_active', true)
+            ->select('id', 'name', 'slug', 'thumbnail', 'is_active', 'is_featured', 'type');
+
+        if (!empty($type)) {
+            $query->where('type', $type);
         }
-    }
 
-    public function blogCategories()
-    {
-        $blogcategorys = $this->categoryService->blogCategories();
-        return ApiResponse::success('Danh mục blog thành công', data: $blogcategorys);
+        $categories = $query->get()
+            ->map(function ($category) {
+                $category->children->each(function ($child) {
+                    Common::formatCategoryWithChildren($child->makeHidden([
+                        'created_at', 'updated_at', 'parent_id'
+                    ]));
+                });
+                return $category;
+            });
+
+        return ApiResponse::success('Lấy danh sách danh mục thành công!', data: $categories);
+    } catch (\Exception $e) {
+        logger('Log bug danh mục', [
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+        throw new ApiException('Có lỗi xảy ra!!', 500);
     }
+}
 }

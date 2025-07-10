@@ -42,7 +42,6 @@ Route::prefix('v1/front')
         // Routes API Category
         Route::controller('CategoryController')->group(function () {
             Route::get('/categories', 'index');
-            Route::get('/categories/blog', 'blogCategories');
         });
         // Routes API Brand
         Route::controller('BrandController')->group(function () {
@@ -131,7 +130,6 @@ Route::prefix('v1/admin')
         // Routes API Category
         Route::controller('CategoryController')->group(function () {
             Route::get('/categories', 'index')->name('admin.categories.index');
-            Route::get('/categories/blog', 'blogCategoriesForAdmin');
             Route::post('/categories/create', 'store')->name('admin.categories.store');
             Route::put('/categories/{slug}', 'update')->name('admin.categories.update');
             Route::delete('/categories/{slug}', 'destroy')->name('admin.categories.destroy');
