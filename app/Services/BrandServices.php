@@ -5,10 +5,8 @@ namespace App\Services;
 use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Resources\Admin\BrandResource as AdminBrandResource;
-use App\Http\Resources\BrandResource;
 use App\Models\Brand;
 use Exception;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class BrandServices
@@ -85,12 +83,27 @@ class BrandServices
             $brand = Brand::findOrFail($id);
 
             if (request()->hasFile('logo')) {
-                $data['logo'] = Common::uploadImageToCloudinary(request()->file('logo'), 'egomall/brands');
+                logger()->info('Đường dẫn ảnh cũ:', ['logo_url' => $brand->logo]);
+                // Xoá logo cũ nếu có
+                if (!empty($brand->logo)) {
+                    $publicId = Common::getCloudinaryPublicIdFromUrl($brand->logo);
+                    logger()->info('Public ID đã tách:', ['public_id' => $publicId]);
+                    if ($publicId) {
+                        Common::deleteImageFromCloudinary($publicId);
+                    }
+                }
+
+                // Upload ảnh mới
+                $data['logo'] = Common::uploadImageToCloudinary(
+                    request()->file('logo'),
+                    'egomall/brands'
+                );
             }
 
             $data['slug'] = $data['slug'] ?? Str::slug($data['name']);
 
             $brand->update($data);
+
             return $brand;
         } catch (Exception $e) {
             throw new ApiException('Cập nhật thương hiệu thất bại!', 500, [$e->getMessage()]);

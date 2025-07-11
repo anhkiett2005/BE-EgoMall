@@ -45,7 +45,13 @@ class Common
             throw new ApiException('Upload ảnh thất bại', 500, [$response->body()]);
         }
 
-        return $response->json()['secure_url'] ?? null;
+        $data = $response->json();
+
+        if (!isset($data['secure_url'])) {
+            throw new ApiException('Upload ảnh thất bại: thiếu secure_url', 500, [$data]);
+        }
+
+        return $data['secure_url'];
     }
 
     public static function deleteImageFromCloudinary(string $publicId): bool
@@ -78,21 +84,14 @@ class Common
     public static function getCloudinaryPublicIdFromUrl(string $url): ?string
     {
         if (empty($url)) return null;
-        // Tìm phần sau '/upload/' và bỏ phần mở rộng
-        $parts = explode('/upload/', $url, 2);
-        if (count($parts) < 2) return null;
 
-        // Loại bỏ version (v1234567890/) nếu có
-        $path = preg_replace('#^v\d+/#', '', $parts[1]);
+        $matches = [];
+        if (preg_match('#/upload/(?:v\d+/)?(.+?)\.[a-zA-Z]+$#', $url, $matches)) {
+            return $matches[1] ?? null;
+        }
 
-        // Bỏ phần mở rộng (.jpg, .png, ...)
-        $path = preg_replace('/\.[a-zA-Z0-9]+$/', '', $path);
-
-        return $path;
+        return null;
     }
-
-
-
 
     public static function formatCategoryWithChildren($category)
     {
