@@ -3,6 +3,7 @@
 namespace App\Classes;
 
 use App\Exceptions\ApiException;
+use App\Models\Promotion;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
@@ -154,5 +155,13 @@ class Common
     public static function formatDateVN(?Carbon $date): ?string
     {
         return $date?->timezone('Asia/Ho_Chi_Minh')->toDateTimeString();
+    }
+
+
+    public static function generateUniqueId($orderId)
+    {
+        $salt = env('BCRYPT_ROUNDS');
+        $hash = hash_hmac('sha256', $orderId,$salt);
+        return 'ORD-'. strtoupper(substr($hash, 0, 10));
     }
 }

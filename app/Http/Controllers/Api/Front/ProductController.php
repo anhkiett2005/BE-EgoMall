@@ -25,6 +25,7 @@ class ProductController extends Controller
             $sub = DB::table('product_variants')
                     ->selectRaw('MAX(COALESCE(sale_price, price))')
                     ->whereColumn('product_variants.product_id', 'products.id');
+            $now = now();
 
             $query = Product::query()
                     ->select('*')
@@ -77,19 +78,50 @@ class ProductController extends Controller
             if($request->filled('price_range')) {
                 //Xử lý tách giá min và max
                 [$min, $max] = array_map('intval',explode('-', $request->price_range));
-                $query->whereHas('variants', function ($q) use($min, $max) {
-                $q->where(function($subQ) use($min, $max) {
-                    $subQ->where(function($hasSalePriceQ) use($min, $max) {
-                            // nếu có sale_price  thì lọc theo giá sale vì variant áp dụng theo giá sale
-                            $hasSalePriceQ->whereNotNull('sale_price')
-                                        ->whereBetween('sale_price', [$min, $max]);
-                    })
-                    ->orWhere(function($noSalePriceQ) use($min, $max) {
-                            // nếu sale_price null thì lọc theo price
-                            $noSalePriceQ->whereNull('sale_price')
-                                        ->whereBetween('price', [$min, $max]);
-                    });
-                });
+                // $query->whereHas('variants', function ($q) use($min, $max) {
+                // $q->where(function($subQ) use($min, $max) {
+                //     $subQ->where(function($hasSalePriceQ) use($min, $max) {
+                //             // nếu có sale_price  thì lọc theo giá sale vì variant áp dụng theo giá sale
+                //             $hasSalePriceQ->whereNotNull('sale_price')
+                //                         ->whereBetween('sale_price', [$min, $max]);
+                //     })
+                //     ->orWhere(function($noSalePriceQ) use($min, $max) {
+                //             // nếu sale_price null thì lọc theo price
+                //             $noSalePriceQ->whereNull('sale_price')
+                //                         ->whereBetween('price', [$min, $max]);
+                //     });
+                // });
+                // });
+
+                $query->whereHas('variants', function ($q) use ($min, $max) {
+                    $q->whereRaw("
+                        COALESCE(
+                            sale_price,
+                            price - (
+                                COALESCE(
+                                    (
+                                        SELECT
+                                            CASE
+                                                WHEN p.promotion_type = 'percentage'
+                                                    THEN price * (p.discount_value / 100)
+                                                WHEN p.promotion_type = 'fixed_amount'
+                                                    THEN p.discount_value
+                                                ELSE 0
+                                            END
+                                        FROM promotions p
+                                        JOIN promotion_product pp
+                                            ON p.id = pp.promotion_id
+                                        WHERE pp.product_variant_id = product_variants.id
+                                            AND p.status = 'active'
+                                            AND p.start_date <= ?
+                                            AND p.end_date >= ?
+                                        ORDER BY p.discount_value DESC
+                                        LIMIT 1
+                                    ), 0
+                                )
+                            )
+                        ) BETWEEN ? AND ?
+                    ", [now(),now(),$min, $max]);
                 });
             }
 
@@ -99,13 +131,18 @@ class ProductController extends Controller
             }
 
 
+            $promotions = Promotion::with(['products', 'productVariants'])
+                                    ->where('status', '!=', 0)
+                                    ->where('start_date', '<=', $now)
+                                    ->where('end_date', '>=', $now)
+                                    ->get();
 
             // xử lý dữ liệu và trả về
             $products = $query->get();
 
 
 
-            $productLists = $products->map(function($product): array {
+            $productLists = $products->map(function($product) use($promotions): array {
                 $allReviews = collect();
 
                 foreach ($product->variants as $variant) {
@@ -130,12 +167,13 @@ class ProductController extends Controller
                     'image' => $product->image ?? null,
                     'average_rating' => $averageRating,
                     'review_count' => $reviewCount,
-                    'variants' => $product->variants->map(function($variant) {
+                    'variants' => $product->variants->map(function($variant) use($promotions) {
                         return [
                             'id' => $variant->id,
                             'sku' => $variant->sku,
                             'price' => $variant->price,
                             'sale_price' => $variant->sale_price,
+                            'final_price_discount' => self::checkPromotion($variant, $promotions),
                             'options' => $variant->values->map(function ($value) {
                                 return [
                                     'name' => $value->variantValue->option->name,
@@ -340,6 +378,51 @@ class ProductController extends Controller
                 $query->orderBy('created_at', 'desc');
                 break;
         }
+    }
+
+    public static function checkPromotion($variant, $promotions)
+    {
+        if ($variant->sale_price !== null) return null;
+
+        // Ưu tiên promotion theo variant
+        $variantPromotion = $promotions->first(function ($promo) use ($variant) {
+            return $promo->productVariants->contains('id', $variant->id);
+        });
+
+        if ($variantPromotion) {
+            return self::calculateDiscount($variant, $variantPromotion);
+        }
+
+        // Nếu không, lấy promotion theo product
+        $productPromotion = $promotions->first(function ($promo) use ($variant) {
+            return $promo->products->contains('id', $variant->product_id);
+        });
+
+        if ($productPromotion) {
+            return self::calculateDiscount($variant, $productPromotion);
+        }
+
+        return null;
+    }
+
+    // Hàm xử lý tính toán giảm giá
+    protected static function calculateDiscount($variant, $promotion)
+    {
+        // dd($promotion);
+        if ($variant->sale_price !== null) {
+            return null;
+        }
+
+        $price = $variant->price;
+        $discount = 0;
+
+        if ($promotion->promotion_type === 'percentage') {
+            $discount = $price * ($promotion->discount_value / 100);
+        } elseif ($promotion->promotion_type === 'fixed_amount') {
+            $discount = $promotion->discount_value;
+        }
+
+        return max(0, $price - $discount);
     }
 
 }
