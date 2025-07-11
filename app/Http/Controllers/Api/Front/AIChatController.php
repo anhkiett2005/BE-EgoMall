@@ -19,7 +19,10 @@ class AIChatController extends Controller
             throw new ApiException('Bạn chưa nhập câu hỏi!', 422);
         }
 
-        // Gọi service xử lý logic gửi và lưu
+        if (mb_strlen($question) > 1000) {
+            throw new ApiException('Câu hỏi quá dài, vui lòng rút gọn dưới 1000 ký tự!', 422);
+        }
+
         $answer = app(GeminiChatService::class)->ask($question);
 
         return ApiResponse::success(

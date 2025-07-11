@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Exceptions\ApiException;
 use App\Models\ChatHistory;
 use GuzzleHttp\Client;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 
@@ -22,26 +21,8 @@ class GeminiChatService
 
             Session::put('chat_session_active', true);
             $sessionId = Session::getId();
-            Log::info('Session từ header: ' . request()->header('Cookie'));
-            Log::info('Session Laravel nhận được: ' . Session::getId());
 
-            $recentHistory = ChatHistory::query()
-                ->where(function ($q) use ($userId, $sessionId) {
-                    if ($userId) {
-                        $q->where('user_id', $userId);
-                    } else {
-                        $q->where('session_id', $sessionId);
-                    }
-                })
-                ->latest()
-                ->take(5)
-                ->get()
-                ->reverse(); // đảo ngược để câu cũ xếp trước
-
-            $historyText = '';
-            foreach ($recentHistory as $item) {
-                $historyText .= "Khách: {$item->question}\nAI: {$item->answer}\n";
-            }
+            $historyText = $this->getRecentHistory($userId, $sessionId);
 
             // 3. Ghép context gốc + history + câu hỏi mới
             $fullContext = trim($context . "\n" . $historyText);
@@ -55,6 +36,11 @@ class GeminiChatService
             ];
 
             $client = new Client();
+
+            // if (app()->environment('local')) {
+            //     Log::info('Payload gửi Gemini:', $payload);
+            // }
+
             $response = $client->post(
                 config('chatbot.endpoint'),
                 [
@@ -100,5 +86,28 @@ class GeminiChatService
             }
         }
         return $context;
+    }
+
+    private function getRecentHistory(?int $userId, string $sessionId): string
+    {
+        $recentHistory = ChatHistory::query()
+            ->where(function ($q) use ($userId, $sessionId) {
+                if ($userId) {
+                    $q->where('user_id', $userId);
+                } else {
+                    $q->where('session_id', $sessionId);
+                }
+            })
+            ->latest()
+            ->take(5)
+            ->get()
+            ->reverse();
+
+        $historyText = '';
+        foreach ($recentHistory as $item) {
+            $historyText .= "Khách: {$item->question}\nBạn đã trả lời: {$item->answer}\n Hãy tiếp tục trả lời câu hỏi tiếp theo.\n";
+        }
+
+        return trim($historyText);
     }
 }

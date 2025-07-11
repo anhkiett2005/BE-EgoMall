@@ -7,15 +7,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Middleware\JwtCookieAuth;
+use Illuminate\Session\Middleware\StartSession;
 use PHPOpenSourceSaver\JWTAuth\Http\Middleware\Authenticate;
 
 // Front route
 Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
-        Route::controller('AIChatController')->group(function () {
-            Route::post('/chat-ai', 'chat');
-        });
+        Route::controller('AIChatController')
+            ->middleware([StartSession::class]) // ⚠️ CHỈ CÓ
+            ->group(function () {
+                Route::post('/chat-ai', 'chat');
+            });
 
         // Routes API User Addresses
         Route::middleware(['inject.api.auth.header', 'api.auth.check'])
