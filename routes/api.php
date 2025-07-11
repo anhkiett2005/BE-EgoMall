@@ -15,7 +15,7 @@ Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
         Route::controller('AIChatController')
-            ->middleware([StartSession::class]) // ⚠️ CHỈ CÓ
+            ->middleware([StartSession::class])
             ->group(function () {
                 Route::post('/chat-ai', 'chat');
             });
@@ -34,13 +34,22 @@ Route::prefix('v1/front')
                 // Route::patch('/{id}/restore', 'restore');
             });
 
-
         // Routes API Location
         Route::controller('LocationController')->group(function () {
             Route::get('/location/provinces', 'getProvinces');
             Route::get('/location/provinces/{code}/districts', 'getDistricts');
             Route::get('/location/districts/{code}/wards', 'getWards');
         });
+
+        Route::prefix('user/wishlists')
+            ->middleware(['inject.api.auth.header', 'api.auth.check'])
+            ->controller('WishlistController')
+            ->group(function () {
+                Route::get('/', 'index');
+                Route::post('/', 'store');
+                Route::delete('/{productSlug}', 'destroy');
+            });
+
 
         // Routes API Category
         Route::controller('CategoryController')->group(function () {
