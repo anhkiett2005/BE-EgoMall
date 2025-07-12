@@ -20,101 +20,77 @@ class OrderController extends Controller
 {
     public function checkOutOrders(OrderRequest $request)
     {
-    DB::beginTransaction();
-    try {
-        $data = $request->all();
-        $user = auth('api')->user();
+        DB::beginTransaction();
 
-        $subtotal = 0;
-        $total = 0;
-        $totalDiscount = 0;
-        $totalDiscountVoucher = 0;
-        $totalFlashSale = 0;
+        try {
+            $data = $request->all();
+            $user = auth('api')->user();
 
-        // Tạo đơn hàng trước
-        $order = Order::create([
-            'user_id' => $user->id,
-            'unique_id' => '',
-            'total_price' => 0,
-            'status' => 'ordered',
-            'payment_status' => 'pending',
-            'note' => $data['note'],
-            'shipping_name' => $data['shipping_name'],
-            'shipping_phone' => $data['shipping_phone'],
-            'shipping_email' => $data['shipping_email'],
-            'shipping_address' => $data['shipping_address'],
-            'payment_method' => $data['payment_method'],
-        ]);
+            $subtotal = 0;
+            $total = 0;
+            $totalDiscount = 0;
+            $totalDiscountVoucher = 0;
+            $totalFlashSale = 0;
 
-        $order->update(['unique_id' => Common::generateUniqueId($order->id)]);
+            $order = Order::create([
+                'user_id' => $user->id,
+                'unique_id' => '',
+                'total_price' => 0,
+                'status' => 'ordered',
+                'payment_status' => 'unpaid',
+                'note' => $data['note'],
+                'shipping_name' => $data['shipping_name'],
+                'shipping_phone' => $data['shipping_phone'],
+                'shipping_email' => $data['shipping_email'],
+                'shipping_address' => $data['shipping_address'],
+                'payment_method' => $data['payment_method'],
+            ]);
+            $order->update(['unique_id' => Common::generateUniqueId($order->id)]);
 
-        // Tối ưu load variant
-        $variantIds = collect($data['orders'])->flatMap(fn($order) => collect($order['products'])->pluck('id'))->unique();
-        $variants = ProductVariant::with(['product', 'values.variantValue.option'])->whereIn('id', $variantIds)->get()->keyBy('id');
+            $variantIds = collect($data['orders'])->flatMap(fn($order) => collect($order['products'])->pluck('id'))->merge(
+                collect($data['orders'])->flatMap(fn($order) => collect($order['gifts'] ?? [])->pluck('id'))
+            )->unique();
 
-        // Tối ưu promotion và voucher
-        $voucher = isset($data['voucher_id']) ? $this->checkVoucher($data['voucher_id']) : null;
-        $buyGetPromotion = Promotion::with(['giftProduct.variants', 'giftProductVariant'])
-                                    ->where('status', '!=', 0)
-                                    ->where('promotion_type', 'buy_get')
-                                    ->where('start_date', '<=', now())
-                                    ->where('end_date', '>=', now())
-                                    ->first();
+            $variants = ProductVariant::with(['product', 'values.variantValue.option'])->whereIn('id', $variantIds)->get()->keyBy('id');
 
-        foreach($data['orders'] as $orderItem) {
-            foreach($orderItem['products'] as $productItem) {
-                $variant = $variants[$productItem['id']] ?? null;
-                if (!$variant) continue;
+            $allPromotions = Promotion::with(['products', 'productVariants', 'giftProduct.variants', 'giftProductVariant'])
+                                      ->where('status', '!=', 0)
+                                      ->where('start_date', '<=', now())
+                                      ->where('end_date', '>=', now())
+                                      ->get();
 
-                if($variant->quantity == 0) {
-                    $variantValue = $variant->values->map(function ($v) {
-                        $name = $v->variantValue->option->name ?? 'Thuộc tính';
-                        $value = $v->variantValue->value;
-                        return "{$name}: {$value}";
-                    })->implode(' | ');
-                    throw new ApiException("Sản phẩm {$variant->product->name} ({$variantValue}) đã hết hàng!!");
-                }
+            $voucher = isset($data['voucher_id']) ? $this->checkVoucher($data['voucher_id']) : null;
 
-                if ($productItem['quantity'] > $variant->quantity) {
-                    $variantValue = $variant->values->map(function ($v) {
-                        $name = $v->variantValue->option->name ?? 'Thuộc tính';
-                        $value = $v->variantValue->value;
-                        return "{$name}: {$value}";
-                    })->implode(' | ');
-                    throw new ApiException("Sản phẩm {$variant->product->name} ({$variantValue}) chỉ còn {$variant->quantity}");
-                }
+            foreach($data['orders'] as $orderItem) {
+                foreach($orderItem['products'] as $productItem) {
+                    $variant = $variants[$productItem['id']] ?? null;
+                    if (!$variant) continue;
 
-                    $promotion = $this->checkPromotion($variant);
-                    $priceOriginal = $variant->sale_price ? $variant->sale_price : $variant->price;
+                    if($variant->quantity == 0 || $productItem['quantity'] > $variant->quantity) {
+                        $variantValue = $variant->values->map(fn($v) =>
+                            ($v->variantValue->option->name ?? 'Thuộc tính') . ": " . $v->variantValue->value
+                        )->implode(' | ');
+                        throw new ApiException("Sản phẩm {$variant->product->name} ({$variantValue}) không đủ hàng!!");
+                    }
+
+                    $promotions = $this->getApplicablePromotions($variant, $allPromotions);
+                    $flashSale = $promotions['flash_sale'];
+
+                    $priceOriginal = $variant->sale_price ?: $variant->price;
                     $lineItemTotal = $priceOriginal * $productItem['quantity'];
                     $subtotal += $lineItemTotal;
 
                     $discountFlashSale = 0;
-                    if ($promotion) {
-                        $discountFlashSale = $promotion->promotion_type == 'percentage'
-                            ? $lineItemTotal * ($promotion->discount_value / 100)
-                            : $promotion->discount_value;
+                    if ($flashSale) {
+                        $discountFlashSale = $flashSale->promotion_type === 'percentage'
+                            ? $lineItemTotal * ($flashSale->discount_value / 100)
+                            : $flashSale->discount_value;
+
                         $totalFlashSale += $discountFlashSale;
                         $totalDiscount += $discountFlashSale;
                     }
 
-                    $voucherDiscount = 0;
-                    if ($voucher) {
-                        $totalAfterFlashSale = $subtotal - $totalFlashSale;
-                        $voucherDiscount = $voucher->discount_type == 'percent'
-                            ? $totalAfterFlashSale * ($voucher->discount_value / 100)
-                            : $voucher->discount_value;
-
-                        // Nếu có giới hạn tối đa và vượt quá → lấy max_amount
-                        if ($voucher->max_amount && $voucherDiscount > $voucher->max_amount) {
-                            $voucherDiscount = $voucher->max_amount;
-                        }
-
-                        $totalDiscountVoucher += $voucherDiscount;
-                        $totalDiscount += $voucherDiscount;
-                    }
-
-                    // Tạo OrderDetail cho sản phẩm chính
+                    // Voucher discount chỉ tính trên tổng đơn
                     OrderDetail::create([
                         'order_id' => $order->id,
                         'product_variant_id' => $variant->id,
@@ -126,38 +102,66 @@ class OrderController extends Controller
                 }
 
                 // Xử lý quà tặng
-                    if (!empty($orderItem['gifts'])) {
-                        foreach ($orderItem['gifts'] as $gift) {
-                            if ($this->checkBuyAndGift($gift['id'], $buyGetPromotion)) {
-                                OrderDetail::create([
-                                    'order_id' => $order->id,
-                                    'product_variant_id' => $gift['id'],
-                                    'quantity' => $gift['quantity'],
-                                    'price' => 0,
-                                    'sale_price' => 0,
-                                    'is_gift' => true
-                                ]);
-                            } else {
-                                throw new ApiException("Quà tặng không thuộc chương trình này!!", 400);
-                            }
-                        }
+                foreach($orderItem['gifts'] ?? [] as $gift) {
+                    $giftVariant = $variants[$gift['id']] ?? null;
+                    if (!$giftVariant) continue;
+
+                    $giftPromotions = $this->getApplicablePromotions($giftVariant, $allPromotions);
+                    if (!$giftPromotions['gift']) {
+                        throw new ApiException("Quà tặng không thuộc chương trình này!!", 400);
                     }
+
+                    OrderDetail::create([
+                        'order_id' => $order->id,
+                        'product_variant_id' => $giftVariant->id,
+                        'quantity' => $gift['quantity'],
+                        'price' => 0,
+                        'sale_price' => 0,
+                        'is_gift' => true
+                    ]);
+                }
             }
 
-            $total += $subtotal - $totalDiscount;
+            // Tính tổng giảm giá từ voucher sau khi trừ flash sale
+            if ($voucher) {
+                $totalAfterFlashSale = $subtotal - $totalFlashSale;
+
+                if ($voucher->min_order_value && $totalAfterFlashSale < $voucher->min_order_value) {
+                    throw new ApiException("Đơn hàng chưa đạt giá trị tối thiểu để sử dụng voucher này!", Response::HTTP_BAD_REQUEST);
+                }
+
+                $voucherDiscount = $voucher->discount_type === 'percent'
+                    ? $totalAfterFlashSale * ($voucher->discount_value / 100)
+                    : $voucher->discount_value;
+
+                if ($voucher->max_amount && $voucherDiscount > $voucher->max_amount) {
+                    $voucherDiscount = $voucher->max_amount;
+                }
+
+                $totalDiscountVoucher = $voucherDiscount;
+                $totalDiscount += $voucherDiscount;
+            }
+
+            $total = $subtotal - $totalDiscount;
+
             $order->update([
                 'total_discount' => $totalDiscount,
                 'total_price' => $total,
-                'coupon_id' => $voucher ? $voucher->id : null,
+                'coupon_id' => $voucher->id ?? null,
                 'discount_details' => [
                     'totalDiscountVoucher' => $totalDiscountVoucher,
                     'totalFlashSale' => $totalFlashSale
                 ]
             ]);
 
-            DB::commit();
+            Common::calculateOrderStock($order);
 
-            return ApiResponse::success('Đơn hàng đã được tạo thành công!!', Response::HTTP_CREATED);
+            DB::commit();
+            // return ApiResponse::success('Đơn hàng đã được tạo thành công!!', Response::HTTP_CREATED);
+
+            // Xử lý thanh toán theo phương thức được chọn
+            return $this->processPaymentByMethod($order);
+
         } catch (ApiException $e) {
             DB::rollBack();
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
@@ -172,6 +176,19 @@ class OrderController extends Controller
             throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
         }
     }
+
+    private function processPaymentByMethod($order)
+    {
+        switch ($order->payment_method) {
+            case 'VNPAY':
+                return app(VnpayController::class)->processPayment($order);
+            case 'MOMO':
+                return app(MomoController::class)->processPayment($order->unique_id, $order->total_price);
+            // case 'e-wallet':
+            //     return app(EWalletPaymentController::class)->processPayment($order);
+        }
+    }
+
 
 
     private function checkPromotion($variant)
@@ -232,6 +249,47 @@ class OrderController extends Controller
 
         return false;
     }
+
+    private function getApplicablePromotions($variant, $promotions)
+    {
+
+        $matched = [
+            'flash_sale' => null,
+            'gift' => null,
+        ];
+
+        foreach ($promotions as $promotion) {
+            // Áp dụng flash sale
+            if (in_array($promotion->promotion_type, ['percentage', 'fixed_amount'])) {
+                if (
+                    $promotion->productVariants->contains('id', $variant->id) ||
+                    $promotion->products->contains('id', $variant->product_id)
+                ) {
+                    $matched['flash_sale'] = $promotion;
+                }
+            }
+
+            // Áp dụng quà tặng
+            if ($promotion->promotion_type === 'buy_get') {
+                $isGift = false;
+
+                if ($promotion->gift_product_id && $promotion->giftProduct) {
+                    $isGift = $promotion->giftProduct->variants->contains('id', $variant->id);
+                }
+
+                if ($promotion->gift_product_variant_id) {
+                    $isGift = $promotion->gift_product_variant_id == $variant->id;
+                }
+
+                if ($isGift) {
+                    $matched['gift'] = $promotion;
+                }
+            }
+        }
+
+        return $matched;
+    }
+
 
 
 }

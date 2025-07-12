@@ -112,6 +112,17 @@ Route::prefix('v1/front')
              ->group(function () {
                  Route::post('/checkout-orders', 'checkOutOrders');
         });
+
+        // Routes API VnPay
+        Route::controller('VnPayController')->group(function () {
+            Route::get('/payment/vnpay/callback','paymentSuccess');
+        });
+
+        // Routes API Momo
+        Route::controller('MomoController')->group(function () {
+            Route::get('/payment/momo/redirect', 'handleRedirect')->name('payment.momo.redirect');
+            Route::post('/payment/momo/ipn', 'handleIpn')->name('payment.momo.ipn');
+        });
     });
 
 Route::prefix('v1/admin')

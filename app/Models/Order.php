@@ -25,6 +25,7 @@ class Order extends Model
         'payment_status',
         'payment_date',
         'transaction_id',
+        'coupon_id'
     ];
 
     protected $hidden = [
