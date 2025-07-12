@@ -177,6 +177,16 @@ Route::prefix('v1/admin')
             Route::delete('/blogs/{id}', 'destroy')->name('admin.blogs.destroy');
             Route::patch('/blogs/restore/{id}', 'restore')->name('admin.blogs.restore');
         });
+
+        // Routes API Coupon
+        Route::controller('CouponController')->group(function () {
+            Route::get('/coupons', 'index')->name('admin.coupons.index');
+            Route::get('/coupons/{id}', 'show')->name('admin.coupons.show');
+            Route::post('/coupons', 'store')->name('admin.coupons.store');
+            Route::put('/coupons/{id}', 'update')->name('admin.coupons.update');
+            Route::delete('/coupons/{id}', 'destroy')->name('admin.coupons.destroy');
+            Route::post('/coupons/{id}/restore', 'restore')->name('admin.coupons.restore');
+        });
     });
 
 Route::prefix('v1/auth')->group(function () {

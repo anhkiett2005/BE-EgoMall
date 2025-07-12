@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Coupon extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'coupons';
 
@@ -26,13 +27,19 @@ class Coupon extends Model
     ];
 
     protected $casts = [
+        'discount_value' => 'decimal:2',
+        'min_order_value' => 'decimal:2',
+        'max_discount' => 'decimal:2',
         'start_date' => 'datetime',
         'end_date' => 'datetime',
+        'status' => 'boolean',
     ];
 
-    protected $hidden = [
-        'id'
-    ];
+    // Danh sách lượt dùng
+    public function usages()
+    {
+        return $this->hasMany(CouponUsage::class);
+    }
 
 
     public function orders()

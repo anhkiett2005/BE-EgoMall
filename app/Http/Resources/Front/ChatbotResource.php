@@ -12,6 +12,7 @@ class ChatbotResource extends JsonResource
         return [
             'question' => $this['question'],
             'answer'   => $this['answer'],
+            'time'     => now()->toDateTimeString(),
         ];
     }
 }
