@@ -3,6 +3,10 @@
 namespace App\Classes;
 
 use App\Exceptions\ApiException;
+use App\Models\Order;
+use App\Models\ProductVariant;
+use App\Models\Promotion;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
@@ -154,4 +158,87 @@ class Common
     {
         return $date?->timezone('Asia/Ho_Chi_Minh')->toDateTimeString();
     }
+
+
+    public static function generateUniqueId($orderId)
+    {
+        $salt = env('BCRYPT_ROUNDS');
+        $hash = hash_hmac('sha256', $orderId,$salt);
+        return 'ORD-'. strtoupper(substr($hash, 0, 10));
+    }
+
+    public static function calculateOrderStock(Order $order)
+    {
+        // Lấy chi tiết đơn hàng không phải là quà tặng
+        $orderDetails = $order->details()->where('is_gift',false)->get();
+
+        // Lấy ra số lượng theo variant_id
+         $quantities = $orderDetails->groupBy('product_variant_id')->map(function ($group) {
+            return $group->sum('quantity');
+        });
+
+        // Trừ tồn kho
+        foreach ($quantities as $variantId => $qty) {
+            ProductVariant::where('id', $variantId)->decrement('quantity', $qty);
+        }
+    }
+
+    public static function momoPayment($orderId, $amount)
+    {
+
+        try {
+            if (!$amount || $amount <= 0) {
+                throw new ApiException("Số tiền thanh toán không hợp lệ!");
+            }
+
+            $partnerCode = env('MOMO_PARTNER_CODE');
+            $accessKey = env('MOMO_ACCESS_KEY');
+            $secretKey = env('MOMO_SECRET_KEY');
+            $orderInfo = "Thanh toán đơn hàng qua ATM MoMo";
+            $redirectUrl = route('payment.momo.redirect'); // ví dụ: định nghĩa route trả về sau thanh toán
+            $ipnUrl =  'https://e819740b81e9.ngrok-free.app/api/v1/front/payment/momo/ipn';     //route('payment.momo.ipn'); // ví dụ: route nhận callback IPN
+            $requestId = now()->timestamp . '';
+            $requestType = 'payWithATM';
+            $extraData = '';
+
+            // Build raw signature string
+            $rawHash = "accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=$requestType";
+            $signature = hash_hmac("sha256", $rawHash, $secretKey);
+
+            $body = [
+                'partnerCode' => $partnerCode,
+                'partnerName' => "Test",
+                'storeId' => "MomoTestStore",
+                'requestId' => $requestId,
+                'amount' => $amount,
+                'orderId' => $orderId,
+                'orderInfo' => $orderInfo,
+                'redirectUrl' => $redirectUrl,
+                'ipnUrl' => $ipnUrl,
+                'lang' => 'vi',
+                'extraData' => $extraData,
+                'requestType' => $requestType,
+                'signature' => $signature
+            ];
+
+            $response = Http::post('https://test-payment.momo.vn/v2/gateway/api/create', $body);
+
+            if ($response->failed()) {
+                throw new ApiException("Gửi yêu cầu thanh toán MoMo thất bại!");
+            }
+
+            $jsonResult = $response->json();
+
+            if (!isset($jsonResult['payUrl'])) {
+                throw new ApiException("Không nhận được liên kết thanh toán MoMo!");
+            }
+
+            // return redirect()->to($jsonResult['payUrl']);
+            return $jsonResult['payUrl'];
+        } catch(\Exception $e) {
+            throw new ApiException($e->getMessage());
+        }
+    }
+
+
 }

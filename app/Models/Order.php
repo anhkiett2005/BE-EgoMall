@@ -10,8 +10,11 @@ class Order extends Model
     use HasFactory;
 
     protected $fillable = [
+        'unique_id',
         'user_id',
         'total_price',
+        'total_discount',
+        'discount_details',
         'status',
         'note',
         'shipping_name',
@@ -22,10 +25,15 @@ class Order extends Model
         'payment_status',
         'payment_date',
         'transaction_id',
+        'coupon_id'
     ];
 
     protected $hidden = [
         'id'
+    ];
+
+    protected $casts = [
+        'discount_details' => 'json'
     ];
 
     public function user()
