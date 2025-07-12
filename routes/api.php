@@ -123,6 +123,7 @@ Route::prefix('v1/front')
              ->middleware(['inject.api.auth.header', 'api.auth.check'])
              ->group(function () {
                  Route::post('/checkout-orders', 'checkOutOrders');
+                 Route::get('/cancel-orders/{uniqueId}', 'cancelOrders');
         });
 
         // Routes API VnPay

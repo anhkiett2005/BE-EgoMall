@@ -17,6 +17,38 @@ class MomoController extends Controller
         return Common::momoPayment($orderId, $amount);
     }
 
+    public function processRefundPayment($transId, $amount) {
+        try {
+            $isRefund = Common::refundMomoTransaction($transId, $amount);
+
+            $order = Order::where('transaction_id', $transId)->first();
+            if($isRefund['resultCode'] == 0) {
+                // Hoàn lại số lượng từ đơn đã mua
+                Common::restoreOrderStock($order);
+
+                // Cập nhật lại trạng thái đơn hàng
+                $order->update([
+                    'status' => 'cancelled',
+                    'payment_status' => 'refunded',
+                    'payment_date' => now(),
+                    'transaction_id' => $isRefund['transId']
+                ]);
+            }
+
+            return ApiResponse::success('Hủy đơn hàng thành công!!');
+        } catch (ApiException) {
+            return ApiResponse::error('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
+        } catch (\Exception $e) {
+            logger('Log bug refund payment', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
+        }
+    }
+
     // Xử lý redirect từ MoMo (hiển thị kết quả cho người dùng)
     public function handleRedirect(Request $request)
     {

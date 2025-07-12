@@ -177,6 +177,31 @@ class OrderController extends Controller
         }
     }
 
+
+    public function cancelOrders($uniqueId)
+    {
+        try {
+            $order = Order::where('unique_id',$uniqueId)
+                          ->first();
+
+            if (!$order) {
+                throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
+            }
+
+            return $this->processRefundPaymentByMethod($order);
+        } catch (ApiException $e) {
+
+        } catch (\Exception $e) {
+            logger('Log bug cancel orders', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
+        }
+    }
+
     private function processPaymentByMethod($order)
     {
         switch ($order->payment_method) {
@@ -189,7 +214,15 @@ class OrderController extends Controller
         }
     }
 
-
+    private function processRefundPaymentByMethod($order)
+    {
+        switch ($order->payment_method) {
+            case 'VNPAY':
+                return app(VnpayController::class)->processRefundPayment($order->transaction_id, $order->total_price);
+            case 'MOMO':
+                return app(MomoController::class)->processRefundPayment($order->transaction_id, $order->total_price);
+        }
+    }
 
     private function checkPromotion($variant)
     {

@@ -9,6 +9,7 @@ use App\Models\Promotion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class Common
 {
@@ -169,19 +170,37 @@ class Common
 
     public static function calculateOrderStock(Order $order)
     {
-        // Lấy chi tiết đơn hàng không phải là quà tặng
-        $orderDetails = $order->details()->where('is_gift',false)->get();
+        // Lấy tất cả chi tiết đơn hàng (bao gồm sản phẩm & quà tặng)
+        $orderDetails = $order->details;
 
-        // Lấy ra số lượng theo variant_id
-         $quantities = $orderDetails->groupBy('product_variant_id')->map(function ($group) {
+        if ($orderDetails->isEmpty()) return;
+
+        // Gom nhóm theo variant_id và tính tổng số lượng
+        $quantities = $orderDetails->groupBy('product_variant_id')->map(function ($group) {
             return $group->sum('quantity');
         });
 
-        // Trừ tồn kho
+        // Trừ tồn kho tương ứng
         foreach ($quantities as $variantId => $qty) {
             ProductVariant::where('id', $variantId)->decrement('quantity', $qty);
         }
     }
+
+    public static function restoreOrderStock(Order $order)
+    {
+        $orderDetails = $order->details;
+
+        if ($orderDetails->isEmpty()) return;
+
+        $quantities = $orderDetails->groupBy('product_variant_id')->map(function ($group) {
+            return $group->sum('quantity');
+        });
+
+        foreach ($quantities as $variantId => $qty) {
+            ProductVariant::where('id', $variantId)->increment('quantity', $qty);
+        }
+    }
+
 
     public static function momoPayment($orderId, $amount)
     {
@@ -196,9 +215,9 @@ class Common
             $secretKey = env('MOMO_SECRET_KEY');
             $orderInfo = "Thanh toán đơn hàng qua ATM MoMo";
             $redirectUrl = route('payment.momo.redirect'); // ví dụ: định nghĩa route trả về sau thanh toán
-            $ipnUrl =  'https://e819740b81e9.ngrok-free.app/api/v1/front/payment/momo/ipn';     //route('payment.momo.ipn'); // ví dụ: route nhận callback IPN
+            $ipnUrl = 'https://134c046a5ddf.ngrok-free.app/api/v1/front/payment/momo/ipn';  //route('payment.momo.ipn');      // ví dụ: route nhận callback IPN
             $requestId = now()->timestamp . '';
-            $requestType = 'payWithATM';
+            $requestType = 'captureWallet';
             $extraData = '';
 
             // Build raw signature string
@@ -237,6 +256,60 @@ class Common
             return $jsonResult['payUrl'];
         } catch(\Exception $e) {
             throw new ApiException($e->getMessage());
+        }
+    }
+
+
+    public static function refundMomoTransaction($transId, $amount)
+    {
+        try {
+            if (!$amount || $amount <= 0) {
+                throw new ApiException("Số tiền hoàn không hợp lệ!");
+            }
+
+            $partnerCode = env('MOMO_PARTNER_CODE');
+            $accessKey = env('MOMO_ACCESS_KEY');
+            $secretKey = env('MOMO_SECRET_KEY');
+            $refundEndpoint = 'https://test-payment.momo.vn/v2/gateway/api/refund'; // Sửa nếu dùng production
+
+            $orderId = 'REFUND_' . Str::uuid(); // Tạo orderId riêng cho refund
+            $requestId = (string) Str::uuid();  // requestId là duy nhất
+            $lang = 'vi';
+            $description = "";
+
+            // Tạo chuỗi để ký
+             $rawHash = "accessKey=$accessKey&amount=$amount&description=$description"
+                    . "&orderId=$orderId&partnerCode=$partnerCode"
+                    . "&requestId=$requestId&transId=$transId";
+
+            $signature = hash_hmac("sha256", $rawHash, $secretKey);
+
+            $payload = [
+                'partnerCode' => $partnerCode,
+                'orderId' => $orderId,
+                'requestId' => $requestId,
+                'amount' => (int) $amount,
+                'transId' => (int) $transId,
+                'lang' => $lang,
+                'description' => $description,
+                'signature' => $signature
+            ];
+
+            $response =  Http::withHeaders([
+                'Content-Type' => 'application/json',
+            ])->post($refundEndpoint, $payload);
+
+            $result = $response->json();
+            // logger('Refund result:', $result);
+
+            if ($response->failed()) {
+                throw new ApiException("Refund thất bại: " . json_encode($result));
+            }
+
+            return $result;
+
+        } catch (\Exception $e) {
+            throw new ApiException("Lỗi hoàn tiền MoMo: " . $e->getMessage());
         }
     }
 
