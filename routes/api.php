@@ -7,15 +7,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 use App\Http\Middleware\JwtCookieAuth;
+use Illuminate\Session\Middleware\StartSession;
 use PHPOpenSourceSaver\JWTAuth\Http\Middleware\Authenticate;
 
 // Front route
 Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
-        Route::controller('AIChatController')->group(function () {
-            Route::post('/chat-ai', 'chat');
-        });
+        Route::controller('AIChatController')
+            ->middleware([StartSession::class])
+            ->group(function () {
+                Route::post('/chat-ai', 'chat');
+            });
 
         // Routes API User Addresses
         Route::middleware(['inject.api.auth.header', 'api.auth.check'])
@@ -31,13 +34,22 @@ Route::prefix('v1/front')
                 // Route::patch('/{id}/restore', 'restore');
             });
 
-
         // Routes API Location
         Route::controller('LocationController')->group(function () {
             Route::get('/location/provinces', 'getProvinces');
             Route::get('/location/provinces/{code}/districts', 'getDistricts');
             Route::get('/location/districts/{code}/wards', 'getWards');
         });
+
+        Route::prefix('user/wishlists')
+            ->middleware(['inject.api.auth.header', 'api.auth.check'])
+            ->controller('WishlistController')
+            ->group(function () {
+                Route::get('/', 'index');
+                Route::post('/', 'store');
+                Route::delete('/{productSlug}', 'destroy');
+            });
+
 
         // Routes API Category
         Route::controller('CategoryController')->group(function () {
@@ -108,10 +120,10 @@ Route::prefix('v1/front')
 
         // Routes API Orders
         Route::controller('OrderController')
-             ->middleware(['inject.api.auth.header', 'api.auth.check'])
-             ->group(function () {
-                 Route::post('/checkout-orders', 'checkOutOrders');
-        });
+            ->middleware(['inject.api.auth.header', 'api.auth.check'])
+            ->group(function () {
+                Route::post('/checkout-orders', 'checkOutOrders');
+            });
     });
 
 Route::prefix('v1/admin')
@@ -164,6 +176,16 @@ Route::prefix('v1/admin')
             Route::post('/blogs/{id}', 'update')->name('admin.blogs.update');
             Route::delete('/blogs/{id}', 'destroy')->name('admin.blogs.destroy');
             Route::patch('/blogs/restore/{id}', 'restore')->name('admin.blogs.restore');
+        });
+
+        // Routes API Coupon
+        Route::controller('CouponController')->group(function () {
+            Route::get('/coupons', 'index')->name('admin.coupons.index');
+            Route::get('/coupons/{id}', 'show')->name('admin.coupons.show');
+            Route::post('/coupons', 'store')->name('admin.coupons.store');
+            Route::put('/coupons/{id}', 'update')->name('admin.coupons.update');
+            Route::delete('/coupons/{id}', 'destroy')->name('admin.coupons.destroy');
+            Route::post('/coupons/{id}/restore', 'restore')->name('admin.coupons.restore');
         });
     });
 

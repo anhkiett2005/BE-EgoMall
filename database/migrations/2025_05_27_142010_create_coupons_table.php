@@ -6,31 +6,26 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('coupons', function (Blueprint $table) {
             $table->id();
-            $table->string('code');
-            $table->string('description');
-            $table->string('discount_type');
-            $table->string('discount_value');
-            $table->integer('min_order_value');
-            $table->integer('max_discount')->nullable();
-            $table->integer('usage_limit');
-            $table->integer('discount_limit');
-            $table->timestamp('start_date');
-            $table->timestamp('end_date');
+            $table->string('code')->unique();
+            $table->string('description')->nullable();
+            $table->enum('discount_type', ['percent', 'amount']);
+            $table->decimal('discount_value', 10, 2);
+            $table->decimal('min_order_value', 10, 2)->default(0);
+            $table->decimal('max_discount', 10, 2)->nullable();
+            $table->unsignedInteger('usage_limit')->nullable();
+            $table->unsignedInteger('discount_limit')->nullable();
+            $table->timestamp('start_date')->nullable();
+            $table->timestamp('end_date')->nullable();
             $table->boolean('status')->default(true);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('coupons');

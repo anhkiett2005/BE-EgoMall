@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use App\Classes\Common;
@@ -8,19 +9,20 @@ use Exception;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-class CategoryServices {
+class CategoryServices
+{
 
     /**
      * Lấy toàn bộ danh sách categories
      */
 
-     public function modifyIndex()
-     {
+    public function modifyIndex()
+    {
         try {
             $categories = Category::with(['children.categoryOptions.variantOption'])
-                                  ->root()
-                                  ->where('is_active', '!=', 0)
-                                  ->get();
+                ->root()
+                ->where('is_active', '!=', 0)
+                ->get();
 
             $listCategories = collect();
 
@@ -31,7 +33,7 @@ class CategoryServices {
 
             return $listCategories;
         } catch (Exception $e) {
-            logger('Log bug modify product',[
+            logger('Log bug modify product', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -39,9 +41,10 @@ class CategoryServices {
             ]);
             throw new ApiException('Có lỗi xảy ra!!', 500);
         }
-     }
+    }
 
-     /**
+
+    /**
      * Tạo mới một category
      */
 
@@ -62,8 +65,8 @@ class CategoryServices {
             ]);
 
             // Nếu có gán các options cho variants thì thêm vào category_options
-            if(!empty($data['options']) && is_array($data['options'])) {
-                foreach($data['options'] as $optionId) {
+            if (!empty($data['options']) && is_array($data['options'])) {
+                foreach ($data['options'] as $optionId) {
                     $category->categoryOptions()->create([
                         'variant_option_id' => $optionId,
                     ]);
@@ -72,10 +75,9 @@ class CategoryServices {
 
             DB::commit();
             return $category;
-
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
-            logger('Log bug',[
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -99,19 +101,21 @@ class CategoryServices {
             // find danh mục để update
             $category = Category::with(
                 [
-                        'categoryOptions',
-                        'products' => function ($query) {
-                            $query->where('is_active', '!=', 0);
-                        }])
-                        ->where('slug', '=', $slug)
-                        ->first();
+                    'categoryOptions',
+                    'products' => function ($query) {
+                        $query->where('is_active', '!=', 0);
+                    }
+                ]
+            )
+                ->where('slug', '=', $slug)
+                ->first();
 
 
             // check nếu có product thì k cho cập nhật options
             $hasProducts = $category->products->count() > 0 ? true : false;
 
-            if($hasProducts && isset($data['variant_options'])) {
-                throw new ApiException('Danh mục đã có sản phẩm nên không thể cập nhật thuộc tính!',Response::HTTP_CONFLICT);
+            if ($hasProducts && isset($data['variant_options'])) {
+                throw new ApiException('Danh mục đã có sản phẩm nên không thể cập nhật thuộc tính!', Response::HTTP_CONFLICT);
             }
 
             // Nếu k có products vẫn cập nhật danh mục và các variant_options
@@ -127,14 +131,14 @@ class CategoryServices {
             ]);
 
             // update các options hoặc create nếu ch có kèm với product
-            if(!$hasProducts && !empty($data['variant_options']) && is_array($data['variant_options'])) {
+            if (!$hasProducts && !empty($data['variant_options']) && is_array($data['variant_options'])) {
                 $existingOptions = $category->categoryOptions->keyBy('variant_option_id');
 
-                foreach($data['variant_options'] as $option) {
+                foreach ($data['variant_options'] as $option) {
                     $optionId = $option['id'];
 
                     // check if exits options
-                    if($existingOptions->has($optionId)) {
+                    if ($existingOptions->has($optionId)) {
                         $existingOptions[$optionId]->update([
                             'variant_option_id' => $optionId,
                         ]);
@@ -152,9 +156,9 @@ class CategoryServices {
         } catch (ApiException $e) {
             DB::rollBack();
             throw $e;
-        } catch(Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
-            logger('Log bug',[
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -174,10 +178,10 @@ class CategoryServices {
         try {
             // Tìm danh mục muốn xóa
             $category = Category::where('slug', '=', $slug)
-                                ->first();
+                ->first();
 
             // Nếu không tìm thấy trả về lỗi
-            if(!$category) {
+            if (!$category) {
                 throw new ApiException('Không tìm thấy danh mục!!', 404);
             }
 
@@ -192,7 +196,7 @@ class CategoryServices {
             throw $e;
         } catch (Exception $e) {
             DB::rollBack();
-            logger('Log bug delete category',[
+            logger('Log bug delete category', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),

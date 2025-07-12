@@ -16,7 +16,8 @@ class CategoryController extends Controller
 
     protected $categoryService;
 
-    public function __construct(CategoryServices $categoryService) {
+    public function __construct(CategoryServices $categoryService)
+    {
         $this->categoryService = $categoryService;
     }
     /**
@@ -37,10 +38,10 @@ class CategoryController extends Controller
         try {
             $category = $this->categoryService->store($request);
 
-            if($category) {
-                return ApiResponse::success('Thêm danh mục thành công!!',Response::HTTP_CREATED);
+            if ($category) {
+                return ApiResponse::success('Thêm danh mục thành công!!', Response::HTTP_CREATED);
             }
-        }catch (ApiException $e) {
+        } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         }
     }
@@ -61,7 +62,7 @@ class CategoryController extends Controller
         try {
             $isUpdated = $this->categoryService->update($request, $slug);
 
-            if($isUpdated) {
+            if ($isUpdated) {
                 return ApiResponse::success('Cập nhật danh mục thành công!!');
             }
         } catch (ApiException $e) {
@@ -77,7 +78,7 @@ class CategoryController extends Controller
         try {
             $isDeleted = $this->categoryService->destroy($slug);
 
-            if($isDeleted) {
+            if ($isDeleted) {
                 return ApiResponse::success('Xóa danh mục thành công!!');
             }
         } catch (ApiException $e) {

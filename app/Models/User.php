@@ -91,7 +91,7 @@ class User extends Authenticatable implements JWTSubject
 
     public function wishLists()
     {
-        return $this->hasMany(WishList::class);
+        return $this->belongsToMany(Product::class, 'wishlists')->withTimestamps();
     }
 
     public function addresses()
@@ -102,5 +102,10 @@ class User extends Authenticatable implements JWTSubject
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function couponUsages()
+    {
+        return $this->hasMany(CouponUsage::class);
     }
 }

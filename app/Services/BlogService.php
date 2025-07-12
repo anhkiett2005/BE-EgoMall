@@ -79,11 +79,25 @@ class BlogService
 
         try {
             if (request()->hasFile('image_url')) {
-                $data['image_url'] = Common::uploadImageToCloudinary(request()->file('image_url'), 'egomall/blogs');
+                // Xoá ảnh cũ nếu có
+                if (!empty($blog->image_url)) {
+                    $publicId = Common::getCloudinaryPublicIdFromUrl($blog->image_url);
+                    if ($publicId) {
+                        Common::deleteImageFromCloudinary($publicId);
+                    }
+                }
+
+                // Upload ảnh mới
+                $data['image_url'] = Common::uploadImageToCloudinary(
+                    request()->file('image_url'),
+                    'egomall/blogs'
+                );
             }
 
+            // Sinh slug mới nếu chưa có hoặc cần sinh lại
             $data['slug'] = Str::slug($data['slug'] ?? $data['title']);
-            // Kiểm tra trùng slug, ngoại trừ bản thân bài viết hiện tại
+
+            // Kiểm tra trùng slug (trừ chính bài viết hiện tại)
             if (Blog::where('slug', $data['slug'])->where('id', '!=', $id)->exists()) {
                 throw new ApiException('Slug đã tồn tại, vui lòng chọn slug khác', 422);
             }
@@ -105,6 +119,7 @@ class BlogService
             throw new ApiException('Cập nhật bài viết thất bại!', 500, [$e->getMessage()]);
         }
     }
+
 
     public function delete(int $id): void
     {
@@ -154,7 +169,19 @@ class BlogService
 
     public function showBySlug(string $slug): Blog
     {
-        $blog = Blog::with(['category', 'creator', 'products'])
+        $blog = Blog::with([
+            'category',
+            'creator',
+            'products.category',
+            'products.brand',
+            'products.variants' => function ($query) {
+                $query->where('is_active', '!=', 0)
+                    ->with([
+                        'values.variantValue.option',
+                        'orderDetails.order.review'
+                    ]);
+            }
+        ])
             ->where('slug', $slug)
             ->where('status', 'published')
             ->where('published_at', '<=', now())
@@ -205,7 +232,7 @@ class BlogService
         });
     }
 
-    public function latestBlogs(int $limit = 4)
+    public function latestBlogs(int $limit = 1)
     {
         return Blog::with(['category', 'creator'])
             ->where('status', 'published')
