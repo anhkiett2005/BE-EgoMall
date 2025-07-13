@@ -255,8 +255,8 @@ class PromotionServices {
                 'status' => $hasActivePromotion ? 0 : 1,
                 'buy_quantity' => $data['buy_quantity'],
                 'get_quantity' => $data['get_quantity'],
-                'gift_product_id' => $data['gift_product_id'],
-                'gift_product_variant_id' => $data['gift_product_variant_id'],
+                'gift_product_id' => $data['gift_product_id'] ?? null,
+                'gift_product_variant_id' => $data['gift_product_variant_id'] ?? null,
             ]);
 
             // Gắn các sản phẩm áp dụng vào promotion

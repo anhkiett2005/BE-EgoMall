@@ -30,13 +30,13 @@ class StorePromotionRequest extends FormRequest
         return [
             'name' => 'required|string',
             'description' => 'nullable|string',
-            'promotion_type' => ['required', Rule::in(['percentage', 'buy_get'])],
+            'promotion_type' => ['required', Rule::in(['percentage', 'fixed_amount', 'buy_get'])],
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
 
             // Validate khi promotion_type là percentage
-            'discount_type' => ['required_if:promotion_type,percentage', 'nullable', Rule::in(['percentage', 'fixed'])],
-            'discount_value' => ['required_if:promotion_type,percentage', 'nullable', 'numeric', 'gt:0'],
+            'discount_type' => ['required_if:promotion_type,percentage,fixed_amount', 'nullable', Rule::in(['percentage', 'fixed_amount'])],
+            'discount_value' => ['required_if:promotion_type,percentage,fixed_amount', 'nullable', 'numeric', 'gt:0'],
 
             // Fields dùng khi là buy_get
             'buy_quantity' => ['required_if:promotion_type,buy_get', 'nullable', 'integer', 'min:1'],
@@ -89,7 +89,7 @@ class StorePromotionRequest extends FormRequest
             'end_date.after_or_equal' => 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.',
 
             // Percentage
-            'discount_type.required_if' => 'Loại giảm giá là bắt buộc khi chọn kiểu khuyến mãi phần trăm.',
+            'discount_type.required_if' => 'Loại giảm giá là bắt buộc khi chọn kiểu khuyến mãi phần trăm hoặc giảm cố định theo số tiền.',
             'discount_type.in' => 'Loại giảm giá không hợp lệ. Chỉ chấp nhận "percentage" hoặc "fixed_amount".',
             'discount_value.required_if' => 'Giá trị giảm giá là trường bắt buộc.',
             'discount_value.numeric' => 'Giá trị giảm giá phải là số.',
