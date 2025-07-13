@@ -13,8 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
 class MomoController extends Controller
 {
 
-    public function processPayment($orderId, $amount) {
-        return Common::momoPayment($orderId, $amount);
+    public function processPayment($order) {
+        return Common::momoPayment($order);
     }
 
     public function processRefundPayment($transId, $amount) {

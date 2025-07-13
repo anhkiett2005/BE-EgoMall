@@ -80,6 +80,10 @@ class VnpayController extends Controller
 
             // $paymentUrl = $this->vnp_Url . "?" . $query; Front-end
 
+            // Lưu lại thời gian tạo thanh toán
+            $order->payment_created_at = Carbon::now();
+            $order->save();
+
             return ApiResponse::success(data: [
                 'payment_url' => $vnp_Url
             ]);

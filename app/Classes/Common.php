@@ -202,10 +202,14 @@ class Common
     }
 
 
-    public static function momoPayment($orderId, $amount)
+    public static function momoPayment(Order $order)
     {
 
         try {
+            $orderId = $order->unique_id;
+            $amount = $order->total_price;
+
+
             if (!$amount || $amount <= 0) {
                 throw new ApiException("Số tiền thanh toán không hợp lệ!");
             }
@@ -215,7 +219,7 @@ class Common
             $secretKey = env('MOMO_SECRET_KEY');
             $orderInfo = "Thanh toán đơn hàng qua MoMo";
             $redirectUrl = route('payment.momo.redirect'); // ví dụ: định nghĩa route trả về sau thanh toán
-            $ipnUrl = 'https://134c046a5ddf.ngrok-free.app/api/v1/front/payment/momo/ipn';  //route('payment.momo.ipn');      // ví dụ: route nhận callback IPN
+            $ipnUrl = 'https://18667f599642.ngrok-free.app/api/v1/front/payment/momo/ipn';  //route('payment.momo.ipn');      // ví dụ: route nhận callback IPN
             $requestId = now()->timestamp . '';
             $requestType = 'captureWallet';
             $extraData = '';
@@ -253,6 +257,12 @@ class Common
             }
 
             // return redirect()->to($jsonResult['payUrl']);
+
+            // Lưu lại thời gian tạo thanh toán
+            $order->payment_created_at = Carbon::now();
+            $order->save();
+
+
             return $jsonResult['payUrl'];
         } catch(\Exception $e) {
             throw new ApiException($e->getMessage());

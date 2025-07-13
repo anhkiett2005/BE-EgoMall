@@ -208,7 +208,7 @@ class OrderController extends Controller
             case 'VNPAY':
                 return app(VnpayController::class)->processPayment($order);
             case 'MOMO':
-                return app(MomoController::class)->processPayment($order->unique_id, $order->total_price);
+                return app(MomoController::class)->processPayment($order);
             // case 'e-wallet':
             //     return app(EWalletPaymentController::class)->processPayment($order);
         }

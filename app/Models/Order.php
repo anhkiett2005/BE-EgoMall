@@ -22,6 +22,7 @@ class Order extends Model
         'shipping_email',
         'shipping_address',
         'payment_method',
+        'payment_created_at',
         'payment_status',
         'payment_date',
         'transaction_id',

@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('shipping_email');
             $table->string('shipping_address');
             $table->string('payment_method');
+            $table->timestamp('payment_created_at')->nullable();
             $table->string('payment_status');
             $table->timestamp('payment_date')->nullable();
             $table->string('transaction_id')->nullable();
