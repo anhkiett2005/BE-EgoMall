@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Api\Front;
 
+use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Response\ApiResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\Response;
 
 class VnpayController extends Controller
@@ -134,6 +136,51 @@ class VnpayController extends Controller
             ]);
             return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=failed");
             // return response()->json(['success' => false, 'message' => 'Thanh toán thất bại']);
+        }
+    }
+
+    public function processRefundPayment(Order $order)
+    {
+        try {
+            $user = auth('api')->user();
+            $params = [
+                'transaction_type' => 2,
+                'txn_ref' => $order->unique_id,
+                'transaction_no' => $order->transaction_id,
+                'amount' => $order->total_price,
+                'order_info' => "Hoàn tiền đơn hàng: " . $order->unique_id,
+                'create_by' => $user->name,
+                'transaction_date' => Carbon::parse($order->payment_date)->format('YmdHis')
+            ];
+
+            $response = Common::refundVnPayTransaction($params);
+            logger('Log bug refund payment', [
+                    'response' => $response
+                ]);
+            // check sinature từ vnpay trả về
+            if (!$this->validateSignature($response)) {
+
+                throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
+            }else {
+                if($response['vnp_ResponseCode'] == "00") {
+                    $order->update([
+                        'payment_status' => 'refunded',
+                        'payment_date' => now(),
+                        'transaction_id' => $response['vnp_TransactionNo']
+                    ]);
+                }
+            }
+
+            return ApiResponse::success('Hủy đơn hàng thành công!!');
+
+        }catch(\Exception $e) {
+            logger('Log bug refund payment', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
         }
     }
 

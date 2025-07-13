@@ -218,7 +218,7 @@ class OrderController extends Controller
     {
         switch ($order->payment_method) {
             case 'VNPAY':
-                return app(VnpayController::class)->processRefundPayment($order->transaction_id, $order->total_price);
+                return app(VnpayController::class)->processRefundPayment($order);
             case 'MOMO':
                 return app(MomoController::class)->processRefundPayment($order->transaction_id, $order->total_price);
         }

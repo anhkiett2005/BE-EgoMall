@@ -213,7 +213,7 @@ class Common
             $partnerCode = env('MOMO_PARTNER_CODE');
             $accessKey = env('MOMO_ACCESS_KEY');
             $secretKey = env('MOMO_SECRET_KEY');
-            $orderInfo = "Thanh toán đơn hàng qua ATM MoMo";
+            $orderInfo = "Thanh toán đơn hàng qua MoMo";
             $redirectUrl = route('payment.momo.redirect'); // ví dụ: định nghĩa route trả về sau thanh toán
             $ipnUrl = 'https://134c046a5ddf.ngrok-free.app/api/v1/front/payment/momo/ipn';  //route('payment.momo.ipn');      // ví dụ: route nhận callback IPN
             $requestId = now()->timestamp . '';
@@ -310,6 +310,79 @@ class Common
 
         } catch (\Exception $e) {
             throw new ApiException("Lỗi hoàn tiền MoMo: " . $e->getMessage());
+        }
+    }
+
+    public static function refundVnPayTransaction($params = [])
+    {
+        try {
+            $vnp_Url = "https://sandbox.vnpayment.vn/merchant_webapi/api/transaction";
+            $vnp_TmnCode = env('VNP_TMN_CODE');
+            $vnp_HashSecret = env('VNP_HASH_SECRECT_KEY');
+            $vnp_Version = '2.1.0';
+            $vnp_Command = 'refund';
+            $vnp_TransactionType = (int) ($params['transaction_type'] ?? 3); // 02 = hoàn toàn phần, 03 = hoàn 1 phần
+            $vnp_TxnRef = $params['txn_ref']; // Mã đơn hàng hệ thống của merchant
+            $vnp_TransactionNo = $params['transaction_no']; // Có thể bỏ qua
+            $vnp_Amount = (int) $params['amount'] * 100; // Nhân 100 theo chuẩn VNPAY
+            $vnp_OrderInfo = $params['order_info'];
+            $vnp_CreateBy = $params['create_by'];
+            $vnp_IpAddr = $params['ip_addr'] ?? request()->ip();
+
+            // Ngày giờ định dạng yyyyMMddHHmmss
+            $vnp_TransactionDate = $params['transaction_date']; // yyyyMMddHHmmss: lấy từ lúc giao dịch thanh toán
+            $vnp_CreateDate = now()->format('YmdHis');
+            $vnp_RequestId = Str::uuid(); // mã duy nhất mỗi lần refund
+
+            // Chuỗi dữ liệu để hash
+            $hashData = implode('|', [
+                $vnp_RequestId,
+                $vnp_Version,
+                $vnp_Command,
+                $vnp_TmnCode,
+                $vnp_TransactionType,
+                $vnp_TxnRef,
+                $vnp_Amount,
+                $vnp_TransactionNo,
+                $vnp_TransactionDate,
+                $vnp_CreateBy,
+                $vnp_CreateDate,
+                $vnp_IpAddr,
+                $vnp_OrderInfo
+            ]);
+
+            $vnp_SecureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+
+            $body = [
+                'vnp_RequestId'       => $vnp_RequestId,
+                'vnp_Version'         => $vnp_Version,
+                'vnp_Command'         => $vnp_Command,
+                'vnp_TmnCode'         => $vnp_TmnCode,
+                'vnp_TransactionType' => $vnp_TransactionType,
+                'vnp_TxnRef'          => $vnp_TxnRef,
+                'vnp_Amount'          => $vnp_Amount,
+                'vnp_TransactionNo'   => $vnp_TransactionNo,
+                'vnp_TransactionDate' => $vnp_TransactionDate,
+                'vnp_CreateBy'        => $vnp_CreateBy,
+                'vnp_CreateDate'      => $vnp_CreateDate,
+                'vnp_IpAddr'          => $vnp_IpAddr,
+                'vnp_OrderInfo'       => $vnp_OrderInfo,
+                'vnp_SecureHash'      => $vnp_SecureHash
+            ];
+
+            $response = Http::withHeaders([
+                'Content-Type' => 'application/json'
+            ])->post($vnp_Url, $body);
+
+            return $response->json();
+        } catch(\Exception $e) {
+            logger('Log refund VNPAY', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException("Lỗi hoàn tiền VNPAY: " . $e->getMessage());
         }
     }
 
