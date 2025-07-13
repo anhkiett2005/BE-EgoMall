@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
+            $table->string('unique_id')->unique();
             $table->foreignId('user_id')->constrained('users');
             $table->integer('total_price');
             $table->enum('status', ['ordered', 'confirmed', 'shipping', 'delivered','cancelled','return_sales'])->default('ordered');
@@ -26,7 +27,7 @@ return new class extends Migration
             $table->timestamp('payment_date')->nullable();
             $table->string('transaction_id')->nullable();
             $table->foreignId('coupon_id')->nullable()->references('id')->on('coupons')->nullOnDelete();
-            $table->timestamp('created_at');
+            $table->timestamps();
         });
     }
 
