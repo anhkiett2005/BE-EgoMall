@@ -38,7 +38,7 @@ class VnpayController extends Controller
             $expire = date('YmdHis', strtotime('+15 minutes', strtotime($startTime)));
 
 
-            $vnp_TxnRef = $order->id;
+            $vnp_TxnRef = $order->unique_id;
             $vnp_Amount = $order->total_price;
             $vnp_Locale = 'vn';
             $vnp_BankCode = "NCB";
@@ -85,7 +85,7 @@ class VnpayController extends Controller
             $order->save();
 
             return ApiResponse::success(data: [
-                'payment_url' => $vnp_Url
+                'redirect_url' => $vnp_Url
             ]);
         } catch (\Exception $e) {
             logger('Log bug vnpay transaction', [
@@ -107,7 +107,7 @@ class VnpayController extends Controller
             }
 
             //  // Lấy đơn hàng
-            $order = Order::find($request->vnp_TxnRef);
+            $order = Order::where('unique_id', $request->vnp_TxnRef)->first();
             if (!$order) {
                 return redirect()->away(env('FRONTEND_URL') . '/payment-result?status=failed');
                 // return response()->json(['success' => false, 'message' => 'Không tìm thấy đơn hàng'], 400);
@@ -124,7 +124,7 @@ class VnpayController extends Controller
                 // Mail::to($order->user->email)->queue(new OrderSuccessMail($order,'success'));
 
 
-                return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=success");
+                return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=success&order_id=" . $order->unique_id);
                 // return response()->json(['success' => true, 'message' => 'Thanh toán thành công',]);
 
             }else {
@@ -148,36 +148,38 @@ class VnpayController extends Controller
         try {
             $user = auth('api')->user();
             $params = [
-                'transaction_type' => 2,
+                'transaction_type' => '02',
                 'txn_ref' => $order->unique_id,
                 'transaction_no' => $order->transaction_id,
                 'amount' => $order->total_price,
                 'order_info' => "Hoàn tiền đơn hàng: " . $order->unique_id,
                 'create_by' => $user->name,
-                'transaction_date' => Carbon::parse($order->payment_date)->format('YmdHis')
+                'transaction_date' => Carbon::parse($order->payment_created_at)->format('YmdHis')
             ];
 
             $response = Common::refundVnPayTransaction($params);
-            logger('Log bug refund payment', [
-                    'response' => $response
-                ]);
+            // logger('Log bug refund payment', [
+            //         'response' => $response
+            // ]);
             // check sinature từ vnpay trả về
-            if (!$this->validateSignature($response)) {
+            // logger('valid signature', [$this->validateSignatureFromJson($response)]);
+            if (!$this->validateSignatureFromJson($response)) {
+                 throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
+            }
 
-                throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
-            }else {
-                if($response['vnp_ResponseCode'] == "00") {
+            if($response['vnp_ResponseCode'] == "00") {
                     $order->update([
                         'payment_status' => 'refunded',
                         'payment_date' => now(),
                         'transaction_id' => $response['vnp_TransactionNo']
                     ]);
                 }
-            }
 
             return ApiResponse::success('Hủy đơn hàng thành công!!');
 
-        }catch(\Exception $e) {
+
+
+        } catch(\Exception $e) {
             logger('Log bug refund payment', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
@@ -215,4 +217,39 @@ class VnpayController extends Controller
 
         return $secureHash === $vnp_SecureHash;
     }
+
+    public function validateSignatureFromJson(array $response)
+    {
+        $vnp_HashSecret = $this->vnp_HashSecret;
+        $vnp_SecureHash = $response['vnp_SecureHash'] ?? '';
+
+        // Đảm bảo thứ tự đúng như VNPAY yêu cầu
+        $fields = [
+            'vnp_ResponseId',
+            'vnp_Command',
+            'vnp_ResponseCode',
+            'vnp_Message',
+            'vnp_TmnCode',
+            'vnp_TxnRef',
+            'vnp_Amount',
+            'vnp_BankCode',
+            'vnp_PayDate',
+            'vnp_TransactionNo',
+            'vnp_TransactionType',
+            'vnp_TransactionStatus',
+            'vnp_OrderInfo'
+        ];
+
+        $data = [];
+        foreach ($fields as $field) {
+            $data[] = $response[$field] ?? '';
+        }
+
+        $hashData = implode('|', $data);
+        // logger('hashData', [$hashData]);
+        $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+
+        return $secureHash === $vnp_SecureHash;
+    }
+
 }

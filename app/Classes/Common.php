@@ -186,6 +186,11 @@ class Common
         }
     }
 
+    public static function generateCodTransactionId()
+    {
+        return 'COD-' . strtoupper(Str::random(10));
+    }
+
     public static function restoreOrderStock(Order $order)
     {
         $orderDetails = $order->details;
@@ -331,10 +336,10 @@ class Common
             $vnp_HashSecret = env('VNP_HASH_SECRECT_KEY');
             $vnp_Version = '2.1.0';
             $vnp_Command = 'refund';
-            $vnp_TransactionType = (int) ($params['transaction_type'] ?? 3); // 02 = hoàn toàn phần, 03 = hoàn 1 phần
+            $vnp_TransactionType = $params['transaction_type'] ?? "03"; // 02 = hoàn toàn phần, 03 = hoàn 1 phần
             $vnp_TxnRef = $params['txn_ref']; // Mã đơn hàng hệ thống của merchant
             $vnp_TransactionNo = $params['transaction_no']; // Có thể bỏ qua
-            $vnp_Amount = (int) $params['amount'] * 100; // Nhân 100 theo chuẩn VNPAY
+            $vnp_Amount = (int) ($params['amount'] * 100); // Nhân 100 theo chuẩn VNPAY
             $vnp_OrderInfo = $params['order_info'];
             $vnp_CreateBy = $params['create_by'];
             $vnp_IpAddr = $params['ip_addr'] ?? request()->ip();
@@ -379,6 +384,8 @@ class Common
                 'vnp_OrderInfo'       => $vnp_OrderInfo,
                 'vnp_SecureHash'      => $vnp_SecureHash
             ];
+
+            // logger('Log refund VNPAY', $body);
 
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json'

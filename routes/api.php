@@ -199,6 +199,11 @@ Route::prefix('v1/admin')
             Route::delete('/coupons/{id}', 'destroy')->name('admin.coupons.destroy');
             Route::post('/coupons/{id}/restore', 'restore')->name('admin.coupons.restore');
         });
+
+        // Routes API Cod
+        Route::controller('CodController')->group(function () {
+            Route::post('/payment/cod/confirm-payment/{order}', 'processConfirmPayment');
+        });
     });
 
 Route::prefix('v1/auth')->group(function () {

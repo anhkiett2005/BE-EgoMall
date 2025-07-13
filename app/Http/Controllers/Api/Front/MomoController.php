@@ -57,13 +57,13 @@ class MomoController extends Controller
 
         // Giao diện phía client sẽ xử lý giao diện hiển thị
         if ($resultCode == 0) {
-            return ApiResponse::success('Thanh toán thành công!',data: [
-                'order_id' => $orderId
-            ]);
+            // return ApiResponse::success('Thanh toán thành công!',data: [
+            //     'order_id' => $orderId
+            // ]);
+
+            return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=success&order_id=" . $orderId);
         } else {
-            return ApiResponse::error('Thanh toán thất bại hoặc bị hủy!',Response::HTTP_BAD_REQUEST,[
-                'order_id' => $orderId
-            ]);
+            return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=failed");
         }
     }
 

@@ -205,6 +205,8 @@ class OrderController extends Controller
     private function processPaymentByMethod($order)
     {
         switch ($order->payment_method) {
+            case 'COD':
+                return app(CodController::class)->processPayment($order);
             case 'VNPAY':
                 return app(VnpayController::class)->processPayment($order);
             case 'MOMO':
