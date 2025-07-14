@@ -10,15 +10,14 @@ return new class extends Migration
     {
         Schema::create('chat_histories', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id')->nullable()->index();
-            $table->string('session_id', 64)->nullable()->index();
+            $table->unsignedBigInteger('user_id')->index();
             $table->text('question');
             $table->text('answer');
             $table->timestamps();
             $table->foreign('user_id')
                 ->references('id')
                 ->on('users')
-                ->onDelete('set null');
+                ->onDelete('cascade');
         });
     }
 

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use App\Exceptions\ApiException;
@@ -9,7 +10,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-class PromotionServices {
+class PromotionServices
+{
 
     /**
      * Lấy toàn bộ danh sách promotions
@@ -19,7 +21,7 @@ class PromotionServices {
     {
         try {
             $promotions = Promotion::with(['products', 'productVariants', 'giftProduct', 'giftProductVariant'])
-                                   ->get();
+                ->get();
 
             // xử lý và trả về danh sách promotions
             $listPromotions = $promotions->map(function ($promotion) {
@@ -104,7 +106,7 @@ class PromotionServices {
     {
         try {
             $promotion = Promotion::with(['products', 'productVariants', 'giftProduct', 'giftProductVariant'])
-                                  ->find( $id);
+                ->find($id);
 
             // Nếu không có promotion trả về lỗi
             if (empty($promotion)) {
@@ -171,7 +173,6 @@ class PromotionServices {
             $data['applied_products'] = $applied;
 
             return $data;
-
         } catch (ApiException $e) {
             throw $e;
         } catch (Exception $e) {
@@ -189,8 +190,8 @@ class PromotionServices {
      *  Tạo mới một promotion
      */
 
-     public function store($request)
-     {
+    public function store($request)
+    {
         DB::beginTransaction();
 
         try {
@@ -205,14 +206,14 @@ class PromotionServices {
 
             // Check trùng khuyến mãi
             $isExist = DB::table('promotion_product as pp')
-                         ->join('promotions as p', 'p.id', '=', 'pp.promotion_id')
-                         ->whereIn('p.status', [0,1])
-                          ->where(function ($q1) use ($start, $end) {
-                                    // Chỉ cần có giao là từ chối (bao gồm trùng start hoặc end)
-                                    $q1->where('p.start_date', '<=', $end)
-                                       ->where('p.end_date', '>=', $start);
-                                })
-                          ->exists();
+                ->join('promotions as p', 'p.id', '=', 'pp.promotion_id')
+                ->whereIn('p.status', [0, 1])
+                ->where(function ($q1) use ($start, $end) {
+                    // Chỉ cần có giao là từ chối (bao gồm trùng start hoặc end)
+                    $q1->where('p.start_date', '<=', $end)
+                        ->where('p.end_date', '>=', $start);
+                })
+                ->exists();
 
             if ($isExist) {
                 throw new ApiException('Đã có chương trình khuyến mãi áp dụng trong thời gian đã chọn!!', Response::HTTP_CONFLICT);
@@ -255,10 +256,9 @@ class PromotionServices {
                 'status' => $hasActivePromotion ? 0 : 1,
                 'buy_quantity' => $data['buy_quantity'],
                 'get_quantity' => $data['get_quantity'],
-                'gift_product_id' => $data['gift_product_id'],
-                'gift_product_variant_id' => $data['gift_product_variant_id'],
+                'gift_product_id' => $data['gift_product_id'] ?? null,
+                'gift_product_variant_id' => $data['gift_product_variant_id'] ?? null,
             ]);
-
             // Gắn các sản phẩm áp dụng vào promotion
             foreach ($data['applicable_products'] as $item) {
                 PromotionProduct::create([
@@ -289,7 +289,8 @@ class PromotionServices {
      *  Cập nhật một promotion
      */
 
-    public function update($request, string $id) {
+    public function update($request, string $id)
+    {
         DB::beginTransaction();
 
         try {
@@ -303,14 +304,14 @@ class PromotionServices {
 
             // Tìm promotion
             $promotion = Promotion::with(['products', 'productVariants'])
-                                  ->find($id);
+                ->find($id);
 
-            if(!$promotion) {
+            if (!$promotion) {
                 throw new ApiException('Không tìm thấy chương trình khuyến mãi!!', Response::HTTP_NOT_FOUND);
             }
 
             // check nếu có 1 promotion đang diễn ra throw exception luôn k cho update nữa
-            if($promotion->status !== 0) {
+            if ($promotion->status !== 0) {
                 // Lấy số ngày còn lại của chương trình đang hoat động
                 $now = Carbon::now();
                 $endDate = Carbon::parse($promotion->end_date);
@@ -319,19 +320,19 @@ class PromotionServices {
                 $daysLeft = ceil($now->floatDiffInDays($endDate));
 
 
-                throw new ApiException('Không thể cập nhật vì có chương trình đang diễn ra, thử lại sau '.$daysLeft.' ngày!!', Response::HTTP_CONFLICT);
+                throw new ApiException('Không thể cập nhật vì có chương trình đang diễn ra, thử lại sau ' . $daysLeft . ' ngày!!', Response::HTTP_CONFLICT);
             }
 
             // Check trùng khuyến mãi
             $isExist = DB::table('promotion_product as pp')
-                         ->join('promotions as p', 'p.id', '=', 'pp.promotion_id')
-                         ->whereIn('p.status', [0,1])
-                          ->where(function ($q1) use ($start, $end) {
-                                    // Chỉ cần có giao là từ chối (bao gồm trùng start hoặc end)
-                                    $q1->where('p.start_date', '<=', $end)
-                                       ->where('p.end_date', '>=', $start);
-                                })
-                          ->exists();
+                ->join('promotions as p', 'p.id', '=', 'pp.promotion_id')
+                ->whereIn('p.status', [0, 1])
+                ->where(function ($q1) use ($start, $end) {
+                    // Chỉ cần có giao là từ chối (bao gồm trùng start hoặc end)
+                    $q1->where('p.start_date', '<=', $end)
+                        ->where('p.end_date', '>=', $start);
+                })
+                ->exists();
 
             if ($isExist) {
                 throw new ApiException('Đã có chương trình khuyến mãi áp dụng trong thời gian đã chọn!!', Response::HTTP_CONFLICT);
@@ -365,8 +366,8 @@ class PromotionServices {
                 'status' => $data['status'] ?? true,
             ]);
 
-             // Sync sản phẩm áp dụng
-             $this->syncApplicableProducts($promotion, $data['applicable_products']);
+            // Sync sản phẩm áp dụng
+            $this->syncApplicableProducts($promotion, $data['applicable_products']);
 
             DB::commit();
             return $promotion;
@@ -397,7 +398,7 @@ class PromotionServices {
             // Tìm promotion
             $promotion = Promotion::find($id);
 
-            if(!$promotion) {
+            if (!$promotion) {
                 throw new ApiException('Không tìm thấy chương trình khuyến mãi!!', Response::HTTP_NOT_FOUND);
             }
 
@@ -411,7 +412,7 @@ class PromotionServices {
             throw $e;
         } catch (Exception $e) {
             DB::rollBack();
-            logger('Log bug',[
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -462,5 +463,4 @@ class PromotionServices {
             $promotion->productVariants()->sync($variantIds->filter()->unique());
         }
     }
-
 }

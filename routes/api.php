@@ -14,12 +14,6 @@ use PHPOpenSourceSaver\JWTAuth\Http\Middleware\Authenticate;
 Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
-        Route::controller('AIChatController')
-            ->middleware([StartSession::class])
-            ->group(function () {
-                Route::post('/chat-ai', 'chat');
-            });
-
         // Routes API User Addresses
         Route::middleware(['inject.api.auth.header', 'api.auth.check'])
             ->controller('UserAddressController')
@@ -48,6 +42,14 @@ Route::prefix('v1/front')
                 Route::get('/', 'index');
                 Route::post('/', 'store');
                 Route::delete('/{productSlug}', 'destroy');
+            });
+
+        // Routes API Order History
+        Route::prefix('user/orders')
+            ->middleware(['inject.api.auth.header', 'api.auth.check'])
+            ->controller('OrderHistoryController')
+            ->group(function () {
+                Route::get('/', 'index'); // GET /v1/front/user/orders?status=...
             });
 
 
@@ -113,6 +115,12 @@ Route::prefix('v1/front')
             Route::get('/search', 'index');
         });
 
+        // Routes API Chatbot AI
+        Route::controller('AIChatController')->group(function () {
+            Route::post('/chat-ai', 'chat');
+            Route::get('/chat-ai/history', 'history');
+        });
+
         // Routes API Upload Image to Cloudinary
         Route::controller('UploadController')->group(function () {
             Route::post('/uploads', 'upload')->middleware('check.token.upload');
@@ -120,15 +128,15 @@ Route::prefix('v1/front')
 
         // Routes API Orders
         Route::controller('OrderController')
-             ->middleware(['inject.api.auth.header', 'api.auth.check'])
-             ->group(function () {
-                 Route::post('/checkout-orders', 'checkOutOrders');
-                 Route::get('/cancel-orders/{uniqueId}', 'cancelOrders');
-        });
+            ->middleware(['inject.api.auth.header', 'api.auth.check'])
+            ->group(function () {
+                Route::post('/checkout-orders', 'checkOutOrders');
+                Route::get('/cancel-orders/{uniqueId}', 'cancelOrders');
+            });
 
         // Routes API VnPay
         Route::controller('VnPayController')->group(function () {
-            Route::get('/payment/vnpay/callback','paymentSuccess');
+            Route::get('/payment/vnpay/callback', 'paymentSuccess');
         });
 
         // Routes API Momo
