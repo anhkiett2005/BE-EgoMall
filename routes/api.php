@@ -204,6 +204,14 @@ Route::prefix('v1/admin')
         Route::controller('CodController')->group(function () {
             Route::post('/payment/cod/confirm-payment/{order}', 'processConfirmPayment');
         });
+
+
+        // Routes API Order
+        Route::controller('OrderController')->group(function () {
+            Route::get('/orders','index')->name('admin.orders.index');
+            Route::get('/order/{uniqueId}','show')->name('admin.orders.show');
+            Route::post('/orders/change-status/{uniqueId}','update')->name('admin.orders.change-status');
+        });
     });
 
 Route::prefix('v1/auth')->group(function () {
