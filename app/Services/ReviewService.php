@@ -27,7 +27,9 @@ class ReviewService
             ->pluck('orderDetails')
             ->flatten()
             ->pluck('review')
-            ->filter()
+            ->filter((function ($review) {
+                return $review && $review->is_visible;
+            }))
             ->sortByDesc('created_at')
             ->values();
 

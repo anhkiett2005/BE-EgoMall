@@ -152,8 +152,6 @@ Route::prefix('v1/front')
                 Route::get('/', 'index');
             });
 
-
-
         // Routes API VnPay
         Route::controller('VnPayController')->group(function () {
             Route::get('/payment/vnpay/callback', 'paymentSuccess');
@@ -165,6 +163,17 @@ Route::prefix('v1/front')
             Route::post('/payment/momo/ipn', 'handleIpn')->name('payment.momo.ipn');
         });
     });
+
+Route::prefix('v1/staff')
+    ->namespace('App\Http\Controllers\Api\Admin')
+    ->group(function () {
+        Route::controller('ReviewReplyController')
+            ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:staff,admin,super-admin'])
+            ->group(function () {
+                Route::post('/reviews/reply', 'store')->name('admin.reviews.reply');
+            });
+    });
+
 
 Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
