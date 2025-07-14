@@ -15,7 +15,6 @@ class OrderHistoryService
         $query = Order::with([
             'details.productVariant.product',
             'details.productVariant.values.variantValue.option',
-            'review'
         ])
             ->where('user_id', $userId)
             ->latest();
@@ -39,7 +38,6 @@ class OrderHistoryService
             'details.productVariant.product',
             'details.productVariant.values.variantValue.option',
             'coupon',
-            'review'
         ])->where('unique_id', $uniqueId)
             ->where('user_id', $userId)
             ->first();

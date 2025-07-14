@@ -49,11 +49,6 @@ class Order extends Model
         return $this->hasMany(OrderDetail::class);
     }
 
-    public function review()
-    {
-        return $this->hasOne(Review::class);
-    }
-
     public function coupon()
     {
         return $this->belongsTo(Coupon::class);
