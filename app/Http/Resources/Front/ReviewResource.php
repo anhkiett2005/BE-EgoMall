@@ -21,7 +21,7 @@ class ReviewResource extends JsonResource
             'comment'       => $this->comment,
             'is_anonymous'  => $this->is_anonymous,
             'images'        => $this->images->pluck('image_url'),
-            'reply'         => $this->replies ? [
+            'reply'         => $this->reply ? [
                 'id'     => $this->replies->first()->id,
                 'user'   => [
                     'id'   => $this->replies->first()->user->id,
@@ -32,6 +32,7 @@ class ReviewResource extends JsonResource
                 'date'   => $this->replies->first()->created_at->toDateTimeString(),
             ] : null,
             'created_at'    => $this->created_at->toDateTimeString(),
+            'updated_at'    => $this->updated_at->toDateTimeString(),
         ];
     }
 }

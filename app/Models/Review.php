@@ -15,8 +15,14 @@ class Review extends Model
         'rating',
         'comment',
         'is_anonymous',
-        'is_updated',
     ];
+
+    protected $appends = ['is_updated'];
+
+    public function getIsUpdatedAttribute(): bool
+    {
+        return $this->updated_at != $this->created_at;
+    }
 
     public function user()
     {
@@ -33,7 +39,7 @@ class Review extends Model
         return $this->hasMany(ReviewImage::class);
     }
 
-    public function replies()
+    public function reply()
     {
         return $this->hasOne(ReviewReply::class);
     }

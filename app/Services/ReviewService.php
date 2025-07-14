@@ -36,7 +36,7 @@ class ReviewService
 
     public function findById(int $id, int $userId): Review
     {
-        $review = Review::with(['user.role', 'images', 'replies.user.role'])
+        $review = Review::with(['user.role', 'images', 'reply.user.role'])
             ->where('user_id', $userId)
             ->find($id);
 
@@ -109,7 +109,6 @@ class ReviewService
                 'rating'       => $data['rating'] ?? $review->rating,
                 'comment'      => $data['comment'] ?? $review->comment,
                 'is_anonymous' => $data['is_anonymous'] ?? $review->is_anonymous,
-                'is_updated'   => true,
             ]);
 
             if (request()->hasFile('images') && is_array(request()->file('images'))) {
