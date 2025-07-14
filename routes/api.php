@@ -136,6 +136,15 @@ Route::prefix('v1/front')
                 Route::post('user/cancel-orders/{uniqueId}', 'cancelOrders');
             });
 
+        // Routes API Review
+        Route::prefix('user/reviews')
+            ->middleware(['inject.api.auth.header', 'api.auth.check'])
+            ->controller('ReviewController')
+            ->group(function () {
+                Route::post('/', 'store'); // POST /v1/front/user/reviews
+            });
+
+
         // Routes API VnPay
         Route::controller('VnPayController')->group(function () {
             Route::get('/payment/vnpay/callback', 'paymentSuccess');

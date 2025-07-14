@@ -31,6 +31,11 @@ class OrderDetail extends Model
 
     public function productVariant()
     {
-        return $this->belongsTo(ProductVariant::class,'product_variant_id','id');
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id', 'id');
+    }
+
+    public function review()
+    {
+        return $this->hasOne(Review::class);
     }
 }

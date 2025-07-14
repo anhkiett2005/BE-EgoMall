@@ -10,19 +10,30 @@ class Review extends Model
     use HasFactory;
 
     protected $fillable = [
-        'order_id',
+        'order_detail_id',
+        'user_id',
         'rating',
         'comment',
-        'review_status'
+        'is_anonymous',
     ];
 
-    public function order()
+    public function user()
     {
-        return $this->belongsTo(Order::class);
+        return $this->belongsTo(User::class);
     }
 
-    public function reviewImages()
+    public function orderDetail()
     {
-        return $this->hasMany(ReviewImage::class,'review_id','order_id');
+        return $this->belongsTo(OrderDetail::class);
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ReviewImage::class);
+    }
+
+    public function reply()
+    {
+        return $this->hasOne(ReviewReply::class);
     }
 }

@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::create('review_images', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('review_id');
-            $table->foreign('review_id')->references('order_id')->on('reviews');
+            $table->foreignId('review_id')->constrained('reviews')->onDelete('cascade');
             $table->string('image_url');
+            $table->timestamps();
         });
     }
 
