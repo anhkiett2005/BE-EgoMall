@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\ApiException;
 use App\Models\Order;
 use Illuminate\Support\Facades\Auth;
 
@@ -28,5 +29,25 @@ class OrderHistoryService
         }
 
         return $query->get();
+    }
+
+    public function getByUniqueId(string $uniqueId)
+    {
+        $userId = auth('api')->id();
+
+        $order = Order::with([
+            'details.productVariant.product',
+            'details.productVariant.values.variantValue.option',
+            'coupon',
+            'review'
+        ])->where('unique_id', $uniqueId)
+            ->where('user_id', $userId)
+            ->first();
+
+        if (!$order) {
+            throw new ApiException('Không tìm thấy đơn hàng!', 404);
+        }
+
+        return $order;
     }
 }

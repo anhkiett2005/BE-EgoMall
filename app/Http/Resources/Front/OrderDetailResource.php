@@ -7,7 +7,7 @@ use App\Models\PromotionProduct;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class OrderHistoryResource extends JsonResource
+class OrderDetailResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
@@ -32,7 +32,6 @@ class OrderHistoryResource extends JsonResource
         return [
             'unique_id' => $this->unique_id,
             'status' => $status,
-            'display_status' => $displayStatus,
             'total_price' => $this->total_price,
             'total_discount' => $this->total_discount,
             'delivered_at' => optional($deliveredAt)->toDateTimeString(),
@@ -42,6 +41,21 @@ class OrderHistoryResource extends JsonResource
                 $deliveredAt &&
                 now()->diffInDays($deliveredAt) <= 7,
 
+            'note' => $this->note,
+            'shipping_name' => $this->shipping_name,
+            'shipping_phone' => $this->shipping_phone,
+            'payment_method' => $this->payment_method,
+            'payment_date' => $this->payment_date,
+
+            'coupon' => $this->coupon ? [
+                'code' => $this->coupon->code,
+                'discount_type' => $this->coupon->discount_type,
+                'discount_value' => $this->coupon->discount_value,
+            ] : null,
+
+            'address' => $this->shipping_address,
+
+
             'products' => $this->details->map(function ($detail) {
                 $variant = $detail->productVariant;
                 $product = $variant?->product;
@@ -50,7 +64,6 @@ class OrderHistoryResource extends JsonResource
                     return optional($v->variantValue->option)->name . ': ' . $v->variantValue->value;
                 })->implode(' | ');
 
-                // Mặc định = null
                 $giftProduct = null;
 
                 if ($detail->is_gift && $variant) {
@@ -61,24 +74,20 @@ class OrderHistoryResource extends JsonResource
                         ->whereNotNull('gift_product_variant_id')
                         ->first();
 
-                    if ($promotion && $promotion->giftProductVariant) {
-                        $giftVariant = $promotion->giftProductVariant->loadMissing([
-                            'product',
-                            'values.variantValue.option'
-                        ]);
-
+                    if ($promotion && $promotion->giftProductVariant && $promotion->giftProductVariant->product) {
+                        $giftVariant = $promotion->giftProductVariant;
                         $giftProduct = [
-                            'id'         => $giftVariant->id,
-                            'sku'        => $giftVariant->sku,
-                            'price'      => $giftVariant->price,
+                            'id' => $giftVariant->id,
+                            'sku' => $giftVariant->sku,
+                            'price' => $giftVariant->price,
                             'sale_price' => $giftVariant->sale_price,
-                            'product_name' => $giftVariant->product->name ?? null,
-                            'slug'         => $giftVariant->product->slug ?? null,
-                            'image'        => $giftVariant->product->image ?? null,
-                            'options'      => $giftVariant->values->map(function ($value) {
+                            'product_name' => $giftVariant->product->name,
+                            'slug' => $giftVariant->product->slug,
+                            'image' => $giftVariant->product->image,
+                            'options' => $giftVariant->values->map(function ($value) {
                                 return [
-                                    'name'  => $value->variantValue->option->name ?? '',
-                                    'value' => $value->variantValue->value ?? ''
+                                    'name' => $value->variantValue->option->name,
+                                    'value' => $value->variantValue->value,
                                 ];
                             })->values(),
                         ];
@@ -93,7 +102,7 @@ class OrderHistoryResource extends JsonResource
                     'sale_price' => $detail->sale_price,
                     'is_gift' => $detail->is_gift,
                     'is_gift_text' => $detail->is_gift ? 'Quà tặng' : null,
-                    'gift_product' => $giftProduct
+                    'gift_product' => $giftProduct,
                 ];
             }),
         ];

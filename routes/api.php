@@ -50,6 +50,7 @@ Route::prefix('v1/front')
             ->controller('OrderHistoryController')
             ->group(function () {
                 Route::get('/', 'index'); // GET /v1/front/user/orders?status=...
+                Route::get('{unique_id}', 'show');
             });
 
 
@@ -131,7 +132,8 @@ Route::prefix('v1/front')
             ->middleware(['inject.api.auth.header', 'api.auth.check'])
             ->group(function () {
                 Route::post('/checkout-orders', 'checkOutOrders');
-                Route::get('/cancel-orders/{uniqueId}', 'cancelOrders');
+                // Route::get('/cancel-orders/{uniqueId}', 'cancelOrders');
+                Route::post('user/cancel-orders/{uniqueId}', 'cancelOrders');
             });
 
         // Routes API VnPay
