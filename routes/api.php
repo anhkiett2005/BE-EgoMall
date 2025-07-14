@@ -141,8 +141,17 @@ Route::prefix('v1/front')
             ->middleware(['inject.api.auth.header', 'api.auth.check'])
             ->controller('ReviewController')
             ->group(function () {
-                Route::post('/', 'store'); // POST /v1/front/user/reviews
+                Route::post('/', 'store');
+                Route::post('/{id}', 'update');
+                Route::get('/{id}', 'show');
             });
+
+        Route::prefix('products/{slug}/reviews')
+            ->controller('ReviewController')
+            ->group(function () {
+                Route::get('/', 'index');
+            });
+
 
 
         // Routes API VnPay

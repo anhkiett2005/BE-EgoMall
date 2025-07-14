@@ -33,7 +33,7 @@ class StoreReviewRequest extends FormRequest
             'rating.max'               => 'Số sao tối đa là 5.',
             'images.*.image'           => 'Tệp tải lên phải là hình ảnh.',
             'images.*.mimes'           => 'Ảnh phải có định dạng jpeg, png, jpg, hoặc webp.',
-            'images.*.max'             => 'Kích thước mỗi ảnh không được vượt quá 2MB.',
+            'images.*.max'             => 'Kích thước mỗi ảnh không được vượt quá 10MB.',
         ];
     }
 }

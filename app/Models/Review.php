@@ -15,6 +15,7 @@ class Review extends Model
         'rating',
         'comment',
         'is_anonymous',
+        'is_updated',
     ];
 
     public function user()
@@ -32,7 +33,7 @@ class Review extends Model
         return $this->hasMany(ReviewImage::class);
     }
 
-    public function reply()
+    public function replies()
     {
         return $this->hasOne(ReviewReply::class);
     }
