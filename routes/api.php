@@ -166,13 +166,21 @@ Route::prefix('v1/front')
 
 Route::prefix('v1/staff')
     ->namespace('App\Http\Controllers\Api\Admin')
+    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:staff,admin,super-admin'])
     ->group(function () {
-        Route::controller('ReviewReplyController')
-            ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:staff,admin,super-admin'])
+        // Phản hồi đánh giá
+        Route::post('/reviews/reply', 'ReviewReplyController@store')->name('admin.reviews.reply');
+
+        // Quản lý đánh giá
+        Route::controller('ReviewAdminController')
             ->group(function () {
-                Route::post('/reviews/reply', 'store')->name('admin.reviews.reply');
+                Route::get('/reviews', 'index');
+                Route::get('/reviews/{id}', 'show');
+                Route::patch('/reviews/{reviewId}/visibility', 'toggleVisibility');
+                Route::delete('/reviews/{reviewId}', 'destroy');
             });
     });
+
 
 
 Route::prefix('v1/admin')

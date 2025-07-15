@@ -6,13 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReplyRequest;
 use App\Http\Resources\Admin\ReviewReplyResource;
 use App\Response\ApiResponse;
-use App\Services\ReviewReplyService;
+use App\Services\ReviewAdminService;
 
 class ReviewReplyController extends Controller
 {
     protected $reviewReplyService;
 
-    public function __construct(ReviewReplyService $reviewReplyService)
+    public function __construct(ReviewAdminService $reviewReplyService)
     {
         $this->reviewReplyService = $reviewReplyService;
     }
