@@ -170,12 +170,12 @@ Route::prefix('v1/staff')
     ->group(function () {
         // Phản hồi đánh giá
         Route::post('/reviews/reply', 'ReviewReplyController@store')->name('admin.reviews.reply');
+        Route::put('/reviews/{reviewId}/reply', 'ReviewReplyController@update')->name('admin.reviews.reply.update');
 
         // Quản lý đánh giá
         Route::controller('ReviewAdminController')
             ->group(function () {
                 Route::get('/reviews', 'index');
-                Route::get('/reviews/{id}', 'show');
                 Route::patch('/reviews/{reviewId}/visibility', 'toggleVisibility');
                 Route::delete('/reviews/{reviewId}', 'destroy');
             });

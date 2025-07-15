@@ -37,6 +37,34 @@ class ReviewAdminService
         });
     }
 
+    public function update(int $reviewId, array $data, int $userId): ReviewReply
+    {
+        return DB::transaction(function () use ($reviewId, $data, $userId) {
+            $review = Review::with('reply')->find($reviewId);
+
+            if (!$review || !$review->reply) {
+                throw new ApiException('Không tìm thấy phản hồi để cập nhật!', Response::HTTP_NOT_FOUND);
+            }
+
+            $reply = $review->reply;
+
+            // Kiểm tra người sửa phải là người đã phản hồi, hoặc có quyền admin
+            $user = auth('api')->user();
+            $canEdit = $reply->user_id === $userId || in_array($user->role->name, ['admin', 'super_admin']);
+
+            if (!$canEdit) {
+                throw new ApiException('Bạn không có quyền sửa phản hồi này!', Response::HTTP_FORBIDDEN);
+            }
+
+            $reply->update([
+                'reply' => $data['reply'],
+            ]);
+
+            return $reply;
+        });
+    }
+
+
 
     // Quản lý đánh giá
     public function list(array $filters = [])
