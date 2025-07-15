@@ -4,25 +4,45 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Review extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'order_id',
+        'order_detail_id',
+        'user_id',
         'rating',
         'comment',
-        'review_status'
+        'is_anonymous',
+        'is_visible',
     ];
 
-    public function order()
+    protected $appends = ['is_updated'];
+
+    public function getIsUpdatedAttribute(): bool
     {
-        return $this->belongsTo(Order::class);
+        return $this->updated_at != $this->created_at;
     }
 
-    public function reviewImages()
+    public function user()
     {
-        return $this->hasMany(ReviewImage::class,'review_id','order_id');
+        return $this->belongsTo(User::class);
+    }
+
+    public function orderDetail()
+    {
+        return $this->belongsTo(OrderDetail::class);
+    }
+
+    public function images()
+    {
+        return $this->hasMany(ReviewImage::class);
+    }
+
+    public function reply()
+    {
+        return $this->hasOne(ReviewReply::class);
     }
 }

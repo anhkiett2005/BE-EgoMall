@@ -12,13 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('reviews', function (Blueprint $table) {
-            $table->unsignedBigInteger('order_id');
-            $table->primary('order_id');
-            $table->foreign('order_id')->references('id')->on('orders');
-            $table->integer('rating');
-            $table->text('comment');
-            $table->enum('review_status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('order_detail_id')->constrained()->onDelete('cascade');
+            $table->tinyInteger('rating')->unsigned()->comment('1 đến 5 sao');
+            $table->text('comment')->nullable();
+            $table->boolean('is_anonymous')->default(false)->comment('Ẩn danh');
             $table->timestamps();
+
+            $table->unique(['user_id', 'order_detail_id']); // 1 user chỉ review 1 lần / 1 sản phẩm trong đơn
         });
     }
 
