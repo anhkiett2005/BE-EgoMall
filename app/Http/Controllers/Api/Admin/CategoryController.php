@@ -49,9 +49,17 @@ class CategoryController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(string $slug)
     {
-        //
+        try {
+            $category = $this->categoryService->show($slug);
+
+            if ($category) {
+                return ApiResponse::success('Lấy chi tiết danh mục thành công!!', data: $category);
+            }
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
     }
 
     /**

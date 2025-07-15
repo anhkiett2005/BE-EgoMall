@@ -21,7 +21,7 @@ class CategoryServices
         try {
             $categories = Category::with(['children.categoryOptions.variantOption'])
                 ->root()
-                ->where('is_active', '!=', 0)
+                // ->where('is_active', '!=', 0)
                 ->get();
 
             $listCategories = collect();
@@ -43,6 +43,40 @@ class CategoryServices
         }
     }
 
+    /**
+     * Lấy chi tiết một category
+     */
+    public function show(string $slug)
+    {
+        try {
+            // Tìm category
+            $category = Category::with(['children.categoryOptions.variantOption'])
+                                ->where('slug', '=', $slug)
+                                ->first();
+
+            // check nếu k có danh mục thriw exception
+            if (!$category) {
+                throw new ApiException('Không tìm thấy danh mục!!', Response::HTTP_NOT_FOUND);
+            }
+
+            $categoryDetail = collect();
+
+            $categoryDetail->push(Common::formatCategoryWithChildren($category));
+
+            return $categoryDetail;
+
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            logger('Log bug show category', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!', 500);
+        }
+    }
 
     /**
      * Tạo mới một category
