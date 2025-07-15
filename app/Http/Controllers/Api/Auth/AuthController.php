@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
+use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\RegisterRequest;
@@ -56,7 +57,7 @@ class AuthController extends Controller
 
             return ApiResponse::success('OTP đã được gửi về email của bạn. Vui lòng kiểm tra.');
         } catch (\Exception $e) {
-            logger('Log bug',[
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -90,20 +91,20 @@ class AuthController extends Controller
             $token = JWTAuth::fromUser($user);
 
             $cookie = new Cookie(
-            'token',
-            $token,
-            now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
-            '/',
-            null,
-            config('app.env') === 'production',
-            true,
-            false,
-            Cookie::SAMESITE_LAX
-        );
+                'token',
+                $token,
+                now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+                '/',
+                null,
+                config('app.env') === 'production',
+                true,
+                false,
+                Cookie::SAMESITE_LAX
+            );
 
-        return ApiResponse::success('Xác thực OTP thành công!!')->withCookie($cookie);
+            return ApiResponse::success('Xác thực OTP thành công!!')->withCookie($cookie);
         } catch (JWTException $e) {
-            logger('Log bug create auth token verify otp',[
+            logger('Log bug create auth token verify otp', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -111,7 +112,7 @@ class AuthController extends Controller
             ]);
             throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!');
         } catch (\Exception $e) {
-            logger('Log bug',[
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -137,7 +138,7 @@ class AuthController extends Controller
                 ->first();
 
             // check tài khoản có hoạt động không
-            if($user && $user->is_active !== true) {
+            if ($user && $user->is_active !== true) {
                 throw new ApiException('Tài khoản không tồn tại, vui lòng liên hệ adminstrator', 401);
             }
 
@@ -200,15 +201,15 @@ class AuthController extends Controller
     {
         try {
             $redirectUrl = Socialite::driver('google')
-                                ->stateless()
-                                ->redirect()
-                                ->getTargetUrl();
+                ->stateless()
+                ->redirect()
+                ->getTargetUrl();
 
-            return ApiResponse::success('URL chuyển hướng Google đã được tạo thành công',data: [
+            return ApiResponse::success('URL chuyển hướng Google đã được tạo thành công', data: [
                 'url' => $redirectUrl
             ]);
-        } catch(\Exception $e) {
-            logger('Log bug',[
+        } catch (\Exception $e) {
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -227,15 +228,15 @@ class AuthController extends Controller
             $googleUser = Socialite::driver('google')->stateless()->user();
 
             $user = User::with('role')
-                        ->where('google_id', $googleUser->getId())
-                        ->orWhere('email', $googleUser->getEmail())->first();
+                ->where('google_id', $googleUser->getId())
+                ->orWhere('email', $googleUser->getEmail())->first();
 
             // check nếu tài khoản này đã login bằng facebook rồi thì trả về lỗi duplicate email
-            if($user && $user->facebook_id !== null) {
+            if ($user && $user->facebook_id !== null) {
                 throw new ApiException("Email {$user->email} đã được sử dụng bởi một phương thức đăng nhập khác " . ucfirst('google'), 409);
             }
 
-            if(!$user) {
+            if (!$user) {
                 // nếu ch có tạo mới tài khoản
                 $user = User::create([
                     'name' => $googleUser->getName(),
@@ -253,15 +254,14 @@ class AuthController extends Controller
 
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
-            $hasManagementAccess = $this->checkAuthPermision($user->role->name,'super-admin','admin','staff');
+            $hasManagementAccess = $this->checkAuthPermision($user->role->name, 'super-admin', 'admin', 'staff');
             $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
 
             return redirect($redirectUrl)->withCookie($cookie);
-        } catch(ApiException $e) {
+        } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
-        }
-        catch(Exception $e) {
-            logger('Log bug',[
+        } catch (Exception $e) {
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -278,15 +278,15 @@ class AuthController extends Controller
     {
         try {
             $redirectUrl = Socialite::driver('facebook')
-                                ->stateless()
-                                ->redirect()
-                                ->getTargetUrl();
+                ->stateless()
+                ->redirect()
+                ->getTargetUrl();
 
-            return ApiResponse::success('Facebook redirect URL generated successfully',data: [
+            return ApiResponse::success('Facebook redirect URL generated successfully', data: [
                 'url' => $redirectUrl
             ]);
-        }catch (\Exception $e) {
-            logger('Log bug',[
+        } catch (\Exception $e) {
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -306,17 +306,17 @@ class AuthController extends Controller
             $facebookUser = Socialite::driver('facebook')->stateless()->user();
 
             $user = User::with('role')
-                        ->where('facebook_id', $facebookUser->getId())
-                        ->orWhere('email', $facebookUser->getEmail())
-                        ->first();
+                ->where('facebook_id', $facebookUser->getId())
+                ->orWhere('email', $facebookUser->getEmail())
+                ->first();
 
             // check nếu tài khoản này đã login bằng google rồi thì trả về lỗi duplicate email
-            if($user && $user->google_id !== null) {
+            if ($user && $user->google_id !== null) {
                 throw new ApiException("Email {$user->email} đã được sử dụng bởi một phương thức đăng nhập khác " . ucfirst('facebook'), 409);
             }
 
-            if(!$user) {
-               // nếu ch código tạo mới tài khoản
+            if (!$user) {
+                // nếu ch código tạo mới tài khoản
                 $user = User::create([
                     'name' => $facebookUser->getName(),
                     'email' => $facebookUser->getEmail(),
@@ -335,14 +335,14 @@ class AuthController extends Controller
 
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
-            $hasManagementAccess = $this->checkAuthPermision($user->role->name,'super-admin','admin','staff');
+            $hasManagementAccess = $this->checkAuthPermision($user->role->name, 'super-admin', 'admin', 'staff');
             $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
 
             return redirect($redirectUrl)->withCookie($cookie);
-        } catch(ApiException $e) {
+        } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
-        } catch(Exception $e) {
-            logger('Log bug',[
+        } catch (Exception $e) {
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -381,20 +381,39 @@ class AuthController extends Controller
     }
 
     /**
-     * Cập nhật profile (name, phone, address, avatar).
+     * Cập nhật profile (name, phone, avatar).
      */
     public function update(UpdateProfileRequest $request): JsonResponse
     {
         /** @var \App\Models\User $user */
         $user = auth('api')->user();
         $data = $request->validated();
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('avatars', 'public');
-            $data['image'] = $path;
+
+        try {
+            if ($request->hasFile('image')) {
+                // Xoá ảnh cũ trên Cloudinary nếu có
+                if (!empty($user->image)) {
+                    $publicId = \App\Classes\Common::getCloudinaryPublicIdFromUrl($user->image);
+                    if ($publicId) {
+                        Common::deleteImageFromCloudinary($publicId);
+                    }
+                }
+
+                // Upload ảnh mới lên Cloudinary
+                $data['image'] = \App\Classes\Common::uploadImageToCloudinary(
+                    $request->file('image'),
+                    'egomall/avatars'
+                );
+            }
+
+            $user->update($data);
+
+            return (new UserResource($user))->response();
+        } catch (\Exception $e) {
+            throw new ApiException('Cập nhật hồ sơ thất bại!', 500, [$e->getMessage()]);
         }
-        $user->update($data);
-        return (new UserResource($user))->response();
     }
+
 
     /**
      * Đổi mật khẩu.
@@ -424,7 +443,7 @@ class AuthController extends Controller
     //     $cookie = new Cookie('token', '', now()->subMinute()->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
     //     return response()->json(['message' => 'Đã đăng xuất'])->withCookie($cookie);
     // }
-        public function logout(): JsonResponse
+    public function logout(): JsonResponse
     {
         try {
             JWTAuth::parseToken()->invalidate(); // ✅ parse token trước
@@ -471,8 +490,8 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         // Kiểm tra user nếu đã xác thục rồi không cho resend lại OTP
-        if($user->is_active !== false) {
-            throw new ApiException('Tài khoản đã được kích hoạt, không thể gửi lại OTP!!',409);
+        if ($user->is_active !== false) {
+            throw new ApiException('Tài khoản đã được kích hoạt, không thể gửi lại OTP!!', 409);
         }
 
         $now   = now();
@@ -587,8 +606,8 @@ class AuthController extends Controller
         return response()->json(['message' => 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.']);
     }
 
-    private function checkAuthPermision($roleName,...$permission)
+    private function checkAuthPermision($roleName, ...$permission)
     {
-       return in_array($roleName, $permission);
+        return in_array($roleName, $permission);
     }
 }
