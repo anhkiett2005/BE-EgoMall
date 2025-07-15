@@ -13,18 +13,15 @@ class GeminiChatService
     public function ask(string $question): string
     {
         try {
-            // 1. Đọc context từ các file txt
             $context = $this->getContext();
 
-            // 2. Lấy 5 câu hỏi gần nhất từ DB (nếu có)
             $userId = auth('api')->check() ? auth('api')->id() : null;
+            $historyText = '';
 
-            Session::put('chat_session_active', true);
-            $sessionId = Session::getId();
+            if ($userId) {
+                $historyText = $this->getRecentHistory($userId);
+            }
 
-            $historyText = $this->getRecentHistory($userId, $sessionId);
-
-            // 3. Ghép context gốc + history + câu hỏi mới
             $fullContext = trim($context . "\n" . $historyText);
 
             $parts = [['text' => $fullContext], ['text' => $question]];
@@ -36,11 +33,6 @@ class GeminiChatService
             ];
 
             $client = new Client();
-
-            // if (app()->environment('local')) {
-            //     Log::info('Payload gửi Gemini:', $payload);
-            // }
-
             $response = $client->post(
                 config('chatbot.endpoint'),
                 [
@@ -54,7 +46,6 @@ class GeminiChatService
             );
 
             $data = json_decode($response->getBody(), true);
-
             $answer = $data['candidates'][0]['content']['parts'][0]['text'] ?? null;
 
             if (!$answer || !is_string($answer)) {
@@ -62,13 +53,13 @@ class GeminiChatService
                 throw new ApiException('Phản hồi từ Gemini không hợp lệ hoặc thiếu dữ liệu.', 500);
             }
 
-            // 4. Lưu lại
-            ChatHistory::create([
-                'user_id' => $userId,
-                'session_id' => $sessionId,
-                'question' => $question,
-                'answer' => rtrim($answer),
-            ]);
+            if ($userId) {
+                ChatHistory::create([
+                    'user_id' => $userId,
+                    'question' => $question,
+                    'answer' => rtrim($answer),
+                ]);
+            }
 
             return rtrim($answer);
         } catch (\Exception $e) {
@@ -76,6 +67,7 @@ class GeminiChatService
             throw new ApiException('Lỗi khi gọi Gemini: ' . $e->getMessage(), 500);
         }
     }
+
 
     private function getContext(): string
     {
@@ -88,16 +80,14 @@ class GeminiChatService
         return $context;
     }
 
-    private function getRecentHistory(?int $userId, string $sessionId): string
+    private function getRecentHistory(?int $userId): string
     {
+        if (!$userId) {
+            return '';
+        }
+
         $recentHistory = ChatHistory::query()
-            ->where(function ($q) use ($userId, $sessionId) {
-                if ($userId) {
-                    $q->where('user_id', $userId);
-                } else {
-                    $q->where('session_id', $sessionId);
-                }
-            })
+            ->where('user_id', $userId)
             ->latest()
             ->take(5)
             ->get()
@@ -105,9 +95,24 @@ class GeminiChatService
 
         $historyText = '';
         foreach ($recentHistory as $item) {
-            $historyText .= "Khách: {$item->question}\nBạn đã trả lời: {$item->answer}\n Hãy tiếp tục trả lời câu hỏi tiếp theo.\n";
+            $historyText .= "Khách: {$item->question}\nBạn đã trả lời: {$item->answer}\nHãy tiếp tục trả lời câu hỏi tiếp theo.\n";
         }
 
         return trim($historyText);
+    }
+
+
+    public function getHistory(): \Illuminate\Support\Collection
+    {
+        if (!auth('api')->check()) {
+            return collect();
+        }
+
+        $userId = auth('api')->id();
+
+        return ChatHistory::query()
+            ->where('user_id', $userId)
+            ->latest()
+            ->get();
     }
 }

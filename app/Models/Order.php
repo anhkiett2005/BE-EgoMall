@@ -26,7 +26,8 @@ class Order extends Model
         'payment_status',
         'payment_date',
         'transaction_id',
-        'coupon_id'
+        'coupon_id',
+        'delivered_at',
     ];
 
     protected $hidden = [
@@ -34,7 +35,8 @@ class Order extends Model
     ];
 
     protected $casts = [
-        'discount_details' => 'json'
+        'discount_details' => 'json',
+        'delivered_at' => 'datetime',
     ];
 
     public function user()
@@ -45,11 +47,6 @@ class Order extends Model
     public function details()
     {
         return $this->hasMany(OrderDetail::class);
-    }
-
-    public function review()
-    {
-        return $this->hasOne(Review::class);
     }
 
     public function coupon()

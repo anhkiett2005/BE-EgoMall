@@ -11,11 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('review_images', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('review_id')->constrained('reviews')->onDelete('cascade');
-            $table->string('image_url');
-            $table->timestamps();
+        Schema::table('orders', function (Blueprint $table) {
+            $table->string('cancel_reason')->nullable()->after('status')->comment('Lý do hủy đơn hàng');
         });
     }
 
@@ -24,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('review_images');
+        Schema::table('orders', function (Blueprint $table) {
+            $table->dropColumn('cancel_reason');
+        });
     }
 };

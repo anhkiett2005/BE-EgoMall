@@ -164,8 +164,8 @@ class Common
     public static function generateUniqueId($orderId)
     {
         $salt = env('BCRYPT_ROUNDS');
-        $hash = hash_hmac('sha256', $orderId,$salt);
-        return 'ORD-'. strtoupper(substr($hash, 0, 10));
+        $hash = hash_hmac('sha256', $orderId, $salt);
+        return 'ORD-' . strtoupper(substr($hash, 0, 10));
     }
 
     public static function calculateOrderStock(Order $order)
@@ -269,7 +269,7 @@ class Common
 
 
             return $jsonResult['payUrl'];
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             throw new ApiException($e->getMessage());
         }
     }
@@ -293,9 +293,9 @@ class Common
             $description = "";
 
             // Tạo chuỗi để ký
-             $rawHash = "accessKey=$accessKey&amount=$amount&description=$description"
-                    . "&orderId=$orderId&partnerCode=$partnerCode"
-                    . "&requestId=$requestId&transId=$transId";
+            $rawHash = "accessKey=$accessKey&amount=$amount&description=$description"
+                . "&orderId=$orderId&partnerCode=$partnerCode"
+                . "&requestId=$requestId&transId=$transId";
 
             $signature = hash_hmac("sha256", $rawHash, $secretKey);
 
@@ -322,7 +322,6 @@ class Common
             }
 
             return $result;
-
         } catch (\Exception $e) {
             throw new ApiException("Lỗi hoàn tiền MoMo: " . $e->getMessage());
         }
@@ -392,7 +391,7 @@ class Common
             ])->post($vnp_Url, $body);
 
             return $response->json();
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             logger('Log refund VNPAY', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
@@ -403,5 +402,22 @@ class Common
         }
     }
 
+    public static function maskName(string $name): string
+    {
+        $words = explode(' ', $name);
+        $masked = [];
 
+        foreach ($words as $word) {
+            $len = mb_strlen($word);
+            if ($len <= 2) {
+                $masked[] = $word;
+            } else {
+                $first = mb_substr($word, 0, 1);
+                $last = mb_substr($word, -1, 1);
+                $masked[] = $first . str_repeat('*', $len - 2) . $last;
+            }
+        }
+
+        return implode(' ', $masked);
+    }
 }

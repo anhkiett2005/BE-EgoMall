@@ -54,21 +54,21 @@ class OrderController extends Controller
             $variants = ProductVariant::with(['product', 'values.variantValue.option'])->whereIn('id', $variantIds)->get()->keyBy('id');
 
             $allPromotions = Promotion::with(['products', 'productVariants', 'giftProduct.variants', 'giftProductVariant'])
-                                      ->where('status', '!=', 0)
-                                      ->where('start_date', '<=', now())
-                                      ->where('end_date', '>=', now())
-                                      ->get();
+                ->where('status', '!=', 0)
+                ->where('start_date', '<=', now())
+                ->where('end_date', '>=', now())
+                ->get();
 
             $voucher = isset($data['voucher_id']) ? $this->checkVoucher($data['voucher_id']) : null;
 
-            foreach($data['orders'] as $orderItem) {
-                foreach($orderItem['products'] as $productItem) {
+            foreach ($data['orders'] as $orderItem) {
+                foreach ($orderItem['products'] as $productItem) {
                     $variant = $variants[$productItem['id']] ?? null;
                     if (!$variant) continue;
 
-                    if($variant->quantity == 0 || $productItem['quantity'] > $variant->quantity) {
-                        $variantValue = $variant->values->map(fn($v) =>
-                            ($v->variantValue->option->name ?? 'Thuộc tính') . ": " . $v->variantValue->value
+                    if ($variant->quantity == 0 || $productItem['quantity'] > $variant->quantity) {
+                        $variantValue = $variant->values->map(
+                            fn($v) => ($v->variantValue->option->name ?? 'Thuộc tính') . ": " . $v->variantValue->value
                         )->implode(' | ');
                         throw new ApiException("Sản phẩm {$variant->product->name} ({$variantValue}) không đủ hàng!!");
                     }
@@ -102,7 +102,7 @@ class OrderController extends Controller
                 }
 
                 // Xử lý quà tặng
-                foreach($orderItem['gifts'] ?? [] as $gift) {
+                foreach ($orderItem['gifts'] ?? [] as $gift) {
                     $giftVariant = $variants[$gift['id']] ?? null;
                     if (!$giftVariant) continue;
 
@@ -161,7 +161,6 @@ class OrderController extends Controller
 
             // Xử lý thanh toán theo phương thức được chọn
             return $this->processPaymentByMethod($order);
-
         } catch (ApiException $e) {
             DB::rollBack();
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
@@ -178,19 +177,41 @@ class OrderController extends Controller
     }
 
 
-    public function cancelOrders($uniqueId)
+    public function cancelOrders(Request $request, $uniqueId)
     {
         try {
-            $order = Order::where('unique_id',$uniqueId)
-                          ->first();
+            $order = Order::where('unique_id', $uniqueId)->first();
 
             if (!$order) {
                 throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
             }
 
+            if ($order->status !== 'ordered') {
+                throw new ApiException('Chỉ có thể hủy đơn hàng khi đang chờ xác nhận!', Response::HTTP_BAD_REQUEST);
+            }
+
+            $cancelReason = $request->input('cancel_reason');
+            if ($cancelReason) {
+                $order->cancel_reason = $cancelReason;
+            }
+
+            // Nếu là COD thì không hoàn tiền → cập nhật trực tiếp
+            if ($order->payment_method === 'COD') {
+                Common::restoreOrderStock($order);
+
+                $order->update([
+                    'status' => 'cancelled',
+                    'payment_status' => 'cancelled',
+                    'payment_date' => now(),
+                ]);
+
+                return ApiResponse::success('Hủy đơn hàng thành công!');
+            }
+
+            // Nếu là MOMO hoặc VNPAY thì gọi refund
             return $this->processRefundPaymentByMethod($order);
         } catch (ApiException $e) {
-
+            return ApiResponse::error($e->getMessage(), $e->getCode());
         } catch (\Exception $e) {
             logger('Log bug cancel orders', [
                 'error_message' => $e->getMessage(),
@@ -211,8 +232,8 @@ class OrderController extends Controller
                 return app(VnpayController::class)->processPayment($order);
             case 'MOMO':
                 return app(MomoController::class)->processPayment($order);
-            // case 'e-wallet':
-            //     return app(EWalletPaymentController::class)->processPayment($order);
+                // case 'e-wallet':
+                //     return app(EWalletPaymentController::class)->processPayment($order);
         }
     }
 
@@ -230,22 +251,22 @@ class OrderController extends Controller
     {
         $now = now();
         $promotions = Promotion::with(['products', 'productVariants'])
-                                    ->where('status', '!=', 0)
-                                    ->where('start_date', '<=', $now)
-                                    ->where('end_date', '>=', $now)
-                                    ->first();
+            ->where('status', '!=', 0)
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now)
+            ->first();
 
         $matchedPromotion = null;
 
         // 1. Nếu promotion áp dụng theo biến thể
-            if ($promotions->productVariants->contains('id', $variant->id)) {
-                $matchedPromotion = $promotions;
-            }
+        if ($promotions->productVariants->contains('id', $variant->id)) {
+            $matchedPromotion = $promotions;
+        }
 
-            // 2. Nếu promotion áp dụng theo product cha
-            if ($promotions->products->contains('id', $variant->product_id)) {
-                $matchedPromotion = $promotions;
-            }
+        // 2. Nếu promotion áp dụng theo product cha
+        if ($promotions->products->contains('id', $variant->product_id)) {
+            $matchedPromotion = $promotions;
+        }
 
         return $matchedPromotion;
     }
@@ -254,12 +275,12 @@ class OrderController extends Controller
     {
         $now = now();
         $voucher = Coupon::where('id', $voucherId)
-                         ->where('status', '!=', 0)
-                         ->where('start_date', '<=', $now)
-                         ->where('end_date', '>=', $now)
-                         ->first();
+            ->where('status', '!=', 0)
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now)
+            ->first();
 
-        if(!$voucher) {
+        if (!$voucher) {
             throw new ApiException('Voucher không hợp lệ!!', Response::HTTP_NOT_FOUND);
         }
 
@@ -324,7 +345,4 @@ class OrderController extends Controller
 
         return $matched;
     }
-
-
-
 }
