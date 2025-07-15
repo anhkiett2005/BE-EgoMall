@@ -164,13 +164,16 @@ Route::prefix('v1/front')
         });
     });
 
-Route::prefix('v1/staff')
+Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
-    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:staff,admin,super-admin'])
+    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin', 'permission:manage-products,manage-categories'])
     ->group(function () {
         // Phản hồi đánh giá
-        Route::post('/reviews/reply', 'ReviewReplyController@store')->name('admin.reviews.reply');
-        Route::put('/reviews/{reviewId}/reply', 'ReviewReplyController@update')->name('admin.reviews.reply.update');
+        Route::controller('ReviewReplyController')
+            ->group(function () {
+                Route::post('/reviews/reply', 'store')->name('admin.reviews.reply');
+                Route::put('/reviews/{reviewId}/reply', 'update')->name('admin.reviews.reply.update');
+            });
 
         // Quản lý đánh giá
         Route::controller('ReviewAdminController')
@@ -179,14 +182,6 @@ Route::prefix('v1/staff')
                 Route::patch('/reviews/{reviewId}/visibility', 'toggleVisibility');
                 Route::delete('/reviews/{reviewId}', 'destroy');
             });
-    });
-
-
-
-Route::prefix('v1/admin')
-    ->namespace('App\Http\Controllers\Api\Admin')
-    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin', 'permission:manage-products,manage-categories'])
-    ->group(function () {
         // Routes API Product
         Route::controller('ProductController')->group(function () {
             Route::get('/products', 'index')->name('admin.products.index');
