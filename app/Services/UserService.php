@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use App\Exceptions\ApiException;
@@ -6,7 +7,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-class UserService {
+class UserService
+{
 
     /**
      * Lấy toàn bộ danh sách users
@@ -17,7 +19,7 @@ class UserService {
         try {
             // Lấy all users trong hệ thống
             $users = User::with(['role'])
-                         ->get();
+                ->get();
 
             // Xử lý dữ liệu
             $listUser = collect();
@@ -56,8 +58,8 @@ class UserService {
         try {
             // Tìm user
             $user = User::with(['role'])
-                        ->where('id', '=', $id)
-                        ->first();
+                ->where('id', '=', $id)
+                ->first();
 
             if (!$user) {
                 throw new ApiException('Không tìm thấy tài khoản trong hệ thống!!', 404);
@@ -78,7 +80,7 @@ class UserService {
             ]);
 
             return $userDetail;
-        } catch(ApiException $e) {
+        } catch (ApiException $e) {
             throw $e;
         } catch (\Exception $e) {
             logger('Log bug show user', [
@@ -98,13 +100,22 @@ class UserService {
     {
         DB::beginTransaction();
         try {
-            // Tìm user để update
-            $user = User::with(['role'])
-                        ->find($id);
-
-            if(!$user) {
+            $user = User::find($id);
+            if (!$user) {
                 throw new ApiException('Không tìm thấy tài khoản trong hệ thống!!', Response::HTTP_NOT_FOUND);
             }
+
+            $data = $request->only(['is_active']);
+            $user->update($data);
+
+            DB::commit();
+
+            return [
+                'id'         => $user->id,
+                'email'      => $user->email,
+                'is_active'  => $user->is_active,
+                'updated_at' => $user->updated_at->format('d-m-Y H:i:s'),
+            ];
         } catch (ApiException $e) {
             DB::rollBack();
             throw $e;
@@ -112,9 +123,9 @@ class UserService {
             DB::rollBack();
             logger('Log bug update user', [
                 'error_message' => $e->getMessage(),
-                'error_file' => $e->getFile(),
-                'error_line' => $e->getLine(),
-                'stack_trace' => $e->getTraceAsString()
+                'error_file'    => $e->getFile(),
+                'error_line'    => $e->getLine(),
+                'stack_trace'   => $e->getTraceAsString()
             ]);
             throw new ApiException('Có lỗi xảy ra!!', 500);
         }

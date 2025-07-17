@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateUserStatusRequest;
 use App\Response\ApiResponse;
 use App\Services\UserService;
 use Illuminate\Http\Request;
@@ -43,21 +44,28 @@ class UserController extends Controller
         try {
             $user = $this->userService->show($id);
 
-            if($user) {
-                return ApiResponse::success('Lấy chi tiết người dùng thành công!!',data: $user);
+            if ($user) {
+                return ApiResponse::success('Lấy chi tiết người dùng thành công!!', data: $user);
             }
         } catch (ApiException $e) {
-            return ApiResponse::error($e->getMessage(),$e->getCode(),$e->getErrors());
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         }
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+
+    public function update(UpdateUserStatusRequest $request, string $id)
     {
-        //
+        try {
+            $user = $this->userService->update($request, $id);
+            return ApiResponse::success('Cập nhật trạng thái người dùng thành công!', data: $user);
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
     }
+
 
     /**
      * Remove the specified resource from storage.
