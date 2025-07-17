@@ -33,6 +33,7 @@ class CouponController extends Controller
 
             foreach($coupons as $coupon) {
                $data = [
+                        'id' => $coupon->id,
                         'code' => $coupon->code,
                         'description' => $coupon->description,
                         'discount_type' => $coupon->discount_type,

@@ -143,8 +143,8 @@ class ProductController extends Controller
 
                 foreach ($product->variants as $variant) {
                     foreach ($variant->orderDetails as $detail) {
-                        if ($detail->order && $detail->order->review) {
-                            $allReviews->push($detail->order->review);
+                        if ($detail && $detail->review) {
+                            $allReviews->push($detail->review);
                         }
                     }
                 }
@@ -232,8 +232,8 @@ class ProductController extends Controller
 
         foreach ($product->variants as $variant) {
             foreach ($variant->orderDetails as $detail) {
-                if ($detail->order->review && $detail->order->user !== null) {
-                    $allReviews->push($detail->order->review);
+                if ($detail->review && $detail->user !== null) {
+                    $allReviews->push($detail->review);
                 }
             }
         }
@@ -300,8 +300,8 @@ class ProductController extends Controller
         foreach ($relatedProducts as $relatedProduct) {
             foreach ($relatedProduct->variants as $variant) {
                 foreach ($variant->orderDetails as $detail) {
-                    if ($detail->order && $detail->order->review) {
-                        $allReviewRelateds->push($detail->order->review);
+                    if ($detail && $detail->review) {
+                        $allReviewRelateds->push($detail->review);
                     }
                 }
             }
