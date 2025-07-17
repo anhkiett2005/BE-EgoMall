@@ -38,7 +38,7 @@ class ProductController extends Controller
                                 ->with([
                                     'images',
                                     'values.variantValue.option',
-                                    'orderDetails.order.review'
+                                    'orderDetails.review'
                                 ]);
                         }
                     ])
@@ -131,11 +131,7 @@ class ProductController extends Controller
             }
 
 
-            $promotions = Promotion::with(['products', 'productVariants'])
-                                    ->where('status', '!=', 0)
-                                    ->where('start_date', '<=', $now)
-                                    ->where('end_date', '>=', $now)
-                                    ->get();
+            $promotions = self::getActivePromotions();
 
             // xử lý dữ liệu và trả về
             $products = $query->get();
@@ -213,9 +209,9 @@ class ProductController extends Controller
                             $q->where('is_active', '!=', 0)
                               ->select('id','name','image');
                         },
-                        'orderDetails.order.review' => function ($q) {
-                            $q->where('review_status', 'approved');
-                        }
+                        // 'orderDetails.review' => function ($q) {
+                        //     $q->where('review_status', 'approved');
+                        // }
                     ]);
             }
         ])
@@ -226,6 +222,8 @@ class ProductController extends Controller
         if (!$product) {
             return ApiResponse::error('Product not found', 404);
         }
+
+        $promotions = self::getActivePromotions();
 
         $listDetails = collect();
 
@@ -253,12 +251,13 @@ class ProductController extends Controller
         });
 
         // trả về các list variants của sản phẩm
-        $variantLists = $product->variants->map(function ($variant) {
+        $variantLists = $product->variants->map(function ($variant) use ($promotions) {
             return [
                 'id' => $variant->id,
                 'sku' => $variant->sku,
                 'price' => $variant->price,
                 'sale_price' => $variant->sale_price,
+                'final_price_discount' => self::checkPromotion($variant, $promotions),
                 'image' => $variant->images->first()->image_url ?? null,
                 'quantity' => $variant->quantity,
                 'options' => $variant->values->map(function ($value) {
@@ -285,7 +284,7 @@ class ProductController extends Controller
                                     'variants' => function ($query) {
                                         $query->where('is_active', '!=', 0)
                                         ->with([
-                                            'orderDetails.order.review' => function($q) {
+                                            'orderDetails.review' => function($q) {
                                                 $q->where('review_status', 'approved');
                                             }
                                         ]);
@@ -312,13 +311,14 @@ class ProductController extends Controller
         $reviewCountRelated = $allReviewRelateds->count();
 
         // trả về sản phẩm cùng loại
-        $relatedProducts->each(function ($relatedProduct) use (&$related, $averageRatingRelated, $reviewCountRelated) {
+        $relatedProducts->each(function ($relatedProduct) use (&$related, $averageRatingRelated, $reviewCountRelated, $promotions) {
             $related->push([
                 'id' => $relatedProduct->id,
                 'name' => $relatedProduct->name,
                 'slug' => $relatedProduct->slug,
-                'price' => $relatedProduct->variants->avg('price'),
-                'sale_price' => $relatedProduct->variants->avg('sale_price'),
+                'price' => $relatedProduct->variants->first()?->price,
+                'sale_price' => $relatedProduct->variants->first()?->sale_price,
+                'final_price_discount' => self::checkPromotion($relatedProduct->variants->first(), $promotions),
                 'brand' => $relatedProduct->brand->name ?? null,
                 'image' => $relatedProduct->image,
                 'average_rating' => $averageRatingRelated,
@@ -378,6 +378,17 @@ class ProductController extends Controller
                 $query->orderBy('created_at', 'desc');
                 break;
         }
+    }
+
+    // Lấy danh sách promotion trong hệ thống đang hoat động
+    private function getActivePromotions()
+    {
+        $now = now();
+        return Promotion::with(['products', 'productVariants'])
+            ->where('status', '!=', 0)
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now)
+            ->get();
     }
 
     public static function checkPromotion($variant, $promotions)
