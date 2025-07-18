@@ -168,6 +168,14 @@ Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
     ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin', 'permission:manage-products,manage-categories'])
     ->group(function () {
+        // Routes API Variant Options
+        Route::controller('VariantOptionController')->group(function () {
+            Route::get('/variant-options', 'index')->name('admin.variant-options.index');
+            Route::get('/variant-options/{id}', 'show')->name('admin.variant-options.show');
+            Route::post('/variant-options', 'store')->name('admin.variant-options.store');
+            Route::put('/variant-options/{id}', 'update')->name('admin.variant-options.update');
+            Route::delete('/variant-options/{id}', 'destroy')->name('admin.variant-options.destroy');
+        });
         // Phản hồi đánh giá
         Route::controller('ReviewReplyController')
             ->group(function () {
