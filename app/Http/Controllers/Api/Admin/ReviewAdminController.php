@@ -25,14 +25,15 @@ class ReviewAdminController extends Controller
         return ApiResponse::success('Danh sách đánh giá', 200, ReviewAdminResource::collection($reviews)->toArray($request));
     }
 
-    public function toggleVisibility(int $reviewId)
+    public function updateStatus(Request $request, int $id)
     {
-        $review = $this->reviewAdminService->toggleVisibility($reviewId);
-
-        return ApiResponse::success('Cập nhật trạng thái hiển thị thành công!', 200, [
-            'id' => $review->id,
-            'is_visible' => $review->is_visible
+        $request->validate([
+            'status' => 'required|in:pending,approved,rejected'
         ]);
+
+        $review = $this->reviewAdminService->updateStatus($id, $request->input('status'));
+
+        return ApiResponse::success('Cập nhật trạng thái đánh giá thành công!', 200, (new ReviewAdminResource($review))->toArray(request()));
     }
 
     public function destroy(int $reviewId)

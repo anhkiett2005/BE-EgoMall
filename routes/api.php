@@ -179,7 +179,7 @@ Route::prefix('v1/admin')
         Route::controller('ReviewAdminController')
             ->group(function () {
                 Route::get('/reviews', 'index');
-                Route::patch('/reviews/{reviewId}/visibility', 'toggleVisibility');
+                Route::put('/reviews/{reviewId}/status', 'updateStatus');
                 Route::delete('/reviews/{reviewId}', 'destroy');
             });
 
@@ -258,9 +258,9 @@ Route::prefix('v1/admin')
 
         // Routes API Order
         Route::controller('OrderController')->group(function () {
-            Route::get('/orders','index')->name('admin.orders.index');
-            Route::get('/order/{uniqueId}','show')->name('admin.orders.show');
-            Route::post('/orders/change-status/{uniqueId}','update')->name('admin.orders.change-status');
+            Route::get('/orders', 'index')->name('admin.orders.index');
+            Route::get('/order/{uniqueId}', 'show')->name('admin.orders.show');
+            Route::post('/orders/change-status/{uniqueId}', 'update')->name('admin.orders.change-status');
         });
     });
 

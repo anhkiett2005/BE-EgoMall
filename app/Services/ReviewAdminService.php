@@ -83,8 +83,8 @@ class ReviewAdminService
             });
         }
 
-        if (isset($filters['is_visible'])) {
-            $query->where('is_visible', filter_var($filters['is_visible'], FILTER_VALIDATE_BOOLEAN));
+        if (!empty($filters['status']) && in_array($filters['status'], ['pending', 'approved', 'rejected'])) {
+            $query->where('status', $filters['status']);
         }
 
         if (isset($filters['has_reply']) && $filters['has_reply'] === 'false') {
@@ -95,15 +95,23 @@ class ReviewAdminService
     }
 
 
-    public function toggleVisibility(int $reviewId): Review
+    public function updateStatus(int $reviewId, string $status): Review
     {
+        if (!in_array($status, ['pending', 'approved', 'rejected'])) {
+            throw new ApiException('Trạng thái không hợp lệ!', Response::HTTP_BAD_REQUEST);
+        }
+
         $review = Review::find($reviewId);
 
         if (!$review) {
             throw new ApiException('Không tìm thấy đánh giá!', Response::HTTP_NOT_FOUND);
         }
 
-        $review->is_visible = !$review->is_visible;
+        if ($review->status === $status) {
+            throw new ApiException('Đánh giá đã ở trạng thái này rồi!', Response::HTTP_BAD_REQUEST);
+        }
+
+        $review->status = $status;
         $review->save();
 
         return $review;

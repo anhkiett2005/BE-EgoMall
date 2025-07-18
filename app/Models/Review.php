@@ -16,7 +16,7 @@ class Review extends Model
         'rating',
         'comment',
         'is_anonymous',
-        'is_visible',
+        'status',
     ];
 
     protected $appends = ['is_updated'];
