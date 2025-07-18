@@ -27,9 +27,9 @@ class ReviewService
             ->pluck('orderDetails')
             ->flatten()
             ->pluck('review')
-            ->filter((function ($review) {
-                return $review && $review->is_visible;
-            }))
+            ->filter(function ($review) {
+                return $review && $review->status === 'approved';
+            })
             ->sortByDesc('created_at')
             ->values();
 
@@ -76,6 +76,7 @@ class ReviewService
                 'rating'          => $data['rating'],
                 'comment'         => $data['comment'] ?? null,
                 'is_anonymous'    => $data['is_anonymous'] ?? false,
+                'status' => 'pending',
             ]);
 
             if (request()->hasFile('images') && is_array(request()->file('images'))) {

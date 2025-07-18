@@ -168,6 +168,14 @@ Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
     ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin', 'permission:manage-products,manage-categories'])
     ->group(function () {
+        // Routes API Variant Options
+        Route::controller('VariantOptionController')->group(function () {
+            Route::get('/variant-options', 'index')->name('admin.variant-options.index');
+            Route::get('/variant-options/{id}', 'show')->name('admin.variant-options.show');
+            Route::post('/variant-options', 'store')->name('admin.variant-options.store');
+            Route::put('/variant-options/{id}', 'update')->name('admin.variant-options.update');
+            Route::delete('/variant-options/{id}', 'destroy')->name('admin.variant-options.destroy');
+        });
         // Phản hồi đánh giá
         Route::controller('ReviewReplyController')
             ->group(function () {
@@ -179,7 +187,7 @@ Route::prefix('v1/admin')
         Route::controller('ReviewAdminController')
             ->group(function () {
                 Route::get('/reviews', 'index');
-                Route::patch('/reviews/{reviewId}/visibility', 'toggleVisibility');
+                Route::put('/reviews/{reviewId}/status', 'updateStatus');
                 Route::delete('/reviews/{reviewId}', 'destroy');
             });
 
@@ -258,9 +266,9 @@ Route::prefix('v1/admin')
 
         // Routes API Order
         Route::controller('OrderController')->group(function () {
-            Route::get('/orders','index')->name('admin.orders.index');
-            Route::get('/order/{uniqueId}','show')->name('admin.orders.show');
-            Route::post('/orders/change-status/{uniqueId}','update')->name('admin.orders.change-status');
+            Route::get('/orders', 'index')->name('admin.orders.index');
+            Route::get('/order/{uniqueId}', 'show')->name('admin.orders.show');
+            Route::post('/orders/change-status/{uniqueId}', 'update')->name('admin.orders.change-status');
         });
     });
 

@@ -21,6 +21,7 @@ class ReviewResource extends JsonResource
             'comment'       => $this->comment,
             'is_anonymous'  => $this->is_anonymous,
             'images'        => $this->images->pluck('image_url'),
+            'status'        => $this->status,
             'reply'         => $this->reply ? [
                 'id'     => $this->reply->first()->id,
                 'user'   => [
