@@ -47,7 +47,7 @@ class OrderHistoryResource extends JsonResource
                 $product = $variant?->product;
 
                 $variantValues = $variant?->values->map(function ($v) {
-                    return optional($v->variantValue->option)->name . ': ' . $v->variantValue->value;
+                    return optional($v->option)->name . ': ' . $v->value;
                 })->implode(' | ');
 
                 // Mặc định = null
@@ -64,7 +64,7 @@ class OrderHistoryResource extends JsonResource
                     if ($promotion && $promotion->giftProductVariant) {
                         $giftVariant = $promotion->giftProductVariant->loadMissing([
                             'product',
-                            'values.variantValue.option'
+                            'values'
                         ]);
 
                         $giftProduct = [
@@ -77,8 +77,8 @@ class OrderHistoryResource extends JsonResource
                             'image'        => $giftVariant->product->image ?? null,
                             'options'      => $giftVariant->values->map(function ($value) {
                                 return [
-                                    'name'  => $value->variantValue->option->name ?? '',
-                                    'value' => $value->variantValue->value ?? ''
+                                    'name'  => $value->option->name ?? '',
+                                    'value' => $value->value ?? ''
                                 ];
                             })->values(),
                         ];
