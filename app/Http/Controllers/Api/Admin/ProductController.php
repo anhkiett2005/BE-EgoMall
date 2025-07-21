@@ -63,13 +63,13 @@ class ProductController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateProductRequest $request, string $slug)
+    public function update(UpdateProductRequest $request, string $id)
     {
         try {
-            $isUpdated = $this->productService->update($request, $slug);
+            $isUpdated = $this->productService->update($request, $id);
 
             if($isUpdated) {
-                return ApiResponse::success('Cập nhật sản phẩm thành công');
+                return ApiResponse::success('Cập nhật sản phẩm thành công',data: $isUpdated);
             }
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());

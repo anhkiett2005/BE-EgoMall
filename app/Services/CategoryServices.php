@@ -125,7 +125,7 @@ class CategoryServices
      * Cập nhật một category
      */
 
-    public function update($request, string $slug)
+    public function update($request, string $id)
     {
         DB::beginTransaction();
 
@@ -141,8 +141,11 @@ class CategoryServices
                     }
                 ]
             )
-                ->where('slug', '=', $slug)
-                ->first();
+                        ->find($id);
+
+            if (!$category) {
+                throw new ApiException('Không tìm thấy danh mục!!', Response::HTTP_NOT_FOUND);
+            }
 
 
             // check nếu có product thì k cho cập nhật options

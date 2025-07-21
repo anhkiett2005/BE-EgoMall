@@ -7,6 +7,7 @@ use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OrderRequest;
 use App\Models\Coupon;
+use App\Models\CouponUsage;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\ProductVariant;
@@ -51,7 +52,7 @@ class OrderController extends Controller
                 collect($data['orders'])->flatMap(fn($order) => collect($order['gifts'] ?? [])->pluck('id'))
             )->unique();
 
-            $variants = ProductVariant::with(['product', 'values.variantValue.option'])->whereIn('id', $variantIds)->get()->keyBy('id');
+            $variants = ProductVariant::with(['product', 'values'])->whereIn('id', $variantIds)->get()->keyBy('id');
 
             $allPromotions = Promotion::with(['products', 'productVariants', 'giftProduct.variants', 'giftProductVariant'])
                 ->where('status', '!=', 0)
@@ -59,7 +60,7 @@ class OrderController extends Controller
                 ->where('end_date', '>=', now())
                 ->get();
 
-            $voucher = isset($data['voucher_id']) ? $this->checkVoucher($data['voucher_id']) : null;
+            $voucher = isset($data['voucher_id']) ? $this->checkVoucher($user->id,$data['voucher_id']) : null;
 
             foreach ($data['orders'] as $orderItem) {
                 foreach ($orderItem['products'] as $productItem) {
@@ -68,7 +69,7 @@ class OrderController extends Controller
 
                     if ($variant->quantity == 0 || $productItem['quantity'] > $variant->quantity) {
                         $variantValue = $variant->values->map(
-                            fn($v) => ($v->variantValue->option->name ?? 'Thuộc tính') . ": " . $v->variantValue->value
+                            fn($v) => ($v->option->name ?? 'Thuộc tính') . ": " . $v->value
                         )->implode(' | ');
                         throw new ApiException("Sản phẩm {$variant->product->name} ({$variantValue}) không đủ hàng!!");
                     }
@@ -140,6 +141,9 @@ class OrderController extends Controller
 
                 $totalDiscountVoucher = $voucherDiscount;
                 $totalDiscount += $voucherDiscount;
+
+                // Ghi lại voucher mà user đã sử dụng
+                $this->updateVoucherUsage($user->id, $voucher->id);
             }
 
             $total = $subtotal - $totalDiscount;
@@ -271,20 +275,53 @@ class OrderController extends Controller
         return $matchedPromotion;
     }
 
-    private function checkVoucher($voucherId)
+    private function checkVoucher($userId,$voucherId)
     {
         $now = now();
-        $voucher = Coupon::where('id', $voucherId)
-            ->where('status', '!=', 0)
-            ->where('start_date', '<=', $now)
-            ->where('end_date', '>=', $now)
-            ->first();
+        $voucher = Coupon::with(['usages' => function ($query) use ($userId) {
+                            $query->where('user_id', $userId);
+                        }])
+                        ->where('id', $voucherId)
+                        ->where('status', '!=', 0)
+                        ->where('start_date', '<=', $now)
+                        ->where('end_date', '>=', $now)
+                        ->first();
 
         if (!$voucher) {
             throw new ApiException('Voucher không hợp lệ!!', Response::HTTP_NOT_FOUND);
         }
 
+        // check số voucher toàn hệ thống, nếu = 0 hoặc < 0 thi throw exception
+        if($voucher->usage_limit <= 0) {
+            throw new ApiException('Voucher đã được sử dụng hết số lượng cho phép!!', Response::HTTP_CONFLICT);
+        }
+
+
+        // check số lần mà user sài voucher, nếu lớn hơn số lần cho phép thi throw exception
+        $usedVoucher = $voucher->usages->count();
+
+        if ($voucher->discount_limit !== null && $usedVoucher >= $voucher->discount_limit) {
+            throw new ApiException('Bạn đã sử dụng voucher này quá số lần cho phép!!', Response::HTTP_CONFLICT);
+        }
+
         return $voucher;
+    }
+
+    private function updateVoucherUsage($userId, $voucherId)
+    {
+        $voucher = Coupon::find($voucherId);
+
+        // Trừ số lượng voucher còn lại (nếu có giới hạn)
+        if (!is_null($voucher->usage_limit) && $voucher->usage_limit > 0) {
+            $voucher->decrement('usage_limit');
+        }
+
+        // Tạo mới 1 bản ghi usage
+        $voucher->usages()->create([
+            'user_id' => $userId,
+        ]);
+
+        return true;
     }
 
     private function checkBuyAndGift($variantId, $promotion = null)

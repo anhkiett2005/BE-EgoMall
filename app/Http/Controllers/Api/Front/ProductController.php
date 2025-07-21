@@ -37,7 +37,7 @@ class ProductController extends Controller
                             $query->where('is_active', '!=', 0)
                                 ->with([
                                     'images',
-                                    'values.variantValue.option',
+                                    'values',
                                     'orderDetails.review'
                                 ]);
                         }
@@ -163,6 +163,30 @@ class ProductController extends Controller
                     'image' => $product->image ?? null,
                     'average_rating' => $averageRating,
                     'review_count' => $reviewCount,
+                    'options' => $product->variants
+                                ->flatMap(function ($variant) {
+                                    return $variant->values;
+                                })
+                                ->groupBy(fn ($value) => $value->option->id ?? null)
+                                ->filter(fn ($group, $optionId) => $optionId !== null)
+                                ->map(function ($group, $optionId) {
+                                    $option = $group->first()->option;
+
+                                    return [
+                                        'id' => $option->id,
+                                        'name' => $option->name,
+                                        'value_ids' => $group->map(function ($value) {
+                                            return [
+                                                $value->id,
+                                            ];
+                                        })->unique()->flatten()->toArray(), // bỏ key
+                                        'value_labels' => $group->map(function ($value) {
+                                            return [
+                                                 $value->value
+                                            ];
+                                        })->unique()->flatten()->toArray(),
+                                    ];
+                                })->values(), // bỏ key
                     'variants' => $product->variants->map(function($variant) use($promotions) {
                         return [
                             'id' => $variant->id,
@@ -170,12 +194,18 @@ class ProductController extends Controller
                             'price' => $variant->price,
                             'sale_price' => $variant->sale_price,
                             'final_price_discount' => self::checkPromotion($variant, $promotions),
-                            'options' => $variant->values->map(function ($value) {
-                                return [
-                                    'name' => $value->variantValue->option->name,
-                                    'value' => $value->variantValue->value
-                                ];
-                            })->values(),
+                            'quantity' => $variant->quantity,
+                            'is_active' => $variant->is_active,
+                            'option_value_ids' => $variant->values->pluck('id')->toArray(),
+                            'option_labels' => $variant->values->map(function ($label) {
+                                return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
+                            })->implode(' | ')
+                            // 'options' => $variant->values->map(function ($value) {
+                            //     return [
+                            //         'name' => $value->option->name,
+                            //         'value' => $value->value
+                            //     ];
+                            // })->values(),
                         ];
                     })->values(),
                 ];
@@ -204,14 +234,14 @@ class ProductController extends Controller
                 $query->where('is_active', '!=', 0)
                     ->with([
                         'images',
-                        'values.variantValue.option',
+                        'values',
                         'orderDetails.order.user' => function ($q) {
                             $q->where('is_active', '!=', 0)
                               ->select('id','name','image');
                         },
-                        // 'orderDetails.review' => function ($q) {
-                        //     $q->where('review_status', 'approved');
-                        // }
+                        'orderDetails.review' => function ($q) {
+                            $q->where('status', 'approved');
+                        }
                     ]);
             }
         ])
@@ -242,30 +272,61 @@ class ProductController extends Controller
         $reviewCount = $allReviews->count();
         $reviews = $allReviews->map(function ($review) {
             return [
-                'name' => $review->order->user->name,
-                'image' => $review->order->user->image,
+                'name' => $review->user->name,
+                'image' => $review->user->image,
                 'rating' => $review->rating,
                 'comment' => $review->comment,
                 'date' => Carbon::parse($review->created_at)->format('d-m-Y H:i'),
             ];
         });
 
+        // Trả thêm các options của variants
+        $options = $product->variants
+                        ->flatMap(function ($variant) {
+                            return $variant->values;
+                        })
+                        ->groupBy(fn ($value) => $value->option->id ?? null)
+                        ->filter(fn ($group, $optionId) => $optionId !== null)
+                        ->map(function ($group, $optionId) {
+                            $option = $group->first()->option;
+
+                            return [
+                                'id' => $option->id,
+                                'name' => $option->name,
+                                'value_ids' => $group->map(function ($value) {
+                                    return [
+                                        $value->id,
+                                    ];
+                                })->unique()->flatten()->toArray(), // bỏ key
+                                'value_labels' => $group->map(function ($value) {
+                                    return [
+                                            $value->value
+                                    ];
+                                })->unique()->flatten()->toArray(),
+                            ];
+                        })->values();
+
+
         // trả về các list variants của sản phẩm
         $variantLists = $product->variants->map(function ($variant) use ($promotions) {
             return [
-                'id' => $variant->id,
-                'sku' => $variant->sku,
-                'price' => $variant->price,
-                'sale_price' => $variant->sale_price,
-                'final_price_discount' => self::checkPromotion($variant, $promotions),
-                'image' => $variant->images->first()->image_url ?? null,
-                'quantity' => $variant->quantity,
-                'options' => $variant->values->map(function ($value) {
-                    return [
-                        'name' => $value->variantValue->option->name,
-                        'value' => $value->variantValue->value
-                    ];
-                })->values(),
+                    'id' => $variant->id,
+                    'sku' => $variant->sku,
+                    'price' => $variant->price,
+                    'sale_price' => $variant->sale_price,
+                    'final_price_discount' => self::checkPromotion($variant, $promotions),
+                    'quantity' => $variant->quantity,
+                    'is_active' => $variant->is_active,
+                    'option_value_ids' => $variant->values->pluck('id')->toArray(),
+                    'option_labels' => $variant->values->map(function ($label) {
+                        return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
+                    })->implode(' | ')
+                    // 'options' => $variant->values->map(function ($value) {
+                    //     return [
+                    //         'name' => $value->option->name,
+                    //         'value' => $value->value
+                    //     ];
+                    // })->values(),
             ];
         });
 
@@ -285,7 +346,7 @@ class ProductController extends Controller
                                         $query->where('is_active', '!=', 0)
                                         ->with([
                                             'orderDetails.review' => function($q) {
-                                                $q->where('review_status', 'approved');
+                                                $q->where('status', 'approved');
                                             }
                                         ]);
                                     }
@@ -338,6 +399,7 @@ class ProductController extends Controller
             'average_rating' => $averageRating,
             'review_count' => $reviewCount,
             'reviews' => $reviews,
+            'options' => $options,
             'variants' => $variantLists,
             'related' => $related
         ]);

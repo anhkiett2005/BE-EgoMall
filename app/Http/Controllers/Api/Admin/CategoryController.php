@@ -65,13 +65,16 @@ class CategoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateCategoryRequest $request, string $slug)
+    public function update(UpdateCategoryRequest $request, string $id)
     {
         try {
-            $isUpdated = $this->categoryService->update($request, $slug);
+            $isUpdated = $this->categoryService->update($request, $id);
+
+
+            $data = is_array($isUpdated) ? $isUpdated : $isUpdated->toArray();
 
             if ($isUpdated) {
-                return ApiResponse::success('Cập nhật danh mục thành công!!');
+                return ApiResponse::success('Cập nhật danh mục thành công!!', data: $data);
             }
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());

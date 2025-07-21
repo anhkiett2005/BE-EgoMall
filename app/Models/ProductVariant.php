@@ -36,7 +36,8 @@ class ProductVariant extends Model
 
     public function values()
     {
-        return $this->hasMany(ProductVariantValue::class, 'product_variant_id');
+        return $this->belongsToMany(VariantValue::class, 'product_variant_values', 'product_variant_id', 'variant_value_id')
+                    ->with('option');
     }
 
     public function giftPromotions()

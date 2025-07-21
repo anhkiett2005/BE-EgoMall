@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreVariantValueRequest;
 use App\Http\Requests\VariantOptionRequest;
 use App\Http\Resources\Admin\VariantOptionResource;
 use App\Response\ApiResponse;
 use App\Services\VariantOptionService;
+use Symfony\Component\HttpFoundation\Response;
 
 class VariantOptionController extends Controller
 {
@@ -33,6 +36,26 @@ class VariantOptionController extends Controller
     {
         $option = $this->service->store($request->validated());
         return ApiResponse::success('Tạo mới thành công!', 201, (new VariantOptionResource($option))->toArray(request()));
+    }
+
+    public function createValues(StoreVariantValueRequest $request, $optionId)
+    {
+        try {
+            $valueOption = $this->service->createValues($request, $optionId);
+
+            // định dạng dữ liệu trả về FE
+            $data = [
+                'id' => $valueOption->id,
+                'name' => $valueOption->value,
+                'option_id' => $valueOption->option_id
+            ];
+
+            if($valueOption) {
+                return ApiResponse::success('Tạo giá trị thành công!!', Response::HTTP_CREATED, data: $data);
+            }
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
     }
 
     public function update(VariantOptionRequest $request, $id)

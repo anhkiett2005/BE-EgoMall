@@ -173,6 +173,7 @@ Route::prefix('v1/admin')
             Route::get('/variant-options', 'index')->name('admin.variant-options.index');
             Route::get('/variant-options/{id}', 'show')->name('admin.variant-options.show');
             Route::post('/variant-options', 'store')->name('admin.variant-options.store');
+            Route::post('/variant-options/{optionId}/values', 'createValues')->name('admin.variant-options.values.store');
             Route::put('/variant-options/{id}', 'update')->name('admin.variant-options.update');
             Route::delete('/variant-options/{id}', 'destroy')->name('admin.variant-options.destroy');
         });
@@ -204,7 +205,7 @@ Route::prefix('v1/admin')
             Route::get('/products', 'index')->name('admin.products.index');
             Route::get('/product/{slug}', 'show')->name('admin.product.show');
             Route::post('/products/create', 'store')->name('admin.products.store');
-            Route::put('/products/{slug}', 'update')->name('admin.products.update');
+            Route::put('/products/{id}', 'update')->name('admin.products.update');
             Route::delete('/products/{slug}', 'destroy')->name('admin.products.destroy');
         });
 
@@ -213,7 +214,7 @@ Route::prefix('v1/admin')
             Route::get('/categories', 'index')->name('admin.categories.index');
             Route::get('/categories/{slug}', 'show')->name('admin.categories.show');
             Route::post('/categories/create', 'store')->name('admin.categories.store');
-            Route::put('/categories/{slug}', 'update')->name('admin.categories.update');
+            Route::put('/categories/{id}', 'update')->name('admin.categories.update');
             Route::delete('/categories/{slug}', 'destroy')->name('admin.categories.destroy');
         });
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\ApiException;
 use App\Models\VariantOption;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 class VariantOptionService
@@ -27,6 +28,52 @@ class VariantOptionService
     public function store(array $data): VariantOption
     {
         return VariantOption::create($data);
+    }
+
+    /**
+     * Tạo mới 1 value cho option của variant
+     */
+
+    public function createValues($request, $optionId)
+    {
+        DB::beginTransaction();
+
+        try {
+            $data = $request->all();
+
+            // tìm option
+            $option = VariantOption::find($optionId);
+
+            // Nếu kh tồn tại throw Exception luôn
+            if(!$option) {
+                throw new ApiException('Không tìm thấy tùy chọn!!', Response::HTTP_NOT_FOUND);
+            }
+
+            // check trùng data name gửi lên
+            if ($option->variantValues->contains('value', $data['value'])) {
+                throw new ApiException('Giá trị này đã được sử dụng', Response::HTTP_BAD_REQUEST);
+            }
+
+            // Tạo value
+            $value = $option->variantValues()->create([
+                'value' => $data['value']
+            ]);
+
+            DB::commit();
+            return $value;
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug create variant value for option', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!', 500);
+        }
     }
 
     public function update(int $id, array $data): VariantOption

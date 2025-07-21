@@ -36,7 +36,7 @@ class UpdateProductVariantsJob implements ShouldQueue
 
         try {
             // tìm variant để update
-            $product = Product::with(['variants.values.variantValue','variants.images'])
+            $product = Product::with(['variants.values','variants.images'])
                               ->find($this->productId);
 
             // update variant
@@ -54,14 +54,18 @@ class UpdateProductVariantsJob implements ShouldQueue
                     ]);
 
                     if (!empty($data['options']) && is_array($data['options'])) {
+                        $valueIds = [];
                         foreach ($data['options'] as $optionId => $value) {
-                            foreach ($model->values as $pivot) {
-                                if ($pivot->variantValue && $pivot->variantValue->option_id == $optionId) {
-                                    $pivot->variantValue->update([
-                                        'value' => $value
-                                    ]);
-                                }
-                            }
+                            $variantValue = VariantValue::firstOrCreate([
+                                'option_id' => $optionId,
+                                'value' => $value,
+                            ]);
+
+                            $valueIds[] = $variantValue->id;
+                        }
+
+                        // Đồng bộ giá trị mới
+                        $model->values()->sync($valueIds);
                     }
 
                     $images = $data['images'] ?? [];
@@ -77,8 +81,7 @@ class UpdateProductVariantsJob implements ShouldQueue
                             }
                         }
                     }
-                }
-                } else {
+                }else {
                     // Tạo mới variant nếu không có id
                     $model = $product->variants()->create([
                         'sku' => $data['sku'],
@@ -89,16 +92,16 @@ class UpdateProductVariantsJob implements ShouldQueue
                     ]);
 
                     if (!empty($data['options']) && is_array($data['options'])) {
+                        $valueIds = [];
                         foreach ($data['options'] as $optionId => $value) {
                             $variantValue = VariantValue::firstOrCreate([
                                 'option_id' => $optionId,
                                 'value' => $value,
                             ]);
-
-                            $model->values()->create([
-                                'variant_value_id' => $variantValue->id,
-                            ]);
+                            $valueIds[] = $variantValue->id;
                         }
+
+                        $model->values()->sync($valueIds);
                     }
 
                     $images = $data['images'] ?? [];
@@ -109,6 +112,43 @@ class UpdateProductVariantsJob implements ShouldQueue
                                 'image_url' => $img['url']
                             ]);
                         }
+                    }
+            } 
+        }else {
+                //  delete variant đang tồn tại trên hệ thống
+                foreach ($product->variants as $variant) {
+                    $variant->delete();
+                }   
+
+                // tạo variant mới
+                $model = $product->variants()->create([
+                    'sku' => $data['sku'],
+                    'price' => $data['price'],
+                    'sale_price' => $data['sale_price'],
+                    'quantity' => $data['quantity'],
+                    'is_active' => $data['is_active'],
+                ]);
+
+                if (!empty($data['options']) && is_array($data['options'])) {
+                    $valueIds = [];
+                    foreach ($data['options'] as $optionId => $value) {
+                        $variantValue = VariantValue::firstOrCreate([
+                            'option_id' => $optionId,
+                            'value' => $value,
+                        ]);
+                        $valueIds[] = $variantValue->id;
+                    }
+
+                    $model->values()->sync($valueIds);
+                }
+
+                $images = $data['images'] ?? [];
+
+                if (is_array($images)) {
+                    foreach ($images as $img) {
+                        $model->images()->create([
+                            'image_url' => $img['url']
+                        ]);
                     }
                 }
         }

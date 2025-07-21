@@ -30,7 +30,7 @@ class ProductServices {
                      $query->where('is_active', '!=', 0)
                            ->with([
                                 'images',
-                                'values.variantValue.option',
+                                'values',
                             ]);
             }
         ])
@@ -50,6 +50,26 @@ class ProductServices {
                 'image' => $product->image ?? null,
                 'is_active' => $product->is_active,
                 'created_at' => $product->created_at->format('Y-m-d H:i:s'),
+                'option_selecteds' => $product->variants
+                                ->flatMap(function ($variant) {
+                                    return $variant->values;
+                                })
+                                ->groupBy(fn ($value) => $value->option->id ?? null)
+                                ->filter(fn ($group, $optionId) => $optionId !== null)
+                                ->map(function ($group, $optionId) {
+                                    $option = $group->first()->option;
+
+                                    return [
+                                        'id' => $option->id,
+                                        'name' => $option->name,
+                                        'values' => $group->map(function ($value) {
+                                            return [
+                                                'id' => $value->id,
+                                                'value' => $value->value,
+                                            ];
+                                        })->unique('id')->flatten()->toArray(), // bỏ key
+                                    ];
+                                })->values(),
                 'variants' => $product->variants->map(function($variant) {
                     return [
                         'id' => $variant->id,
@@ -58,17 +78,20 @@ class ProductServices {
                         'sale_price' => $variant->sale_price,
                         'quantity' => $variant->quantity,
                         'is_active' => $variant->is_active,
+                        'option_value_ids' => $variant->values->pluck('id')->toArray(),
+                        'option_labels' => $variant->values->map(function ($label) {
+                            return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
+                        })->implode(' | '),
                         'images' => $variant->images->map(function($img) {
                             return [
                                 'id' => $img->id,
                                 'url' => $img->image_url
                             ];
                         })->values(),
-                        'options' => $variant->values->map(function ($value) {
+                        'option_transform' => $variant->values->map(function ($value) {
                             return [
-                                'id' => $value->variantValue->option->id,
-                                'name' => $value->variantValue->option->name,
-                                'value' => $value->variantValue->value
+                                'name' => $value->option->name,
+                                'value' => $value->value
                             ];
                         })->values(),
                     ];
@@ -142,9 +165,7 @@ class ProductServices {
                             ]
                         );
                         // ghi nhan variant_value cho product_variant
-                        $productVariant->values()->create([
-                            'variant_value_id' => $variantValue->id
-                        ]);
+                        $productVariant->values()->attach($variantValue->id);
                     }
 
                     //  thêm hình ảnh cho variant
@@ -189,7 +210,7 @@ class ProductServices {
                         $query->where('is_active', '!=', 0)
                             ->with([
                                     'images',
-                                    'values.variantValue.option',
+                                    'values',
                                 ]);
                 }
             ])
@@ -229,8 +250,8 @@ class ProductServices {
                             })->values(),
                             'options' => $variant->values->map(function ($value) {
                                 return [
-                                    'name' => $value->variantValue->option->name,
-                                    'value' => $value->variantValue->value
+                                    'name' => $value->option->name,
+                                    'value' => $value->value
                                 ];
                             })->values(),
                         ];
@@ -254,7 +275,7 @@ class ProductServices {
     /**
      * Cập nhật một product
      */
-    public function update($request, string $slug)
+    public function update($request, string $id)
     {
         DB::beginTransaction();
         try {
@@ -262,8 +283,7 @@ class ProductServices {
             $data = $request->all();
 
             // Tìm sản phẩm
-            $product = Product::where('slug', '=', $slug)
-                              ->first();
+            $product = Product::find($id);
 
             if(!$product) {
                 throw new ApiException('Không tìm thấy sản phẩm!!', 404);
@@ -291,7 +311,66 @@ class ProductServices {
             // Đẩy variant vào queue để update
             dispatch_sync(new UpdateProductVariantsJob($product->id, $variants));
             $this->modifyIndex();
-            return $product;
+
+            $data = [
+                'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'category' => $product->category->id,
+                    'brand' => $product->brand->id,
+                    'type_skin' => $product->type_skin,
+                    'description' => $product->description,
+                    'image' => $product->image,
+                    'is_active' => $product->is_active,
+                    'created_at' => $product->created_at->format('Y-m-d H:i:s'),
+                    'option_selecteds' => $product->variants
+                                ->flatMap(function ($variant) {
+                                    return $variant->values;
+                                })
+                                ->groupBy(fn ($value) => $value->option->id ?? null)
+                                ->filter(fn ($group, $optionId) => $optionId !== null)
+                                ->map(function ($group, $optionId) {
+                                    $option = $group->first()->option;
+
+                                    return [
+                                        'id' => $option->id,
+                                        'name' => $option->name,
+                                        'values' => $group->map(function ($value) {
+                                            return [
+                                                'id' => $value->id,
+                                                'value' => $value->value,
+                                            ];
+                                        })->unique('id')->flatten()->toArray(), // bỏ key
+                                    ];
+                                })->values(),
+                'variants' => $product->variants->map(function($variant) {
+                    return [
+                        'id' => $variant->id,
+                        'sku' => $variant->sku,
+                        'price' => $variant->price,
+                        'sale_price' => $variant->sale_price,
+                        'quantity' => $variant->quantity,
+                        'is_active' => $variant->is_active,
+                        'option_value_ids' => $variant->values->pluck('id')->toArray(),
+                        'option_labels' => $variant->values->map(function ($label) {
+                            return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
+                        })->implode(' | '),
+                        'images' => $variant->images->map(function($img) {
+                            return [
+                                'id' => $img->id,
+                                'url' => $img->image_url
+                            ];
+                        })->values(),
+                        'option_transform' => $variant->values->map(function ($value) {
+                            return [
+                                'name' => $value->option->name,
+                                'value' => $value->value
+                            ];
+                        })->values(),
+                    ];
+                })->values(),
+            ];
+            return $data;
         } catch(ApiException $e) {
             DB::rollBack();
             throw $e;
