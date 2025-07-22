@@ -61,7 +61,7 @@ class OrderDetailResource extends JsonResource
                 $product = $variant?->product;
 
                 $variantValues = $variant?->values->map(function ($v) {
-                    return optional($v->variantValue->option)->name . ': ' . $v->variantValue->value;
+                    return optional($v->option)->name . ': ' . $v->value;
                 })->implode(' | ');
 
                 $giftProduct = null;
@@ -86,8 +86,8 @@ class OrderDetailResource extends JsonResource
                             'image' => $giftVariant->product->image,
                             'options' => $giftVariant->values->map(function ($value) {
                                 return [
-                                    'name' => $value->variantValue->option->name,
-                                    'value' => $value->variantValue->value,
+                                    'name' => $value->option->name,
+                                    'value' => $value->value,
                                 ];
                             })->values(),
                         ];

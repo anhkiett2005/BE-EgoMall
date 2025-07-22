@@ -271,6 +271,10 @@ Route::prefix('v1/admin')
             Route::get('/order/{uniqueId}', 'show')->name('admin.orders.show');
             Route::post('/orders/change-status/{uniqueId}', 'update')->name('admin.orders.change-status');
         });
+
+        Route::controller('DashboardController')->group(function () {
+            Route::get('/dashboard/statistics', 'index')->name('admin.dashboard.statistics');
+        });
     });
 
 Route::prefix('v1/auth')->group(function () {
