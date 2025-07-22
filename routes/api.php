@@ -35,6 +35,12 @@ Route::prefix('v1/front')
             Route::get('/location/districts/{code}/wards', 'getWards');
         });
 
+        // Route lấy danh sách phương thức vận chuyển theo tỉnh
+        Route::controller('ShippingMethodController')->group(function () {
+            Route::get('/shipping-methods', 'index');
+            Route::get('/shipping-methods/list', 'list');
+        });
+
         Route::prefix('user/wishlists')
             ->middleware(['inject.api.auth.header', 'api.auth.check'])
             ->controller('WishlistController')
@@ -168,6 +174,28 @@ Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
     ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin', 'permission:manage-products,manage-categories'])
     ->group(function () {
+        // Routes API Shipping Methods
+        Route::controller('ShippingMethodController')
+            ->prefix('shipping-methods')
+            ->group(function () {
+                Route::get('/', 'index')->name('admin.shipping-methods.index');
+                Route::get('/{id}', 'show')->name('admin.shipping-methods.show');
+                Route::post('/', 'store')->name('admin.shipping-methods.store');
+                Route::put('/{id}', 'update')->name('admin.shipping-methods.update');
+                Route::delete('/{id}', 'destroy')->name('admin.shipping-methods.destroy');
+            });
+
+
+        // Route API Shipping Zones
+        Route::controller('ShippingZoneController')
+        ->prefix('shipping-methods')
+        ->group(function () {
+            Route::post('/{shippingMethodId}/zones', 'store')->name('admin.shipping-methods.zones.store');
+            Route::put('/{shippingMethodId}/zones/{zoneId}', 'update')->name('admin.shipping-methods.zones.update');
+            Route::delete('/{shippingMethodId}/zones/{zoneId}', 'destroy')->name('admin.shipping-methods.zones.destroy');
+        });
+
+
         // Routes API Variant Options
         Route::controller('VariantOptionController')->group(function () {
             Route::get('/variant-options', 'index')->name('admin.variant-options.index');
