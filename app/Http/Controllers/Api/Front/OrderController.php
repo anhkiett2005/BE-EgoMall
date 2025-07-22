@@ -12,6 +12,8 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\ProductVariant;
 use App\Models\Promotion;
+use App\Models\ShippingMethod;
+use App\Models\ShippingZone;
 use App\Response\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,6 +35,21 @@ class OrderController extends Controller
             $totalDiscountVoucher = 0;
             $totalFlashSale = 0;
 
+            $shippingMethod = ShippingMethod::find($data['shipping_method_id'] ?? null);
+
+            if (!$shippingMethod) {
+                throw new ApiException('Phương thức vận chuyển không hợp lệ!', Response::HTTP_NOT_FOUND);
+            }
+
+            $shippingZone = ShippingZone::where('shipping_method_id', $shippingMethod->id)
+                ->where('province_code', $data['province_code'] ?? null)
+                ->where('is_available', true)
+                ->first();
+
+            if (!$shippingZone) {
+                throw new ApiException('Phí vận chuyển không khả dụng cho khu vực này!', Response::HTTP_NOT_FOUND);
+            }
+
             $order = Order::create([
                 'user_id' => $user->id,
                 'unique_id' => '',
@@ -45,6 +62,9 @@ class OrderController extends Controller
                 'shipping_email' => $data['shipping_email'],
                 'shipping_address' => $data['shipping_address'],
                 'payment_method' => $data['payment_method'],
+                'shipping_method_id' => $shippingMethod->id,
+                'shipping_fee' => $shippingZone->fee,
+                'shipping_method_snapshot' => $shippingMethod->name,
             ]);
             $order->update(['unique_id' => Common::generateUniqueId($order->id)]);
 
@@ -147,6 +167,7 @@ class OrderController extends Controller
             }
 
             $total = $subtotal - $totalDiscount;
+            $total += $shippingZone->fee;
 
             $order->update([
                 'total_discount' => $totalDiscount,
