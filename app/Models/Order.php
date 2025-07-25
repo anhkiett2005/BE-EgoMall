@@ -21,7 +21,6 @@ class Order extends Model
         'shipping_phone',
         'shipping_email',
         'shipping_address',
-        'shipping_method_id',
         'shipping_fee',
         'shipping_method_snapshot',
         'payment_method',
@@ -55,10 +54,5 @@ class Order extends Model
     public function coupon()
     {
         return $this->belongsTo(Coupon::class);
-    }
-
-    public function shippingMethod()
-    {
-        return $this->belongsTo(ShippingMethod::class);
     }
 }

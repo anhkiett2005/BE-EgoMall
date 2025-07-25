@@ -62,7 +62,6 @@ class OrderController extends Controller
                 'shipping_email' => $data['shipping_email'],
                 'shipping_address' => $data['shipping_address'],
                 'payment_method' => $data['payment_method'],
-                'shipping_method_id' => $shippingMethod->id,
                 'shipping_fee' => $shippingZone->fee,
                 'shipping_method_snapshot' => $shippingMethod->name,
             ]);
