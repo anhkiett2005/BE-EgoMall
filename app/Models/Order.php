@@ -21,6 +21,8 @@ class Order extends Model
         'shipping_phone',
         'shipping_email',
         'shipping_address',
+        'shipping_fee',
+        'shipping_method_snapshot',
         'payment_method',
         'payment_created_at',
         'payment_status',

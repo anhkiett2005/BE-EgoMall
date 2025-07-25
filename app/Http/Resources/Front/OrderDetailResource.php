@@ -46,15 +46,16 @@ class OrderDetailResource extends JsonResource
             'shipping_phone' => $this->shipping_phone,
             'payment_method' => $this->payment_method,
             'payment_date' => $this->payment_date,
+            'payment_status' => $this->payment_status,
+            'address' => $this->shipping_address,
+            'shipping_method_snapshot' => $this->shipping_method_snapshot,
+            'shipping_fee' => $this->shipping_fee,
 
             'coupon' => $this->coupon ? [
                 'code' => $this->coupon->code,
                 'discount_type' => $this->coupon->discount_type,
                 'discount_value' => $this->coupon->discount_value,
             ] : null,
-
-            'address' => $this->shipping_address,
-
 
             'products' => $this->details->map(function ($detail) {
                 $variant = $detail->productVariant;
@@ -96,6 +97,7 @@ class OrderDetailResource extends JsonResource
 
                 return [
                     'name' => $product->name ?? 'Không rõ',
+                    'image' => $product->image ?? null,
                     'variant' => $variantValues,
                     'quantity' => $detail->quantity,
                     'price' => $detail->price,

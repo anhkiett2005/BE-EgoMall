@@ -32,7 +32,6 @@ class OrderHistoryResource extends JsonResource
         return [
             'unique_id' => $this->unique_id,
             'status' => $status,
-            'display_status' => $displayStatus,
             'total_price' => $this->total_price,
             'total_discount' => $this->total_discount,
             'delivered_at' => optional($deliveredAt)->toDateTimeString(),
@@ -41,6 +40,22 @@ class OrderHistoryResource extends JsonResource
             'can_request_return' => $status === 'delivered' &&
                 $deliveredAt &&
                 now()->diffInDays($deliveredAt) <= 7,
+
+            'note' => $this->note,
+            'shipping_name' => $this->shipping_name,
+            'shipping_phone' => $this->shipping_phone,
+            'payment_method' => $this->payment_method,
+            'payment_date' => $this->payment_date,
+            'payment_status' => $this->payment_status,
+            'address' => $this->shipping_address,
+            'shipping_method_snapshot' => $this->shipping_method_snapshot,
+            'shipping_fee' => $this->shipping_fee,
+
+            'coupon' => $this->coupon ? [
+                'code' => $this->coupon->code,
+                'discount_type' => $this->coupon->discount_type,
+                'discount_value' => $this->coupon->discount_value,
+            ] : null,
 
             'products' => $this->details->map(function ($detail) {
                 $variant = $detail->productVariant;
@@ -87,13 +102,14 @@ class OrderHistoryResource extends JsonResource
 
                 return [
                     'name' => $product->name ?? 'Không rõ',
+                    'image' => $product->image ?? null,
                     'variant' => $variantValues,
                     'quantity' => $detail->quantity,
                     'price' => $detail->price,
                     'sale_price' => $detail->sale_price,
                     'is_gift' => $detail->is_gift,
                     'is_gift_text' => $detail->is_gift ? 'Quà tặng' : null,
-                    'gift_product' => $giftProduct
+                    'gift_product' => $giftProduct,
                 ];
             }),
         ];
