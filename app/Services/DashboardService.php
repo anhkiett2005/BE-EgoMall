@@ -27,6 +27,7 @@ class DashboardService {
             $totalOrderStatistics = collect();
             $totalProductStatistics = collect();
             $totalUserStatistics = collect();
+            $totalProductStatusStatistics = collect();
 
 
             // Tính doanh thu tháng hiện tại
@@ -103,11 +104,33 @@ class DashboardService {
                 'total_user' => $totalUser
             ]);
 
+            // Thống kê tổng số trạng thái của product như còn hàng, sắp hết hàng, hết hàng
+            $productStatusCount = DB::table('products as p')
+                                    ->join('product_variants as pv', 'p.id', '=', 'pv.product_id')
+                                    ->where('p.is_active', '!=', 0)
+                                    ->whereNull('p.deleted_at')
+                                    ->selectRaw("
+                                        SUM(CASE WHEN pv.quantity > 10 THEN 1 ELSE 0 END) as in_stock,
+                                        SUM(CASE WHEN pv.quantity > 0 AND pv.quantity <= 10 THEN 1 ELSE 0 END) as low_stock,
+                                        SUM(CASE WHEN pv.quantity <= 0 THEN 1 ELSE 0 END) as out_of_stock
+                                    ")
+                                    ->where('pv.is_active', '!=',0)
+                                    ->first();
+
+            // push dữ liệu trả về
+            $totalProductStatusStatistics->push([
+                'in_stock' => (int) $productStatusCount->in_stock,
+                'low_stock' => (int) $productStatusCount->low_stock,
+                'out_of_stock' => (int) $productStatusCount->out_of_stock
+            ]);
+
+
             $data = [
                 'revenue_statistics' => $revenueStatistics,
                 'total_order_statistics' => $totalOrderStatistics,
                 'total_product_statistics' => $totalProductStatistics,
-                'total_user_statistics' => $totalUserStatistics
+                'total_user_statistics' => $totalUserStatistics,
+                'total_product_status_statistics' => $totalProductStatusStatistics
             ];
 
             return $data;
