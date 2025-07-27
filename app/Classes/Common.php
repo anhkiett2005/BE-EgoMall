@@ -8,8 +8,11 @@ use App\Models\ProductVariant;
 use App\Models\Promotion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response;
 
 class Common
 {
@@ -420,4 +423,148 @@ class Common
 
         return implode(' ', $masked);
     }
+
+    public static function validateProductAndVariantConflicts(
+        Collection $productIds,
+        Collection $variantIds,
+        ?int $promotionId = null
+    ): void {
+        // Lấy product_id của các variant trong DB nếu đang thêm mới vào promotion cũ
+        $existingVariantProductIds = collect();
+
+        if ($promotionId !== null) {
+            $existingVariantIds = DB::table('promotion_product')
+                                    ->where('promotion_id', $promotionId)
+                                    ->whereNotNull('product_variant_id')
+                                    ->pluck('product_variant_id');
+
+            if ($existingVariantIds->isNotEmpty()) {
+                $existingVariantProductIds = DB::table('product_variants')
+                                                ->whereIn('id', $existingVariantIds)
+                                                ->pluck('product_id')
+                                                ->unique();
+            }
+
+            // Check: nếu thêm mới product_id mà trùng với các product_id đã có từ variant -> conflict
+            $conflict1 = $productIds->intersect($existingVariantProductIds);
+            if ($conflict1->isNotEmpty()) {
+                throw new ApiException(
+                    'Xung đột: đã có biến thể thuộc sản phẩm ID: ' . $conflict1->implode(', ') . ' trong khuyến mãi.',
+                    Response::HTTP_CONFLICT
+                );
+            }
+
+            // Check: nếu thêm mới variant_id mà product_id của nó trùng với product_id đã có trong DB
+            $existingProductIds = DB::table('promotion_product')
+                                    ->where('promotion_id', $promotionId)
+                                    ->whereNotNull('product_id')
+                                    ->pluck('product_id')
+                                    ->unique();
+
+            if ($variantIds->isNotEmpty()) {
+                $newVariantProductIds = DB::table('product_variants')
+                                         ->whereIn('id', $variantIds)
+                                         ->pluck('product_id')
+                                         ->unique();
+
+                $conflict2 = $newVariantProductIds->intersect($existingProductIds);
+                if ($conflict2->isNotEmpty()) {
+                    throw new ApiException(
+                        'Xung đột: bạn đang thêm biến thể thuộc sản phẩm đã áp dụng khuyến mãi ID: ' . $conflict2->implode(', '),
+                        Response::HTTP_CONFLICT
+                    );
+                }
+            }
+        }
+
+        // Check xung đột nội bộ trong request như cũ
+        if ($productIds->isNotEmpty() && $variantIds->isNotEmpty()) {
+            $variantProductIds = DB::table('product_variants')
+                                    ->whereIn('id', $variantIds)
+                                    ->pluck('product_id')
+                                    ->unique();
+
+            $conflictInRequest = $productIds->intersect($variantProductIds);
+
+            if ($conflictInRequest->isNotEmpty()) {
+                throw new ApiException(
+                    'Xung đột nội bộ: Bạn đang áp dụng cho cả sản phẩm và biến thể con (ID: ' . $conflictInRequest->implode(', ') . ')',
+                    Response::HTTP_CONFLICT
+                );
+            }
+        }
+    }
+
+    public static function validateDiscountOnSaleVariants(Collection $productIds, Collection $variantIds, string $promotionType)
+    {
+        // Chỉ kiểm tra với loại phần trăm hoặc cố định
+        if (!in_array($promotionType, ['percentage', 'fixed_amount'])) {
+            return;
+        }
+
+        $query = ProductVariant::query();
+
+        // Lấy các variant của những product_id được chọn
+        if ($productIds->isNotEmpty()) {
+            $variants = (clone $query)->whereIn('product_id', $productIds->toArray())
+                                     ->whereNotNull('sale_price')
+                                     ->get();
+
+            if ($variants->isNotEmpty()) {
+                throw new ApiException('Không thể áp dụng khuyến mãi cho sản phẩm có biến thể đang giảm giá!!');
+            }
+        }
+
+        // Kiểm tra các variant được áp dụng trực tiếp
+        if ($variantIds->isNotEmpty()) {
+            $variants = (clone $query)->whereIn('id', $variantIds->toArray())
+                                      ->whereNotNull('sale_price')
+                                      ->get();
+
+            if ($variants->isNotEmpty()) {
+                throw new ApiException('Không thể áp dụng khuyến mãi cho biến thể đang giảm giá !!');
+            }
+        }
+    }
+
+    public static function normalizePromotionFields(array $data): array
+    {
+        if (($data['promotion_type'] ?? null) === 'buy_get') {
+            $data['discount_type'] = null;
+            $data['discount_value'] = null;
+        } else {
+            $data['buy_quantity'] = null;
+            $data['get_quantity'] = null;
+            $data['gift_product_id'] = null;
+            $data['gift_product_variant_id'] = null;
+        }
+
+        return $data;
+    }
+
+
+
+    public static function syncApplicableProducts(Promotion $promotion, array $items): void
+    {
+        $productIds = collect();
+        $variantIds = collect();
+
+        foreach ($items as $item) {
+            if (!empty($item['product_id'])) {
+                $productIds->push($item['product_id']);
+            }
+            if (!empty($item['variant_id'])) {
+                $variantIds->push($item['variant_id']);
+            }
+        }
+
+        if ($productIds->isNotEmpty()) {
+            $promotion->products()->sync($productIds->filter()->unique());
+        }
+
+        if ($variantIds->isNotEmpty()) {
+            $promotion->productVariants()->sync($variantIds->filter()->unique());
+        }
+    }
+
 }
