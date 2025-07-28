@@ -6,6 +6,7 @@ use App\Models\Promotion;
 use App\Models\PromotionProduct;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Log;
 
 class OrderDetailResource extends JsonResource
 {
@@ -95,7 +96,10 @@ class OrderDetailResource extends JsonResource
                     }
                 }
 
+                $review = $detail->review;
+
                 return [
+                    'order_detail_id' => $detail->id,
                     'name' => $product->name ?? 'Không rõ',
                     'image' => $product->image ?? null,
                     'variant' => $variantValues,
@@ -105,6 +109,20 @@ class OrderDetailResource extends JsonResource
                     'is_gift' => $detail->is_gift,
                     'is_gift_text' => $detail->is_gift ? 'Quà tặng' : null,
                     'gift_product' => $giftProduct,
+                    'review' => $review ? [
+                        'id' => $review->id,
+                        'rating' => $review->rating,
+                        'comment' => $review->comment,
+                        'is_anonymous' => $review->is_anonymous,
+                        'images' => $review->images->pluck('image_url'),
+                        'images' => tap($review->images->pluck('image_url'), function ($urls) use ($review) {
+                            Log::info('[CHECK REVIEW ID]: ' . $review->id);
+                            Log::info('[CHECK IMAGES]: ' . json_encode($urls));
+                        }),
+                        'created_at' => $review->created_at->toDateTimeString(),
+                        'updated_at' => $review->updated_at->toDateTimeString(),
+                        'can_update' => $review->created_at->eq($review->updated_at),
+                    ] : null,
                 ];
             }),
         ];

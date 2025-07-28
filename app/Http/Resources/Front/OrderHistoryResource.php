@@ -83,10 +83,10 @@ class OrderHistoryResource extends JsonResource
                         ]);
 
                         $giftProduct = [
-                            'id'         => $giftVariant->id,
-                            'sku'        => $giftVariant->sku,
-                            'price'      => $giftVariant->price,
-                            'sale_price' => $giftVariant->sale_price,
+                            'id'           => $giftVariant->id,
+                            'sku'          => $giftVariant->sku,
+                            'price'        => $giftVariant->price,
+                            'sale_price'   => $giftVariant->sale_price,
                             'product_name' => $giftVariant->product->name ?? null,
                             'slug'         => $giftVariant->product->slug ?? null,
                             'image'        => $giftVariant->product->image ?? null,
@@ -100,18 +100,25 @@ class OrderHistoryResource extends JsonResource
                     }
                 }
 
+
+                $isReviewed = $detail->review ? true : false;
+
                 return [
-                    'name' => $product->name ?? 'Không rõ',
-                    'image' => $product->image ?? null,
-                    'variant' => $variantValues,
-                    'quantity' => $detail->quantity,
-                    'price' => $detail->price,
-                    'sale_price' => $detail->sale_price,
-                    'is_gift' => $detail->is_gift,
-                    'is_gift_text' => $detail->is_gift ? 'Quà tặng' : null,
-                    'gift_product' => $giftProduct,
+                    'order_detail_id' => $detail->id,
+                    'name'            => $product->name ?? 'Không rõ',
+                    'image'           => $product->image ?? null,
+                    'variant'         => $variantValues,
+                    'quantity'        => $detail->quantity,
+                    'price'           => $detail->price,
+                    'sale_price'      => $detail->sale_price,
+                    'is_gift'         => $detail->is_gift,
+                    'is_gift_text'    => $detail->is_gift ? 'Quà tặng' : null,
+                    'gift_product'    => $giftProduct,
+                    'is_reviewed'     => $isReviewed,
+                    'can_review'      => !$detail->is_gift && $this->status === 'delivered' && !$isReviewed,
                 ];
             }),
+
         ];
     }
 }
