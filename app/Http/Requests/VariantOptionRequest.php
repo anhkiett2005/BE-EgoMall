@@ -17,6 +17,8 @@ class VariantOptionRequest extends FormRequest
 
         return [
             'name' => 'required|string|max:255|unique:variant_options,name' . ($id ? ",$id" : ''),
+            'values' => 'nullable|array',
+            'values.*' => 'string|max:255'
         ];
     }
 
@@ -27,6 +29,10 @@ class VariantOptionRequest extends FormRequest
             'name.string'   => 'Tên tùy chọn phải là chuỗi!',
             'name.max'      => 'Tên tùy chọn tối đa 255 ký tự!',
             'name.unique'   => 'Tên tùy chọn đã tồn tại!',
+
+            'values.array' => 'Giá trị phải là một mảng!',
+            'values.*.string' => 'Mỗi giá trị phải là chuỗi!',
+            'values.*.max' => 'Mỗi giá trị tối đa 255 ký tự!',
         ];
     }
 }

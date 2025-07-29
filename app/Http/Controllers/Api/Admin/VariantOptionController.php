@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreVariantValueRequest;
+use App\Http\Requests\UpdateVariantValueRequest;
 use App\Http\Requests\VariantOptionRequest;
 use App\Http\Resources\Admin\VariantOptionResource;
 use App\Response\ApiResponse;
@@ -38,6 +39,18 @@ class VariantOptionController extends Controller
         return ApiResponse::success('Tạo mới thành công!', 201, (new VariantOptionResource($option))->toArray(request()));
     }
 
+    public function update(VariantOptionRequest $request, $id)
+    {
+        $option = $this->service->update($id, $request->validated());
+        return ApiResponse::success('Cập nhật thành công!', 200, (new VariantOptionResource($option))->toArray(request()));
+    }
+
+    public function destroy($id)
+    {
+        $this->service->destroy($id);
+        return ApiResponse::success('Xóa thành công!');
+    }
+
     public function createValues(StoreVariantValueRequest $request, $optionId)
     {
         try {
@@ -50,7 +63,7 @@ class VariantOptionController extends Controller
                 'option_id' => $valueOption->option_id
             ];
 
-            if($valueOption) {
+            if ($valueOption) {
                 return ApiResponse::success('Tạo giá trị thành công!!', Response::HTTP_CREATED, data: $data);
             }
         } catch (ApiException $e) {
@@ -58,15 +71,30 @@ class VariantOptionController extends Controller
         }
     }
 
-    public function update(VariantOptionRequest $request, $id)
+    public function updateValues(UpdateVariantValueRequest $request, $id)
     {
-        $option = $this->service->update($id, $request->validated());
-        return ApiResponse::success('Cập nhật thành công!', 200, (new VariantOptionResource($option))->toArray(request()));
+        try {
+            $value = $this->service->updateValues($id, $request->validated());
+
+            $data = [
+                'id' => $value->id,
+                'value' => $value->value,
+                'option_id' => $value->option_id
+            ];
+
+            return ApiResponse::success('Cập nhật giá trị thành công!', 200, data: $data);
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
     }
 
-    public function destroy($id)
+    public function destroyValues($id)
     {
-        $this->service->destroy($id);
-        return ApiResponse::success('Xóa thành công!');
+        try {
+            $this->service->destroyValues($id);
+            return ApiResponse::success('Xóa giá trị thành công!');
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
     }
 }

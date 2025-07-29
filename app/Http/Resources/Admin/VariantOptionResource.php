@@ -16,8 +16,6 @@ class VariantOptionResource extends JsonResource
         return [
             'id'         => $this->id,
             'name'       => $this->name,
-            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
-            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
             'values'     => $this->whenLoaded('variantValues', function () {
                 return $this->variantValues->map(function ($value) {
                     return [
@@ -26,6 +24,8 @@ class VariantOptionResource extends JsonResource
                     ];
                 });
             }),
+            'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
+            'updated_at' => $this->updated_at?->format('Y-m-d H:i:s'),
         ];
     }
 }
