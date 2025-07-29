@@ -22,16 +22,17 @@ class ReviewResource extends JsonResource
             'is_anonymous'  => $this->is_anonymous,
             'images'        => $this->images->pluck('image_url'),
             'status'        => $this->status,
-            'reply'         => $this->reply ? [
-                'id'     => $this->reply->first()->id,
-                'user'   => [
-                    'id'   => $this->reply->first()->user->id,
-                    'name' => $this->reply->first()->user->name,
-                    'role' => $this->reply->first()->user->role->name ?? null,
+            'reply' => $this->reply ? [
+                'id'   => $this->reply->id,
+                'user' => [
+                    'id'   => $this->reply->user->id,
+                    'name' => $this->reply->user->name,
+                    'role' => $this->reply->user->role->name ?? null,
                 ],
-                'reply'  => $this->reply->first()->reply,
-                'date'   => $this->reply->first()->created_at->toDateTimeString(),
+                'reply' => $this->reply->reply,
+                'date'  => $this->reply->created_at->toDateTimeString(),
             ] : null,
+
             'created_at'    => $this->created_at->toDateTimeString(),
             'updated_at'    => $this->updated_at->toDateTimeString(),
         ];
