@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Classes\Common;
+use App\Exceptions\ApiException;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Contracts\Validation\Validator;
@@ -33,7 +35,7 @@ class UpdatePromotionRequest extends FormRequest
             'promotion_type' => ['required', Rule::in(['percentage', 'buy_get'])],
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'status' => ['required', Rule::in([0, 1])],
+            'status' => ['nullable', Rule::in([true, false])],
 
             // Validate khi promotion_type là percentage
             'discount_type' => ['required_if:promotion_type,percentage', 'nullable', Rule::in(['percentage', 'fixed'])],
@@ -90,6 +92,24 @@ class UpdatePromotionRequest extends FormRequest
                     $validator->errors()->add('gift', 'Biến thể quà tặng không tồn tại.');
                 }
             }
+
+            $applicable = collect($this->input('applicable_products', []));
+
+            $productIds = $applicable->filter(fn ($item) => !empty($item['product_id']))
+                                    ->pluck('product_id')
+                                    ->unique();
+
+
+            $variantIds = $applicable->filter(fn ($item) => !empty($item['variant_id']))
+                                    ->pluck('variant_id')
+                                    ->unique();
+
+            try {
+                Common::validateProductAndVariantConflicts($productIds, $variantIds);
+                Common::validateDiscountOnSaleVariants($productIds, $variantIds, $this->promotion_type);
+            }catch (ApiException $e) {
+                $validator->errors()->add('applicable_products', $e->getMessage());
+            }
         });
     }
 
@@ -110,7 +130,7 @@ class UpdatePromotionRequest extends FormRequest
             'end_date.date' => 'Ngày kết thúc không đúng định dạng.',
             'end_date.after_or_equal' => 'Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.',
 
-            'status.required' => 'Trạng thái là bắt buộc.',
+            // 'status.required' => 'Trạng thái là bắt buộc.',
             'status.in' => 'Trạng thái không hợp lệ. Chỉ chấp nhận true hoặc false.',
 
             // Percentage

@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Models\Promotion;
 use App\Models\PromotionProduct;
 use Exception;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -72,7 +74,9 @@ class PromotionServices
                             'product_id' => $product->id
                         ]);
                     }
-                } else {
+                }
+
+                if ($promotion->productVariants->isNotEmpty()) {
                     foreach ($promotion->productVariants as $variant) {
                         $applied->push([
                             'type' => 'variant',
@@ -160,7 +164,9 @@ class PromotionServices
                         'product_id' => $product->id
                     ]);
                 }
-            } else {
+            }
+
+            if($promotion->productVariants->isNotEmpty()) {
                 foreach ($promotion->productVariants as $variant) {
                     $applied->push([
                         'type' => 'variant',
@@ -259,6 +265,7 @@ class PromotionServices
                 'gift_product_id' => $data['gift_product_id'] ?? null,
                 'gift_product_variant_id' => $data['gift_product_variant_id'] ?? null,
             ]);
+
             // Gắn các sản phẩm áp dụng vào promotion
             foreach ($data['applicable_products'] as $item) {
                 PromotionProduct::create([
@@ -297,10 +304,13 @@ class PromotionServices
             // Lấy data từ request
             $data = $request->all();
 
-            $data = $this->normalizePromotionFields($data);
+            $data = Common::normalizePromotionFields($data);
 
             $start = Carbon::parse($data['start_date']);
             $end = Carbon::parse($data['end_date']);
+
+            $productIds = collect($data['applicable_products'])->pluck('product_id')->filter()->unique();
+            $variantIds = collect($data['applicable_products'])->pluck('variant_id')->filter()->unique();
 
             // Tìm promotion
             $promotion = Promotion::with(['products', 'productVariants'])
@@ -311,21 +321,22 @@ class PromotionServices
             }
 
             // check nếu có 1 promotion đang diễn ra throw exception luôn k cho update nữa
-            if ($promotion->status !== 0) {
-                // Lấy số ngày còn lại của chương trình đang hoat động
-                $now = Carbon::now();
-                $endDate = Carbon::parse($promotion->end_date);
+            // if ($promotion->status !== 0) {
+            //     // Lấy số ngày còn lại của chương trình đang hoat động
+            //     $now = Carbon::now();
+            //     $endDate = Carbon::parse($promotion->end_date);
 
-                // Nếu còn thời gian tính cả phần giờ phút giây thì dùng diffInRealDays (Carbon 2+)
-                $daysLeft = ceil($now->floatDiffInDays($endDate));
+            //     // Nếu còn thời gian tính cả phần giờ phút giây thì dùng diffInRealDays (Carbon 2+)
+            //     $daysLeft = ceil($now->floatDiffInDays($endDate));
 
 
-                throw new ApiException('Không thể cập nhật vì có chương trình đang diễn ra, thử lại sau ' . $daysLeft . ' ngày!!', Response::HTTP_CONFLICT);
-            }
+            //     throw new ApiException('Không thể cập nhật vì có chương trình đang diễn ra, thử lại sau ' . $daysLeft . ' ngày!!', Response::HTTP_CONFLICT);
+            // }
 
             // Check trùng khuyến mãi
             $isExist = DB::table('promotion_product as pp')
                 ->join('promotions as p', 'p.id', '=', 'pp.promotion_id')
+                ->where('p.id', '!=', $id)
                 ->whereIn('p.status', [0, 1])
                 ->where(function ($q1) use ($start, $end) {
                     // Chỉ cần có giao là từ chối (bao gồm trùng start hoặc end)
@@ -349,6 +360,11 @@ class PromotionServices
                 $data['gift_product_variant_id'] = null;
             }
 
+            $hasActivePromotion = Promotion::where('status', '=', 1)->exists();
+
+            if($hasActivePromotion && $data['status'] == true) {
+                throw new ApiException('Không thể cập nhật trạng thái hoạt động vì đang có chương trình đang diễn ra!!', Response::HTTP_CONFLICT);
+            }
 
             // cập nhật promotion
             $promotion->update([
@@ -359,15 +375,15 @@ class PromotionServices
                 'discount_value' => $data['discount_value'] ?? null,
                 'start_date' => $start,
                 'end_date' => $end,
+                'status' => $data['status'] ?? true,
                 'buy_quantity' => $data['buy_quantity'] ?? null,
                 'get_quantity' => $data['get_quantity'] ?? null,
                 'gift_product_id' => $data['gift_product_id'] ?? null,
                 'gift_product_variant_id' => $data['gift_product_variant_id'] ?? null,
-                'status' => $data['status'] ?? true,
             ]);
-
+            
             // Sync sản phẩm áp dụng
-            $this->syncApplicableProducts($promotion, $data['applicable_products']);
+            Common::syncApplicableProducts($promotion, $data['applicable_products']);
 
             DB::commit();
             return $promotion;
@@ -419,48 +435,6 @@ class PromotionServices
                 'stack_trace' => $e->getTraceAsString()
             ]);
             throw new ApiException('Có lỗi xảy ra!!!');
-        }
-    }
-
-
-
-    private function normalizePromotionFields(array $data): array
-    {
-        if (($data['promotion_type'] ?? null) === 'buy_get') {
-            $data['discount_type'] = null;
-            $data['discount_value'] = null;
-        } else {
-            $data['buy_quantity'] = null;
-            $data['get_quantity'] = null;
-            $data['gift_product_id'] = null;
-            $data['gift_product_variant_id'] = null;
-        }
-
-        return $data;
-    }
-
-
-
-    private function syncApplicableProducts(Promotion $promotion, array $items): void
-    {
-        $productIds = collect();
-        $variantIds = collect();
-
-        foreach ($items as $item) {
-            if (!empty($item['product_id'])) {
-                $productIds->push($item['product_id']);
-            }
-            if (!empty($item['variant_id'])) {
-                $variantIds->push($item['variant_id']);
-            }
-        }
-
-        if ($productIds->isNotEmpty()) {
-            $promotion->products()->sync($productIds->filter()->unique());
-        }
-
-        if ($variantIds->isNotEmpty()) {
-            $promotion->productVariants()->sync($variantIds->filter()->unique());
         }
     }
 }
