@@ -63,12 +63,21 @@ class VariantOptionService
             throw new ApiException('Không tìm thấy tùy chọn để xóa!', Response::HTTP_NOT_FOUND);
         }
 
-        if ($variantOption->variantValues->count() > 0 || $variantOption->categoryOptions->count() > 0) {
-            throw new ApiException('Không thể xóa vì tùy chọn đã được sử dụng!', Response::HTTP_BAD_REQUEST);
+        if ($variantOption->categoryOptions->count() > 0) {
+            throw new ApiException('Không thể xóa vì tùy chọn đã được liên kết với danh mục!', Response::HTTP_BAD_REQUEST);
         }
 
-        return $variantOption->delete();
+        DB::transaction(function () use ($variantOption) {
+            foreach ($variantOption->variantValues as $value) {
+                $value->delete();
+            }
+
+            $variantOption->delete();
+        });
+
+        return true;
     }
+
 
 
 
@@ -119,7 +128,7 @@ class VariantOptionService
         }
     }
 
-      /**
+    /**
      * Cập nhật 1 giá trị của variant
      */
     public function updateValues(int $id, array $data): VariantValue
