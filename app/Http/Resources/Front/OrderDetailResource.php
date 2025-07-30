@@ -115,10 +115,6 @@ class OrderDetailResource extends JsonResource
                         'comment' => $review->comment,
                         'is_anonymous' => $review->is_anonymous,
                         'images' => $review->images->pluck('image_url'),
-                        'images' => tap($review->images->pluck('image_url'), function ($urls) use ($review) {
-                            Log::info('[CHECK REVIEW ID]: ' . $review->id);
-                            Log::info('[CHECK IMAGES]: ' . json_encode($urls));
-                        }),
                         'created_at' => $review->created_at->toDateTimeString(),
                         'updated_at' => $review->updated_at->toDateTimeString(),
                         'can_update' => $review->created_at->eq($review->updated_at),
