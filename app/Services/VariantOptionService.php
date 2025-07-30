@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\ApiException;
 use App\Models\VariantOption;
+use App\Models\VariantValue;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -27,13 +28,64 @@ class VariantOptionService
 
     public function store(array $data): VariantOption
     {
-        return VariantOption::create($data);
+        return DB::transaction(function () use ($data) {
+            $option = VariantOption::create([
+                'name' => $data['name']
+            ]);
+
+            if (!empty($data['values']) && is_array($data['values'])) {
+                $insertValues = array_map(fn($value) => ['value' => $value], $data['values']);
+                $option->variantValues()->createMany($insertValues);
+            }
+
+            return $option->load('variantValues');
+        });
     }
+
+    public function update(int $id, array $data): VariantOption
+    {
+        $variantOption = VariantOption::find($id);
+
+        if (!$variantOption) {
+            throw new ApiException('Không tìm thấy tùy chọn để cập nhật!', Response::HTTP_NOT_FOUND);
+        }
+
+        $variantOption->update($data);
+
+        return $variantOption;
+    }
+
+    public function destroy(int $id): bool
+    {
+        $variantOption = VariantOption::with(['variantValues', 'categoryOptions'])->find($id);
+
+        if (!$variantOption) {
+            throw new ApiException('Không tìm thấy tùy chọn để xóa!', Response::HTTP_NOT_FOUND);
+        }
+
+        if ($variantOption->categoryOptions->count() > 0) {
+            throw new ApiException('Không thể xóa vì tùy chọn đã được liên kết với danh mục!', Response::HTTP_BAD_REQUEST);
+        }
+
+        DB::transaction(function () use ($variantOption) {
+            foreach ($variantOption->variantValues as $value) {
+                $value->delete();
+            }
+
+            $variantOption->delete();
+        });
+
+        return true;
+    }
+
+
+
+
+
 
     /**
      * Tạo mới 1 value cho option của variant
      */
-
     public function createValues($request, $optionId)
     {
         DB::beginTransaction();
@@ -45,7 +97,7 @@ class VariantOptionService
             $option = VariantOption::find($optionId);
 
             // Nếu kh tồn tại throw Exception luôn
-            if(!$option) {
+            if (!$option) {
                 throw new ApiException('Không tìm thấy tùy chọn!!', Response::HTTP_NOT_FOUND);
             }
 
@@ -76,31 +128,43 @@ class VariantOptionService
         }
     }
 
-    public function update(int $id, array $data): VariantOption
+    /**
+     * Cập nhật 1 giá trị của variant
+     */
+    public function updateValues(int $id, array $data): VariantValue
     {
-        $variantOption = VariantOption::find($id);
+        $value = VariantValue::find($id);
 
-        if (!$variantOption) {
-            throw new ApiException('Không tìm thấy tùy chọn để cập nhật!', Response::HTTP_NOT_FOUND);
+        if (!$value) {
+            throw new ApiException('Không tìm thấy giá trị để cập nhật!', Response::HTTP_NOT_FOUND);
         }
 
-        $variantOption->update($data);
+        // Check nếu value trùng (theo option_id), tránh cập nhật thành giá trị đã tồn tại
+        $duplicate = VariantValue::where('option_id', $value->option_id)
+            ->where('value', $data['value'])
+            ->where('id', '!=', $id)
+            ->exists();
 
-        return $variantOption;
+        if ($duplicate) {
+            throw new ApiException('Giá trị này đã tồn tại trong tùy chọn!', Response::HTTP_BAD_REQUEST);
+        }
+
+        $value->update($data);
+
+        return $value;
     }
 
-    public function destroy(int $id): bool
+    /**
+     * Xóa mềm 1 giá trị của variant
+     */
+    public function destroyValues(int $id): bool
     {
-        $variantOption = VariantOption::with(['variantValues', 'categoryOptions'])->find($id);
+        $value = VariantValue::find($id);
 
-        if (!$variantOption) {
-            throw new ApiException('Không tìm thấy tùy chọn để xóa!', Response::HTTP_NOT_FOUND);
+        if (!$value) {
+            throw new ApiException('Không tìm thấy giá trị để xóa!', Response::HTTP_NOT_FOUND);
         }
 
-        if ($variantOption->variantValues->count() > 0 || $variantOption->categoryOptions->count() > 0) {
-            throw new ApiException('Không thể xóa vì tùy chọn đã được sử dụng!', Response::HTTP_BAD_REQUEST);
-        }
-
-        return $variantOption->delete();
+        return $value->delete();
     }
 }
