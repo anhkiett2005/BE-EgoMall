@@ -37,7 +37,14 @@ class ProductVariant extends Model
     public function values()
     {
         return $this->belongsToMany(VariantValue::class, 'product_variant_values', 'product_variant_id', 'variant_value_id')
-                    ->with('option');
+            ->with('option');
+    }
+
+    public function getVariantNameAttribute()
+    {
+        return $this->values->map(function ($v) {
+            return ($v->option->name ?? '') . ': ' . $v->value;
+        })->implode(' | ');
     }
 
     public function giftPromotions()
@@ -45,7 +52,7 @@ class ProductVariant extends Model
         return $this->hasMany(Promotion::class, 'gift_product_variant_id');
     }
 
-     public function images()
+    public function images()
     {
         return $this->hasMany(ProductImage::class);
     }
