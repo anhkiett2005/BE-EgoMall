@@ -188,22 +188,29 @@ Route::prefix('v1/admin')
 
         // Route API Shipping Zones
         Route::controller('ShippingZoneController')
-        ->prefix('shipping-methods')
-        ->group(function () {
-            Route::post('/{shippingMethodId}/zones', 'store')->name('admin.shipping-methods.zones.store');
-            Route::put('/{shippingMethodId}/zones/{zoneId}', 'update')->name('admin.shipping-methods.zones.update');
-            Route::delete('/{shippingMethodId}/zones/{zoneId}', 'destroy')->name('admin.shipping-methods.zones.destroy');
-        });
+            ->prefix('shipping-methods')
+            ->group(function () {
+                Route::post('/{shippingMethodId}/zones', 'store')->name('admin.shipping-methods.zones.store');
+                Route::put('/{shippingMethodId}/zones/{zoneId}', 'update')->name('admin.shipping-methods.zones.update');
+                Route::delete('/{shippingMethodId}/zones/{zoneId}', 'destroy')->name('admin.shipping-methods.zones.destroy');
+            });
 
 
         // Routes API Variant Options
-        Route::controller('VariantOptionController')->group(function () {
-            Route::get('/variant-options', 'index')->name('admin.variant-options.index');
-            Route::get('/variant-options/{id}', 'show')->name('admin.variant-options.show');
-            Route::post('/variant-options', 'store')->name('admin.variant-options.store');
-            Route::post('/variant-options/{optionId}/values', 'createValues')->name('admin.variant-options.values.store');
-            Route::put('/variant-options/{id}', 'update')->name('admin.variant-options.update');
-            Route::delete('/variant-options/{id}', 'destroy')->name('admin.variant-options.destroy');
+        Route::controller('VariantOptionController')
+        ->prefix('/variant-options')
+        ->group(function () {
+            Route::get('/', 'index')->name('admin.variant-options.index');
+            Route::get('/{id}', 'show')->name('admin.variant-options.show');
+            Route::post('/', 'store')->name('admin.variant-options.store');
+            Route::put('/{id}', 'update')->name('admin.variant-options.update');
+            Route::delete('/{id}', 'destroy')->name('admin.variant-options.destroy');
+
+
+            // variant values
+            Route::post('/{optionId}/values', 'createValues');
+            Route::put('/values/{id}', 'updateValues');
+            Route::delete('/values/{id}', 'destroyValues');
         });
         // Phản hồi đánh giá
         Route::controller('ReviewReplyController')

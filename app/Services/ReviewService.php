@@ -130,6 +130,8 @@ class ReviewService
                     $url = Common::uploadImageToCloudinary($file, 'egomall/reviews');
                     $review->images()->create(['image_url' => $url]);
                 }
+
+                $review->load('images');
             }
 
             return $review;

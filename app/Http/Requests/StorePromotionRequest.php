@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Classes\Common;
+use App\Exceptions\ApiException;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Contracts\Validation\Validator;
@@ -138,6 +140,25 @@ class StorePromotionRequest extends FormRequest
                     $validator->errors()->add('gift_id', 'Biến thể quà tặng không tồn tại.');
                 }
             }
+
+            $applicable = collect($this->input('applicable_products', []));
+
+            $productIds = $applicable->filter(fn ($item) => !empty($item['product_id']))
+                                    ->pluck('product_id')
+                                    ->unique();
+
+
+            $variantIds = $applicable->filter(fn ($item) => !empty($item['variant_id']))
+                                    ->pluck('variant_id')
+                                    ->unique();
+
+            try {
+                Common::validateProductAndVariantConflicts($productIds, $variantIds);
+                Common::validateDiscountOnSaleVariants($productIds, $variantIds, $this->promotion_type);
+            }catch (ApiException $e) {
+                $validator->errors()->add('applicable_products', $e->getMessage());
+            }
+
         });
     }
 

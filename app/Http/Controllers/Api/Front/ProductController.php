@@ -199,7 +199,8 @@ class ProductController extends Controller
                             'option_value_ids' => $variant->values->pluck('id')->toArray(),
                             'option_labels' => $variant->values->map(function ($label) {
                                 return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
-                            })->implode(' | ')
+                            })->implode(' | '),
+                            'image' => $variant->images->pluck('image_url')->first(),
                             // 'options' => $variant->values->map(function ($value) {
                             //     return [
                             //         'name' => $value->option->name,
@@ -320,7 +321,8 @@ class ProductController extends Controller
                     'option_value_ids' => $variant->values->pluck('id')->toArray(),
                     'option_labels' => $variant->values->map(function ($label) {
                         return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
-                    })->implode(' | ')
+                    })->implode(' | '),
+                    'image' => $variant->images->pluck('image_url')->first(),
                     // 'options' => $variant->values->map(function ($value) {
                     //     return [
                     //         'name' => $value->option->name,

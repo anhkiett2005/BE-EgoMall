@@ -35,6 +35,7 @@ class OrderHistoryService
         $userId = auth('api')->id();
 
         $order = Order::with([
+            'details.review.images',
             'details.productVariant.product',
             'details.productVariant.values',
             'coupon',
