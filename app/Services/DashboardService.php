@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\ApiException;
+use App\Models\ProductVariant;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -233,7 +234,7 @@ class DashboardService
                 ->join('orders as o', 'od.order_id', '=', 'o.id')
                 ->join('product_variants as pv', 'od.product_variant_id', '=', 'pv.id')
                 ->join('products as p', 'pv.product_id', '=', 'p.id')
-                ->select('p.name as product_name', DB::raw('SUM(od.quantity) as total_sold'))
+                ->selectRaw('pv.product_id, MAX(p.name) as product_name, SUM(od.quantity) as total_sold')
                 ->where('o.status', 'delivered')
                 ->whereBetween('o.created_at', [$start3MonthsAgo, now()])
                 ->where('p.is_active', '!=', 0)
@@ -265,7 +266,7 @@ class DashboardService
 
             // Lấy chi tiết các variant để ghép tên biến thể
             $variantIds = $rawLowStockVariants->pluck('variant_id');
-            $variants = \App\Models\ProductVariant::with(['values.option'])
+            $variants = ProductVariant::with(['values.option'])
                 ->whereIn('id', $variantIds)
                 ->get()
                 ->keyBy('id');
