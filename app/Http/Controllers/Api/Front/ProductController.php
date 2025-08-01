@@ -220,14 +220,8 @@ class ProductController extends Controller
                     'id' => $product->id,
                     'name' => $product->name,
                     'slug' => $product->slug,
-                    'category' => [
-                        'name' => $product->category->name ?? null,
-                        'slug' => $product->category->slug ?? null,
-                    ],
-                    'brand' => [
-                        'name' => $product->brand->name ?? null,
-                        'slug' => $product->brand->slug ?? null,
-                    ],
+                    'category' => $product->category->id ?? null,
+                    'brand'    => $product->brand->id ?? null,
                     'type_skin' => $product->type_skin ?? null,
                     'description' => $product->description ?? null,
                     'image' => $product->image ?? null,
