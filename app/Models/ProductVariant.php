@@ -61,4 +61,9 @@ class ProductVariant extends Model
     {
         return $this->hasMany(OrderDetail::class, 'product_variant_id', 'id');
     }
+
+    public function promotions()
+    {
+        return $this->belongsToMany(Promotion::class, 'promotion_product', 'product_variant_id', 'promotion_id');
+    }
 }
