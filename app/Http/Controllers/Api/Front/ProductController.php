@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Front;
 
+use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Models\Brand;
@@ -15,21 +16,6 @@ use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
-    private function getLeafCategoryIds($category): array
-    {
-        $ids = [];
-
-        foreach ($category->children as $child) {
-            if ($child->children->isEmpty()) {
-                $ids[] = $child->id;
-            } else {
-                $ids = array_merge($ids, $this->getLeafCategoryIds($child));
-            }
-        }
-
-        return $ids;
-    }
-
     /**
      * API trả về FE trang chủ
      *
@@ -76,7 +62,7 @@ class ProductController extends Controller
                     if ($category->children->isEmpty()) {
                         $query->where('category_id', $category->id);
                     } else {
-                        $leafIds = $this->getLeafCategoryIds($category);
+                        $leafIds = Common::getLeafCategoryIds($category);
                         if (!empty($leafIds)) {
                             $query->whereIn('category_id', $leafIds);
                         } else {
