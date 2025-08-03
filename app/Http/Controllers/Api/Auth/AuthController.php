@@ -254,7 +254,7 @@ class AuthController extends Controller
 
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
-            $hasManagementAccess = $this->checkAuthPermision($user->role->name, 'super-admin', 'admin', 'staff');
+            $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
             $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
 
             return redirect($redirectUrl)->withCookie($cookie);
@@ -335,7 +335,7 @@ class AuthController extends Controller
 
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
-            $hasManagementAccess = $this->checkAuthPermision($user->role->name, 'super-admin', 'admin', 'staff');
+            $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
             $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
 
             return redirect($redirectUrl)->withCookie($cookie);
@@ -369,14 +369,14 @@ class AuthController extends Controller
     public function user(): JsonResponse
     {
         try {
-            $user = JWTAuth::parseToken()->authenticate();
+            $user = auth('api')->user();
             if (!$user) {
-                return ApiResponse::error('Token không hợp lệ hoặc hết hạn', 401);
+                throw new ApiException('Token không hợp lệ hoặc hết hạn!!', Response::HTTP_UNAUTHORIZED);
             }
             $info = (new UserResource($user))->toArray(request());
             return ApiResponse::success('Lấy thông tin thành công!!', data: $info);
         } catch (JWTException $e) {
-            return ApiResponse::error('Không thể xác thực người dùng', 401);
+            throw new ApiException('Không thể xác thực người dùng!!', Response::HTTP_UNAUTHORIZED);
         }
     }
 
@@ -408,9 +408,14 @@ class AuthController extends Controller
 
             $user->update($data);
 
-            return (new UserResource($user))->response();
+            return ApiResponse::success('Lấy thông tin thành công!!', data: (new UserResource($user))->toArray(request()));
         } catch (\Exception $e) {
-            throw new ApiException('Cập nhật hồ sơ thất bại!', 500, [$e->getMessage()]);
+            logger('Log bug update profile', [
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Cập nhật hồ sơ thất bại!!', 500, [$e->getMessage()]);
         }
     }
 
@@ -420,14 +425,25 @@ class AuthController extends Controller
      */
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
-        $user = auth('api')->user();
-        if (! Hash::check($request->old_password, $user->password)) {
-            return response()->json(['error' => 'Mật khẩu cũ không đúng.'], 422);
+        try {
+            /** @var \App\Models\User $user */
+            $user = auth('api')->user();
+            if (! Hash::check($request->old_password, $user->password)) {
+                throw new ApiException('Mật khẩu cũ không đúng', Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+            $user->password = Hash::make($request->new_password);
+            $user->save();
+            return ApiResponse::success('Đổi mật khẩu thành công.');
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        } catch (\Exception $e) {
+            logger('Log bug change password', [
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-        $user->password = Hash::make($request->new_password);
-        $user->save();
-        return response()->json(['message' => 'Đổi mật khẩu thành công.']);
     }
 
     /**
@@ -447,11 +463,8 @@ class AuthController extends Controller
     {
         try {
             JWTAuth::parseToken()->invalidate(); // ✅ parse token trước
-        } catch (JWTException $e) {
-            return response()->json(['error' => 'Không thể đăng xuất'], 500);
-        }
 
-        $cookie = new Cookie(
+            $cookie = new Cookie(
             'token',
             '',
             now()->subMinute()->getTimestamp(),
@@ -463,7 +476,15 @@ class AuthController extends Controller
             Cookie::SAMESITE_LAX
         );
 
-        return response()->json(['message' => 'Đã đăng xuất'])->withCookie($cookie);
+            return ApiResponse::success('Đã đăng xuất')->withCookie($cookie);
+        } catch (JWTException $e) {
+            logger('Log bug sign out', [
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Không thể đăng xuất!!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     /**
@@ -477,7 +498,12 @@ class AuthController extends Controller
             $cookie = new Cookie('token', $newToken, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
             return ApiResponse::success()->withCookie($cookie);
         } catch (JWTException $e) {
-            return ApiResponse::error('Có lỗi xảy ra, vui lòng thử lại', 500);
+            logger('Log bug refresh token', [
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -486,45 +512,56 @@ class AuthController extends Controller
      */
     public function resendOtp(ResendOtpRequest $request): JsonResponse
     {
-        // Lấy user
-        $user = User::where('email', $request->email)->first();
+        try {
+            // Lấy user
+            $user = User::where('email', $request->email)->first();
 
-        // Kiểm tra user nếu đã xác thục rồi không cho resend lại OTP
-        if ($user->is_active !== false) {
-            throw new ApiException('Tài khoản đã được kích hoạt, không thể gửi lại OTP!!', 409);
+            // Kiểm tra user nếu đã xác thục rồi không cho resend lại OTP
+            if ($user->is_active !== false) {
+                throw new ApiException('Tài khoản đã được kích hoạt, không thể gửi lại OTP!!', Response::HTTP_CONFLICT);
+            }
+
+            $now   = now();
+            $start = $user->otp_sent_at ?? $now;
+            $count = $user->otp_sent_count;
+
+            // Nếu đã qua 1 giờ kể từ otp_sent_at, reset quota
+            if ($start->diffInMinutes($now) >= 5) {
+                $user->otp_sent_count = 0;
+                $user->otp_sent_at    = $now;
+                $count = 0;
+            }
+
+            // 3. Kiểm quota gửi lại
+            if ($count >= 3) {
+                // $remaining = 60 - $start->diffInMinutes($now);
+                throw new ApiException("Bạn đã gửi quá 3 lần. Vui lòng thử lại sau 5 phút.", Response::HTTP_TOO_MANY_REQUESTS);
+            }
+
+            // 4. Sinh OTP mới & cập nhật TTL, quota
+            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $user->otp = $otp;
+            $user->otp_expires_at = $now->addMinutes(5);
+            $user->otp_sent_count++;
+            if (!$user->otp_sent_at) {
+                $user->otp_sent_at = $now;
+            }
+            $user->save();
+
+            // 5. Gửi mail OTP
+            $user->notify(new OtpNotification($otp, 5));
+
+            return ApiResponse::success('OTP mới đã được gửi. Vui lòng kiểm tra email.');
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        } catch (Exception $e) {
+            logger('Log bug resend otp', [
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $now   = now();
-        $start = $user->otp_sent_at ?? $now;
-        $count = $user->otp_sent_count;
-
-        // Nếu đã qua 1 giờ kể từ otp_sent_at, reset quota
-        if ($start->diffInMinutes($now) >= 5) {
-            $user->otp_sent_count = 0;
-            $user->otp_sent_at    = $now;
-            $count = 0;
-        }
-
-        // 3. Kiểm quota gửi lại
-        if ($count >= 3) {
-            // $remaining = 60 - $start->diffInMinutes($now);
-            throw new ApiException("Bạn đã gửi quá 3 lần. Vui lòng thử lại sau 5 phút.", 429);
-        }
-
-        // 4. Sinh OTP mới & cập nhật TTL, quota
-        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $user->otp = $otp;
-        $user->otp_expires_at = $now->addMinutes(5);
-        $user->otp_sent_count++;
-        if (!$user->otp_sent_at) {
-            $user->otp_sent_at = $now;
-        }
-        $user->save();
-
-        // 5. Gửi mail OTP
-        $user->notify(new OtpNotification($otp, 5));
-
-        return ApiResponse::success('OTP mới đã được gửi. Vui lòng kiểm tra email.');
     }
 
     /**
@@ -532,82 +569,107 @@ class AuthController extends Controller
      */
     public function sendForgotPasswordOtp(ForgotPasswordRequest $request): JsonResponse
     {
-        // 1. Lấy user
-        $user = User::where('email', $request->email)->first();
+        try {
+            // 1. Lấy user
+            $user = User::where('email', $request->email)->first();
 
-        $now   = now();
-        $start = $user->otp_sent_at ?? $now;
-        $count = $user->otp_sent_count;
+            $now   = now();
+            $start = $user->otp_sent_at ?? $now;
+            $count = $user->otp_sent_count;
 
-        // 2. Reset quota nếu đã quá 1 giờ
-        if ($start->diffInMinutes($now) >= 60) {
-            $user->otp_sent_count = 0;
-            $user->otp_sent_at    = $now;
-            $count = 0;
+            // 2. Reset quota nếu đã quá 1 giờ
+            if ($start->diffInMinutes($now) >= 60) {
+                $user->otp_sent_count = 0;
+                $user->otp_sent_at    = $now;
+                $count = 0;
+            }
+
+            // 3. Kiểm quota tối đa 3 lần
+            if ($count >= 3) {
+                $remaining = 60 - $start->diffInMinutes($now);
+                throw new ApiException("Bạn đã gửi quá 3 lần. Vui lòng thử lại sau {$remaining} phút!!", Response::HTTP_TOO_MANY_REQUESTS);
+            }
+            // 4. Sinh OTP mới, cập nhật TTL và quota
+            $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+            $user->otp             = $otp;
+            $user->otp_expires_at  = $now->addMinutes(5);
+            $user->otp_sent_count++;
+            if (! $user->otp_sent_at) {
+                $user->otp_sent_at = $now;
+            }
+            $user->save();
+
+            // 5. Gửi mail OTP
+            $user->notify(new OtpNotification($otp, 5));
+
+            return ApiResponse::success('OTP đã được gửi đến email. Vui lòng kiểm tra.');
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         }
-
-        // 3. Kiểm quota tối đa 3 lần
-        if ($count >= 3) {
-            $remaining = 60 - $start->diffInMinutes($now);
-            return response()->json([
-                'error' => "Bạn đã gửi quá 3 lần. Vui lòng thử lại sau {$remaining} phút."
-            ], 429);
+        catch (\Exception $e) {
+            logger('Log bug send otp', [
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        // 4. Sinh OTP mới, cập nhật TTL và quota
-        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $user->otp             = $otp;
-        $user->otp_expires_at  = $now->addMinutes(5);
-        $user->otp_sent_count++;
-        if (! $user->otp_sent_at) {
-            $user->otp_sent_at = $now;
-        }
-        $user->save();
-
-        // 5. Gửi mail OTP
-        $user->notify(new OtpNotification($otp, 5));
-
-        return response()->json([
-            'message' => 'OTP đã được gửi đến email. Vui lòng kiểm tra.'
-        ], 200);
     }
 
     public function verifyResetOtp(VerifyOtpRequest $request): JsonResponse
     {
-        $user = User::where('email', $request->email)->first();
+       try {
+            $user = User::where('email', $request->email)->first();
 
-        if (! $user || $user->otp !== $request->otp || now()->gt($user->otp_expires_at)) {
-            return response()->json(['error' => 'OTP không hợp lệ hoặc đã hết hạn'], 422);
-        }
+            if (! $user || $user->otp !== $request->otp || now()->gt($user->otp_expires_at)) {
+                throw new ApiException('OTP không hợp lệ hoặc đã hết hạn!!', Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
 
-        $user->otp_verified = true;
-        $user->save();
+            $user->otp_verified = true;
+            $user->save();
 
-        return response()->json(['message' => 'Xác thực OTP thành công. Bạn có thể đặt lại mật khẩu.']);
+            return ApiResponse::success('Xác thực OTP thành công. Bạn có thể đặt lại mật khẩu.');
+       } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+       } catch (\Exception $e) {
+            logger('Log bug verify otp', [
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
+       }
     }
 
     public function setNewPassword(ResetPasswordWithOtpRequest $request): JsonResponse
     {
 
-        $user = User::where('email', $request->email)->first();
+        try {
+            $user = User::where('email', $request->email)->first();
 
-        if (! $user || ! $user->otp_verified) {
-            return response()->json(['error' => 'Bạn chưa xác thực OTP.'], 403);
+            if (! $user || ! $user->otp_verified) {
+                throw new ApiException('Bạn chưa xác thực OTP!!', Response::HTTP_FORBIDDEN);
+            }
+
+            $user->password          = Hash::make($request->new_password);
+            $user->otp               = null;
+            $user->otp_expires_at    = null;
+            $user->otp_sent_at       = null;
+            $user->otp_sent_count    = 0;
+            $user->otp_verified      = false;
+            $user->save();
+
+            return ApiResponse::success('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        } catch (\Exception $e) {
+            logger('Log bug set password', [
+                'error_message' => $e->getMessage(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
-
-        $user->password          = Hash::make($request->new_password);
-        $user->otp               = null;
-        $user->otp_expires_at    = null;
-        $user->otp_sent_at       = null;
-        $user->otp_sent_count    = 0;
-        $user->otp_verified      = false;
-        $user->save();
-
-        return response()->json(['message' => 'Đổi mật khẩu thành công. Vui lòng đăng nhập lại.']);
     }
 
-    private function checkAuthPermision($roleName, ...$permission)
-    {
-        return in_array($roleName, $permission);
-    }
 }

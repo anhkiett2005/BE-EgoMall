@@ -58,4 +58,9 @@ class Product extends Model
     {
         return $this->belongsToMany(User::class, 'wishlists')->withTimestamps();
     }
+
+    public function promotions()
+    {
+        return $this->belongsToMany(Promotion::class, 'promotion_product', 'product_id', 'promotion_id');
+    }
 }

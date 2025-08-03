@@ -14,12 +14,12 @@ class UserResource extends JsonResource
             'email'   => $this->email,
             'phone'   => $this->phone,
             'image'   => $this->image,
-            // 'role'    => $this->role->name,
+            'role'    => $this->role->name,
         ];
 
-        // if ($this->role->name !== 'customer') {
-        //     $data['permissions'] = $this->role->permissions->pluck('name')->toArray();
-        // }
+        if ($this->role->name !== 'customer') {
+            $data['permissions'] = $this->role->permissions->pluck('name')->toArray();
+        }
 
         return $data;
     }

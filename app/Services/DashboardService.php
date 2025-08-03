@@ -24,8 +24,8 @@ class DashboardService
             $startOfThisMonth = $now->copy()->startOfMonth();
             $startOfLastMonth = $now->copy()->subMonth()->startOfMonth();
             $endOfLastMonth = $startOfThisMonth->copy()->subSecond();
-            $noww = now();
-            $startOf30Days = $noww->copy()->subDays(30);
+
+            $startOf30Days = $now->copy()->subDays(30);
 
 
             $revenueStatistics = collect();
@@ -123,11 +123,26 @@ class DashboardService
                 ->first();
 
             // push dữ liệu trả về
-            $totalProductStatusStatistics->push([
-                'in_stock' => (int) $productStatusCount->in_stock,
-                'low_stock' => (int) $productStatusCount->low_stock,
-                'out_of_stock' => (int) $productStatusCount->out_of_stock
-            ]);
+            $totalProductStatusStatistics = [
+                [
+                    'status' => 'in_stock',
+                    'label' => 'Còn hàng',
+                    'total' => (int) $productStatusCount->in_stock,
+                    'color' => 'blue.6',
+                ],
+                [
+                    'status' => 'low_stock',
+                    'label' => 'Sắp hết hàng',
+                    'total' => (int) $productStatusCount->low_stock,
+                    'color' => 'green.6',
+                ],
+                [
+                    'status' => 'out_of_stock',
+                    'label' => 'Hết hàng',
+                    'total' => (int) $productStatusCount->out_of_stock,
+                    'color' => 'red.6',
+                ],
+            ];
 
             // === Thống kê doanh thu 12 tháng gần nhất ===
             $now = Carbon::now()->startOfMonth();
@@ -164,34 +179,36 @@ class DashboardService
             $orderStatusRaw = DB::table('orders')
                 ->select('status', DB::raw('COUNT(*) as total'))
                 ->where('created_at', '>=', $startOf30Days->copy()->startOfDay())
-                ->where('created_at', '<=', $noww->copy()->endOfDay())
+                ->where('created_at', '<=', $now->copy()->endOfDay())
                 ->groupBy('status')
                 ->pluck('total', 'status')
                 ->toArray();
 
-            // Map để gán nhãn hiển thị bên FE
+            // Map trạng thái với nhãn và màu
             $statusLabels = [
-                'ordered' => 'Chờ xử lý',
-                'shipping' => 'Đang giao hàng',
-                'cancelled' => 'Đã hủy',
-                'delivered' => 'Đã hoàn thành',
-                'return_sales' => 'Trả hàng / Khiếu nại'
+                'ordered'       => ['label' => 'Chờ xử lý',             'color' => 'orange.6'],
+                'shipping'      => ['label' => 'Đang giao hàng',         'color' => 'blue.6'],
+                'cancelled'     => ['label' => 'Đã hủy',                 'color' => 'yellow.6'],
+                'delivered'     => ['label' => 'Đã hoàn thành',          'color' => 'green.6'],
+                'return_sales'  => ['label' => 'Trả hàng / Khiếu nại',   'color' => '#96172e'],
             ];
 
-            // Duyệt qua các trạng thái cần hiển thị (kể cả khi số lượng = 0)
+            // Format kết quả trả về cho FE
             $orderStatusStatistics = [];
-            foreach ($statusLabels as $key => $label) {
+            foreach ($statusLabels as $key => $value) {
                 $orderStatusStatistics[] = [
                     'status' => $key,
-                    'label' => $label,
-                    'total' => (int) ($orderStatusRaw[$key] ?? 0)
+                    'label' => $value['label'],
+                    'total' => (int) ($orderStatusRaw[$key] ?? 0),
+                    'color' => $value['color'],
                 ];
             }
-            logger('DEBUG_ORDER_STATUS_STATISTICS', [
-                'from' => $startOf30Days->copy()->startOfDay()->toDateTimeString(),
-                'to' => $now->copy()->endOfDay()->toDateTimeString(),
-                'results' => $orderStatusRaw
-            ]);
+
+            // logger('DEBUG_ORDER_STATUS_STATISTICS', [
+            //     'from' => $startOf30Days->copy()->startOfDay()->toDateTimeString(),
+            //     'to' => $now->copy()->endOfDay()->toDateTimeString(),
+            //     'results' => $orderStatusRaw
+            // ]);
 
             // === Doanh thu từ đơn hàng có áp dụng khuyến mãi trong 3 tháng gần nhất ===
             $now = Carbon::now()->startOfMonth();

@@ -567,4 +567,24 @@ class Common
         }
     }
 
+    public static function getLeafCategoryIds($category): array
+    {
+        $ids = [];
+
+        foreach ($category->children as $child) {
+            if ($child->children->isEmpty()) {
+                $ids[] = $child->id;
+            } else {
+                $ids = array_merge($ids, self::getLeafCategoryIds($child));
+            }
+        }
+
+        return $ids;
+    }
+
+    public static function hasRole($roleName, ...$allowedRoles)
+    {
+        return in_array($roleName, $allowedRoles);
+    }
+
 }

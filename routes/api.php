@@ -307,8 +307,21 @@ Route::prefix('v1/admin')
             Route::post('/orders/change-status/{uniqueId}', 'update')->name('admin.orders.change-status');
         });
 
+        // Routes API Dashboard Statistics
         Route::controller('DashboardController')->group(function () {
             Route::get('/dashboard/statistics', 'index')->name('admin.dashboard.statistics');
+        });
+
+        // Routes API RolesManagement
+        Route::controller('RoleManagementController')->group(function () {
+            Route::prefix('roles-management')
+                 ->middleware(['role:super-admin'])
+                 ->group(function () {
+                     Route::get('/roles/assignable', 'getAllRoles')->name('admin.roles.assignable');
+                     Route::get('/permissions','getAllPermissions')->name('admin.roles.permissions');
+                     Route::post('/roles','storeRoleAndPermission')->name('admin.roles.store');
+                     Route::put('/roles/{roleId}/permissions','assignPermissionsToRole')->name('admin.roles.permissions.assign');
+                 });
         });
     });
 
