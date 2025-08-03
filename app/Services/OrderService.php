@@ -1,12 +1,15 @@
 <?php
+
 namespace App\Services;
 
 use App\Exceptions\ApiException;
+use App\Jobs\SendOrderStatusMailJob;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-class OrderService {
+class OrderService
+{
 
     /**
      * Lấy toàn bộ danh sách  đơn hàng
@@ -14,8 +17,8 @@ class OrderService {
     public function modifyIndex()
     {
         try {
-            $orders = Order::with(['user', 'details','coupon'])
-                           ->get();
+            $orders = Order::with(['user', 'details', 'coupon'])
+                ->get();
 
             $listOrder = collect();
 
@@ -63,11 +66,11 @@ class OrderService {
     {
         try {
             $order = Order::with(['user', 'details', 'coupon'])
-                          ->where('unique_id', $uniqueId)
-                          ->first();
+                ->where('unique_id', $uniqueId)
+                ->first();
 
             // check nếu k có đơn hàng báo lỗi
-            if(!$order) {
+            if (!$order) {
                 throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
             }
 
@@ -117,20 +120,37 @@ class OrderService {
         DB::beginTransaction();
         try {
             $data = $request->all();
+            $newStatus = $data['status'];
 
             // Tìm đơn hàng để cập nhật trạng thái
-            $order = Order::where('unique_id',$uniqueId)
-                          ->first();
+            $order = Order::where('unique_id', $uniqueId)
+                ->first();
 
             // Nếu không tìm thấy đơn hàng báo lỗi luôn
-            if(!$order) {
+            if (!$order) {
                 throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
             }
 
             // Cập nhật trạng thái
             $order->update([
-                'status' => $data['status'],
+                'status' => $newStatus,
             ]);
+
+            // Gửi mail nếu là các trạng thái cần gửi, và chưa gửi trước đó
+            $mailStatusesToSend = ['ordered', 'confirmed', 'delivered'];
+
+            if (in_array($newStatus, $mailStatusesToSend)) {
+                $currentMailStatus = is_array($order->mail_status) ? $order->mail_status : [];
+
+                // Nếu chưa gửi mail cho status này
+                if (empty($currentMailStatus[$newStatus])) {
+                    SendOrderStatusMailJob::dispatch($order, $newStatus);
+
+                    // Đánh dấu đã gửi mail cho status đó
+                    $currentMailStatus[$newStatus] = true;
+                    $order->update(['mail_status' => $currentMailStatus]);
+                }
+            }
 
             DB::commit();
 

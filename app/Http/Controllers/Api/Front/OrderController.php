@@ -6,6 +6,7 @@ use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OrderRequest;
+use App\Jobs\SendOrderStatusMailJob;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Order;
@@ -79,7 +80,7 @@ class OrderController extends Controller
                 ->where('end_date', '>=', now())
                 ->get();
 
-            $voucher = isset($data['voucher_id']) ? $this->checkVoucher($user->id,$data['voucher_id']) : null;
+            $voucher = isset($data['voucher_id']) ? $this->checkVoucher($user->id, $data['voucher_id']) : null;
 
             foreach ($data['orders'] as $orderItem) {
                 foreach ($orderItem['products'] as $productItem) {
@@ -175,13 +176,16 @@ class OrderController extends Controller
                 'discount_details' => [
                     'totalDiscountVoucher' => $totalDiscountVoucher,
                     'totalFlashSale' => $totalFlashSale
-                ]
+                ],
+                'mail_status' => array_merge($order->mail_status ?? [], ['ordered' => true])
             ]);
 
             Common::calculateOrderStock($order);
 
             DB::commit();
             // return ApiResponse::success('Đơn hàng đã được tạo thành công!!', Response::HTTP_CREATED);
+            SendOrderStatusMailJob::dispatch($order, 'ordered');
+
 
             // Xử lý thanh toán theo phương thức được chọn
             return $this->processPaymentByMethod($order);
@@ -295,24 +299,24 @@ class OrderController extends Controller
         return $matchedPromotion;
     }
 
-    private function checkVoucher($userId,$voucherId)
+    private function checkVoucher($userId, $voucherId)
     {
         $now = now();
         $voucher = Coupon::with(['usages' => function ($query) use ($userId) {
-                            $query->where('user_id', $userId);
-                        }])
-                        ->where('id', $voucherId)
-                        ->where('status', '!=', 0)
-                        ->where('start_date', '<=', $now)
-                        ->where('end_date', '>=', $now)
-                        ->first();
+            $query->where('user_id', $userId);
+        }])
+            ->where('id', $voucherId)
+            ->where('status', '!=', 0)
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now)
+            ->first();
 
         if (!$voucher) {
             throw new ApiException('Voucher không hợp lệ!!', Response::HTTP_NOT_FOUND);
         }
 
         // check số voucher toàn hệ thống, nếu = 0 hoặc < 0 thi throw exception
-        if($voucher->usage_limit <= 0) {
+        if ($voucher->usage_limit <= 0) {
             throw new ApiException('Voucher đã được sử dụng hết số lượng cho phép!!', Response::HTTP_CONFLICT);
         }
 
