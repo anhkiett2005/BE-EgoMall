@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\SendPromotionMailJob;
 use App\Models\Promotion;
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
@@ -29,8 +31,14 @@ class ActivatePromotions extends Command
     {
         $today = Carbon::today();
 
+        if (Promotion::where('status', 1)->exists()) {
+            $this->info("Đã có chương trình đang hoạt động. Không thể kích hoạt thêm.");
+            return;
+        }
+
         $pendingPromotions = Promotion::where('status', 0)
             ->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today) // chặn mấy cái đã hết hạn
             ->orderBy('start_date')
             ->get();
 
@@ -52,12 +60,41 @@ class ActivatePromotions extends Command
 
             if (!$hasConflict) {
                 $promotion->update(['status' => 1]);
-                $this->info("Đã kích hoạt chương trình khuyến mãi: {$promotion->name}");
+
+                $totalRecipients = User::where('role_id', 4)
+                    ->where('is_active', true)
+                    ->whereNotNull('email_verified_at')
+                    ->count();
+
+                if ($totalRecipients === 0) {
+                    $promotion->update(['is_mail_sent' => true]);
+                    $this->info("Không có khách hàng nào nhận được mail.");
+                } else {
+                    $firstBatch = true;
+
+                    User::where('role_id', 4)
+                        ->where('is_active', true)
+                        ->whereNotNull('email_verified_at')
+                        ->chunk(100, function ($customers) use ($promotion, &$firstBatch) {
+                            $count = $customers->count();
+                            echo "⏳ Đang gửi mail cho {$count} khách hàng...\n";
+
+                            foreach ($customers as $customer) {
+                                SendPromotionMailJob::dispatch($customer, $promotion);
+                            }
+
+                            if ($firstBatch) {
+                                Promotion::where('id', $promotion->id)->update(['is_mail_sent' => true]);
+                                $firstBatch = false;
+                            }
+                        });
+                }
+
+                $this->info("Đã kích hoạt và gửi mail chương trình khuyến mãi: {$promotion->name}");
                 return;
             }
         }
 
         $this->info("Không có chương trình khuyến mãi nào được kích hoạt.");
     }
-
 }
