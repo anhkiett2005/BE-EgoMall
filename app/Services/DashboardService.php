@@ -24,8 +24,8 @@ class DashboardService
             $startOfThisMonth = $now->copy()->startOfMonth();
             $startOfLastMonth = $now->copy()->subMonth()->startOfMonth();
             $endOfLastMonth = $startOfThisMonth->copy()->subSecond();
-            $noww = now();
-            $startOf30Days = $noww->copy()->subDays(30);
+
+            $startOf30Days = $now->copy()->subDays(30);
 
 
             $revenueStatistics = collect();
@@ -179,7 +179,7 @@ class DashboardService
             $orderStatusRaw = DB::table('orders')
                 ->select('status', DB::raw('COUNT(*) as total'))
                 ->where('created_at', '>=', $startOf30Days->copy()->startOfDay())
-                ->where('created_at', '<=', $noww->copy()->endOfDay())
+                ->where('created_at', '<=', $now->copy()->endOfDay())
                 ->groupBy('status')
                 ->pluck('total', 'status')
                 ->toArray();
