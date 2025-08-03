@@ -35,6 +35,8 @@ class OrderRequest extends FormRequest
             'shipping_address' => 'required|string',
             'payment_method' => 'required|in:COD,VNPAY,MOMO,ZaloPay',
             'voucher_id' => 'nullable|exists:coupons,id',
+            'shipping_method_id' => 'required|integer|exists:shipping_methods,id',
+            'province_code' => 'required|integer|exists:provinces,code',
 
             // List danh sách order
             'orders' => 'required|array|min:1',
@@ -74,6 +76,14 @@ class OrderRequest extends FormRequest
             'payment_method.required' => 'Vui lòng chọn phương thức thanh toán.',
             'payment_method.in' => 'Phương thức thanh toán không hợp lệ. Chỉ hỗ trợ: COD, VNPAY, MOMO, ZaloPay.',
             'voucher_id.exists' => 'Voucher không hợp lệ.',
+
+            'shipping_method_id.required' => 'Phương thức giao hàng là bắt buộc.',
+            'shipping_method_id.integer' => 'Phương thức giao hàng phải là số.',
+            'shipping_method_id.exists' => 'Phương thức giao hàng không hợp lệ.',
+
+            'province_code.required' => 'Mã Tỉnh/Thành phố là bắt buộc.',
+            'province_code.integer' => 'Mã Tỉnh/Thành phố phải là số.',
+            'province_code.exists' => 'Mã Tỉnh/Thành phố không hợp lệ.',
 
             'orders.required' => 'Danh sách đơn hàng là bắt buộc.',
             'orders.array' => 'Danh sách đơn hàng phải là một mảng.',
