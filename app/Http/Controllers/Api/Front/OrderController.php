@@ -177,15 +177,19 @@ class OrderController extends Controller
                     'totalDiscountVoucher' => $totalDiscountVoucher,
                     'totalFlashSale' => $totalFlashSale
                 ],
-                'mail_status' => array_merge($order->mail_status ?? [], ['ordered' => true])
             ]);
 
             Common::calculateOrderStock($order);
 
             DB::commit();
             // return ApiResponse::success('Đơn hàng đã được tạo thành công!!', Response::HTTP_CREATED);
-            SendOrderStatusMailJob::dispatch($order, 'ordered');
 
+            if ($order->payment_method === 'COD') {
+                SendOrderStatusMailJob::dispatch($order, 'ordered');
+                $order->update([
+                    'mail_status' => array_merge($order->mail_status ?? [], ['ordered' => true])
+                ]);
+            }
 
             // Xử lý thanh toán theo phương thức được chọn
             return $this->processPaymentByMethod($order);
