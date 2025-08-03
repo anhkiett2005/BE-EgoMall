@@ -123,11 +123,23 @@ class DashboardService
                 ->first();
 
             // push dữ liệu trả về
-            $totalProductStatusStatistics->push([
-                'in_stock' => (int) $productStatusCount->in_stock,
-                'low_stock' => (int) $productStatusCount->low_stock,
-                'out_of_stock' => (int) $productStatusCount->out_of_stock
-            ]);
+            $totalProductStatusStatistics = [
+                [
+                    'status' => 'in_stock',
+                    'label' => 'Còn hàng',
+                    'total' => (int) $productStatusCount->in_stock,
+                ],
+                [
+                    'status' => 'low_stock',
+                    'label' => 'Sắp hết hàng',
+                    'total' => (int) $productStatusCount->low_stock,
+                ],
+                [
+                    'status' => 'out_of_stock',
+                    'label' => 'Hết hàng',
+                    'total' => (int) $productStatusCount->out_of_stock,
+                ],
+            ];
 
             // === Thống kê doanh thu 12 tháng gần nhất ===
             $now = Carbon::now()->startOfMonth();
