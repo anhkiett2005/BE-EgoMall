@@ -128,16 +128,19 @@ class DashboardService
                     'status' => 'in_stock',
                     'label' => 'Còn hàng',
                     'total' => (int) $productStatusCount->in_stock,
+                    'color' => 'blue.6',
                 ],
                 [
                     'status' => 'low_stock',
                     'label' => 'Sắp hết hàng',
                     'total' => (int) $productStatusCount->low_stock,
+                    'color' => 'green.6',
                 ],
                 [
                     'status' => 'out_of_stock',
                     'label' => 'Hết hàng',
                     'total' => (int) $productStatusCount->out_of_stock,
+                    'color' => 'red.6',
                 ],
             ];
 
@@ -181,29 +184,31 @@ class DashboardService
                 ->pluck('total', 'status')
                 ->toArray();
 
-            // Map để gán nhãn hiển thị bên FE
+            // Map trạng thái với nhãn và màu
             $statusLabels = [
-                'ordered' => 'Chờ xử lý',
-                'shipping' => 'Đang giao hàng',
-                'cancelled' => 'Đã hủy',
-                'delivered' => 'Đã hoàn thành',
-                'return_sales' => 'Trả hàng / Khiếu nại'
+                'ordered'       => ['label' => 'Chờ xử lý',             'color' => 'orange.6'],
+                'shipping'      => ['label' => 'Đang giao hàng',         'color' => 'blue.6'],
+                'cancelled'     => ['label' => 'Đã hủy',                 'color' => 'yellow.6'],
+                'delivered'     => ['label' => 'Đã hoàn thành',          'color' => 'green.6'],
+                'return_sales'  => ['label' => 'Trả hàng / Khiếu nại',   'color' => '#96172e'],
             ];
 
-            // Duyệt qua các trạng thái cần hiển thị (kể cả khi số lượng = 0)
+            // Format kết quả trả về cho FE
             $orderStatusStatistics = [];
-            foreach ($statusLabels as $key => $label) {
+            foreach ($statusLabels as $key => $value) {
                 $orderStatusStatistics[] = [
                     'status' => $key,
-                    'label' => $label,
-                    'total' => (int) ($orderStatusRaw[$key] ?? 0)
+                    'label' => $value['label'],
+                    'total' => (int) ($orderStatusRaw[$key] ?? 0),
+                    'color' => $value['color'],
                 ];
             }
-            logger('DEBUG_ORDER_STATUS_STATISTICS', [
-                'from' => $startOf30Days->copy()->startOfDay()->toDateTimeString(),
-                'to' => $now->copy()->endOfDay()->toDateTimeString(),
-                'results' => $orderStatusRaw
-            ]);
+
+            // logger('DEBUG_ORDER_STATUS_STATISTICS', [
+            //     'from' => $startOf30Days->copy()->startOfDay()->toDateTimeString(),
+            //     'to' => $now->copy()->endOfDay()->toDateTimeString(),
+            //     'results' => $orderStatusRaw
+            // ]);
 
             // === Doanh thu từ đơn hàng có áp dụng khuyến mãi trong 3 tháng gần nhất ===
             $now = Carbon::now()->startOfMonth();
