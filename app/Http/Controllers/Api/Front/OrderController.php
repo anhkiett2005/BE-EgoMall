@@ -6,7 +6,6 @@ use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OrderRequest;
-use App\Jobs\SendOrderStatusMailJob;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Order;
@@ -183,13 +182,6 @@ class OrderController extends Controller
 
             DB::commit();
             // return ApiResponse::success('Đơn hàng đã được tạo thành công!!', Response::HTTP_CREATED);
-
-            if ($order->payment_method === 'COD') {
-                SendOrderStatusMailJob::dispatch($order, 'ordered');
-                $order->update([
-                    'mail_status' => array_merge($order->mail_status ?? [], ['ordered' => true])
-                ]);
-            }
 
             // Xử lý thanh toán theo phương thức được chọn
             return $this->processPaymentByMethod($order);

@@ -115,19 +115,15 @@ class VnpayController extends Controller
             }
 
             if ($request->vnp_ResponseCode == "00") { // Thành công
-                $mailStatus = $order->mail_status ?? [];
-
-                if (empty($mailStatus['ordered'])) {
-                    SendOrderStatusMailJob::dispatch($order, 'ordered');
-                    $mailStatus['ordered'] = true;
-                }
 
                 $order->update([
                     'payment_status' => 'paid',
                     'payment_date' => now(),
                     'transaction_id' => $request->vnp_TransactionNo,
-                    'mail_status' => $mailStatus,
                 ]);
+
+                Common::sendOrderStatusMail($order, 'ordered');
+
                 // gửi email cảm ơn
                 // Mail::to($order->user->email)->queue(new OrderSuccessMail($order,'success'));
 

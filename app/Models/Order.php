@@ -30,7 +30,6 @@ class Order extends Model
         'transaction_id',
         'coupon_id',
         'delivered_at',
-        'mail_status',
     ];
 
     protected $hidden = [
@@ -40,7 +39,6 @@ class Order extends Model
     protected $casts = [
         'discount_details' => 'json',
         'delivered_at' => 'datetime',
-        'mail_status' => 'json',
     ];
 
     public function user()

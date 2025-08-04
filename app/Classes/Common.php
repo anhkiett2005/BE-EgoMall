@@ -3,6 +3,7 @@
 namespace App\Classes;
 
 use App\Exceptions\ApiException;
+use App\Jobs\SendOrderStatusMailJob;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\Promotion;
@@ -434,15 +435,15 @@ class Common
 
         if ($promotionId !== null) {
             $existingVariantIds = DB::table('promotion_product')
-                                    ->where('promotion_id', $promotionId)
-                                    ->whereNotNull('product_variant_id')
-                                    ->pluck('product_variant_id');
+                ->where('promotion_id', $promotionId)
+                ->whereNotNull('product_variant_id')
+                ->pluck('product_variant_id');
 
             if ($existingVariantIds->isNotEmpty()) {
                 $existingVariantProductIds = DB::table('product_variants')
-                                                ->whereIn('id', $existingVariantIds)
-                                                ->pluck('product_id')
-                                                ->unique();
+                    ->whereIn('id', $existingVariantIds)
+                    ->pluck('product_id')
+                    ->unique();
             }
 
             // Check: nếu thêm mới product_id mà trùng với các product_id đã có từ variant -> conflict
@@ -456,16 +457,16 @@ class Common
 
             // Check: nếu thêm mới variant_id mà product_id của nó trùng với product_id đã có trong DB
             $existingProductIds = DB::table('promotion_product')
-                                    ->where('promotion_id', $promotionId)
-                                    ->whereNotNull('product_id')
-                                    ->pluck('product_id')
-                                    ->unique();
+                ->where('promotion_id', $promotionId)
+                ->whereNotNull('product_id')
+                ->pluck('product_id')
+                ->unique();
 
             if ($variantIds->isNotEmpty()) {
                 $newVariantProductIds = DB::table('product_variants')
-                                         ->whereIn('id', $variantIds)
-                                         ->pluck('product_id')
-                                         ->unique();
+                    ->whereIn('id', $variantIds)
+                    ->pluck('product_id')
+                    ->unique();
 
                 $conflict2 = $newVariantProductIds->intersect($existingProductIds);
                 if ($conflict2->isNotEmpty()) {
@@ -480,9 +481,9 @@ class Common
         // Check xung đột nội bộ trong request như cũ
         if ($productIds->isNotEmpty() && $variantIds->isNotEmpty()) {
             $variantProductIds = DB::table('product_variants')
-                                    ->whereIn('id', $variantIds)
-                                    ->pluck('product_id')
-                                    ->unique();
+                ->whereIn('id', $variantIds)
+                ->pluck('product_id')
+                ->unique();
 
             $conflictInRequest = $productIds->intersect($variantProductIds);
 
@@ -507,8 +508,8 @@ class Common
         // Lấy các variant của những product_id được chọn
         if ($productIds->isNotEmpty()) {
             $variants = (clone $query)->whereIn('product_id', $productIds->toArray())
-                                     ->whereNotNull('sale_price')
-                                     ->get();
+                ->whereNotNull('sale_price')
+                ->get();
 
             if ($variants->isNotEmpty()) {
                 throw new ApiException('Không thể áp dụng khuyến mãi cho sản phẩm có biến thể đang giảm giá!!');
@@ -518,8 +519,8 @@ class Common
         // Kiểm tra các variant được áp dụng trực tiếp
         if ($variantIds->isNotEmpty()) {
             $variants = (clone $query)->whereIn('id', $variantIds->toArray())
-                                      ->whereNotNull('sale_price')
-                                      ->get();
+                ->whereNotNull('sale_price')
+                ->get();
 
             if ($variants->isNotEmpty()) {
                 throw new ApiException('Không thể áp dụng khuyến mãi cho biến thể đang giảm giá !!');
@@ -587,4 +588,12 @@ class Common
         return in_array($roleName, $allowedRoles);
     }
 
+    public static function sendOrderStatusMail(Order $order, string $status): void
+    {
+        try {
+            SendOrderStatusMailJob::dispatch($order, $status);
+        } catch (\Throwable $e) {
+            logger()->error("Gửi mail thất bại (Order ID: {$order->id}) - Status: {$status} - Lỗi: {$e->getMessage()}");
+        }
+    }
 }

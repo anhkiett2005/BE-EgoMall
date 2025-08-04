@@ -111,20 +111,13 @@ class MomoController extends Controller
         }
 
         if ($data['resultCode'] == 0) {
-            $mailStatus = $order->mail_status ?? [];
-
-            // Gửi mail sau khi thanh toán thành công MOMO
-            if (empty($mailStatus['ordered'])) {
-                SendOrderStatusMailJob::dispatch($order, 'ordered');
-                $mailStatus['ordered'] = true;
-            }
-
             $order->update([
                 'payment_status' => 'paid',
                 'payment_date' => now(),
                 'transaction_id' => $data['transId'],
-                'mail_status' => $mailStatus,
             ]);
+
+            Common::sendOrderStatusMail($order, 'ordered');
         }
 
         return ApiResponse::success('IPN processed successfully');
