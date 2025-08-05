@@ -18,6 +18,7 @@ class StoreReviewRequest extends FormRequest
             'rating'          => 'required|integer|min:1|max:5',
             'comment'         => 'nullable|string|max:1000',
             'is_anonymous'    => 'sometimes|boolean',
+            'images'          => 'nullable|array|max:5',
             'images.*'        => 'nullable|image|mimes:jpeg,png,jpg,webp|max:10240',
         ];
     }
@@ -34,6 +35,8 @@ class StoreReviewRequest extends FormRequest
             'images.*.image'           => 'Tệp tải lên phải là hình ảnh.',
             'images.*.mimes'           => 'Ảnh phải có định dạng jpeg, png, jpg, hoặc webp.',
             'images.*.max'             => 'Kích thước mỗi ảnh không được vượt quá 10MB.',
+            'images.max' => 'Bạn chỉ được tải lên tối đa 5 ảnh.',
+            'comment.max' => 'Bình luận không được vượt quá 1000 ký tự.',
         ];
     }
 }
