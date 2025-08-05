@@ -79,7 +79,7 @@ class OrderController extends Controller
                 ->where('end_date', '>=', now())
                 ->get();
 
-            $voucher = isset($data['voucher_id']) ? $this->checkVoucher($user->id,$data['voucher_id']) : null;
+            $voucher = isset($data['voucher_id']) ? $this->checkVoucher($user->id, $data['voucher_id']) : null;
 
             foreach ($data['orders'] as $orderItem) {
                 foreach ($orderItem['products'] as $productItem) {
@@ -175,7 +175,7 @@ class OrderController extends Controller
                 'discount_details' => [
                     'totalDiscountVoucher' => $totalDiscountVoucher,
                     'totalFlashSale' => $totalFlashSale
-                ]
+                ],
             ]);
 
             Common::calculateOrderStock($order);
@@ -295,24 +295,24 @@ class OrderController extends Controller
         return $matchedPromotion;
     }
 
-    private function checkVoucher($userId,$voucherId)
+    private function checkVoucher($userId, $voucherId)
     {
         $now = now();
         $voucher = Coupon::with(['usages' => function ($query) use ($userId) {
-                            $query->where('user_id', $userId);
-                        }])
-                        ->where('id', $voucherId)
-                        ->where('status', '!=', 0)
-                        ->where('start_date', '<=', $now)
-                        ->where('end_date', '>=', $now)
-                        ->first();
+            $query->where('user_id', $userId);
+        }])
+            ->where('id', $voucherId)
+            ->where('status', '!=', 0)
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now)
+            ->first();
 
         if (!$voucher) {
             throw new ApiException('Voucher không hợp lệ!!', Response::HTTP_NOT_FOUND);
         }
 
         // check số voucher toàn hệ thống, nếu = 0 hoặc < 0 thi throw exception
-        if($voucher->usage_limit <= 0) {
+        if ($voucher->usage_limit <= 0) {
             throw new ApiException('Voucher đã được sử dụng hết số lượng cho phép!!', Response::HTTP_CONFLICT);
         }
 

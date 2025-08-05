@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Front;
 use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendOrderStatusMailJob;
 use App\Models\Order;
 use App\Response\ApiResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,7 @@ class VnpayController extends Controller
     protected $vnp_apiUrl;
     protected $apiUrl;
 
-     public function __construct()
+    public function __construct()
     {
         $this->vnp_TmnCode = env('VNP_TMN_CODE'); // Mã định danh merchant
         $this->vnp_HashSecret = env('VNP_HASH_SECRECT_KEY'); // Secret key (Sửa lỗi sai: SECRECT -> SECRET)
@@ -103,7 +104,7 @@ class VnpayController extends Controller
         try {
             if (!$this->validateSignature($request->all())) {
                 // return redirect()->away(env('FRONTEND_URL') . '/payment-result?status=failed');
-                return ApiResponse::error('Xác thực thất bại',Response::HTTP_BAD_REQUEST);
+                return ApiResponse::error('Xác thực thất bại', Response::HTTP_BAD_REQUEST);
             }
 
             //  // Lấy đơn hàng
@@ -120,14 +121,17 @@ class VnpayController extends Controller
                     'payment_date' => now(),
                     'transaction_id' => $request->vnp_TransactionNo,
                 ]);
-                 // gửi email cảm ơn
+
+                Common::sendOrderStatusMail($order, 'ordered');
+
+                // gửi email cảm ơn
                 // Mail::to($order->user->email)->queue(new OrderSuccessMail($order,'success'));
 
 
                 return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=success&order_id=" . $order->unique_id);
                 // return response()->json(['success' => true, 'message' => 'Thanh toán thành công',]);
 
-            }else {
+            } else {
                 return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=failed");
                 // return response()->json(['success' => false, 'message' => 'Thanh toán thất bại']);
             }
@@ -164,22 +168,19 @@ class VnpayController extends Controller
             // check sinature từ vnpay trả về
             // logger('valid signature', [$this->validateSignatureFromJson($response)]);
             if (!$this->validateSignatureFromJson($response)) {
-                 throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
+                throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
             }
 
-            if($response['vnp_ResponseCode'] == "00") {
-                    $order->update([
-                        'payment_status' => 'refunded',
-                        'payment_date' => now(),
-                        'transaction_id' => $response['vnp_TransactionNo']
-                    ]);
-                }
+            if ($response['vnp_ResponseCode'] == "00") {
+                $order->update([
+                    'payment_status' => 'refunded',
+                    'payment_date' => now(),
+                    'transaction_id' => $response['vnp_TransactionNo']
+                ]);
+            }
 
             return ApiResponse::success('Hủy đơn hàng thành công!!');
-
-
-
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             logger('Log bug refund payment', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
@@ -251,5 +252,4 @@ class VnpayController extends Controller
 
         return $secureHash === $vnp_SecureHash;
     }
-
 }

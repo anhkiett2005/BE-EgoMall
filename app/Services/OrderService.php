@@ -1,12 +1,15 @@
 <?php
+
 namespace App\Services;
 
+use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-class OrderService {
+class OrderService
+{
 
     /**
      * Lấy toàn bộ danh sách  đơn hàng
@@ -14,8 +17,8 @@ class OrderService {
     public function modifyIndex()
     {
         try {
-            $orders = Order::with(['user', 'details','coupon'])
-                           ->get();
+            $orders = Order::with(['user', 'details', 'coupon'])
+                ->get();
 
             $listOrder = collect();
 
@@ -28,16 +31,21 @@ class OrderService {
                     'total_discount' => $order->total_discount,
                     'discount_details' => $order->discount_details,
                     'status' => $order->status,
+                    'mail_status' => $order->mail_status,
                     'note' => $order->note,
                     'shipping_name' => $order->shipping_name,
                     'shipping_phone' => $order->shipping_phone,
                     'shipping_email' => $order->shipping_email,
                     'shipping_address' => $order->shipping_address,
+                    'shipping_method_snapshot' => $order->shipping_method_snapshot,
+                    'shipping_fee' => $order->shipping_fee,
+                    'cancel_reason' => $order->cancel_reason,
                     'voucher' => $order->coupon?->code,
                     'payment_method' => $order->payment_method,
                     'payment_status' => $order->payment_status,
                     'payment_date' => $order->payment_date,
                     'transaction_id' => $order->transaction_id,
+                    'delivered_at' => optional($order->delivered_at)?->format('Y-m-d H:i:s'),
                     'created_at' => $order->created_at->format('Y-m-d H:i:s'),
                 ]);
             });
@@ -63,11 +71,11 @@ class OrderService {
     {
         try {
             $order = Order::with(['user', 'details', 'coupon'])
-                          ->where('unique_id', $uniqueId)
-                          ->first();
+                ->where('unique_id', $uniqueId)
+                ->first();
 
             // check nếu k có đơn hàng báo lỗi
-            if(!$order) {
+            if (!$order) {
                 throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
             }
 
@@ -81,16 +89,21 @@ class OrderService {
                 'total_discount' => $order->total_discount,
                 'discount_details' => $order->discount_details,
                 'status' => $order->status,
+                'mail_status' => $order->mail_status,
                 'note' => $order->note,
                 'shipping_name' => $order->shipping_name,
                 'shipping_phone' => $order->shipping_phone,
                 'shipping_email' => $order->shipping_email,
                 'shipping_address' => $order->shipping_address,
+                'shipping_method_snapshot' => $order->shipping_method_snapshot,
+                'shipping_fee' => $order->shipping_fee,
+                'cancel_reason' => $order->cancel_reason,
                 'voucher' => $order->coupon?->code,
                 'payment_method' => $order->payment_method,
                 'payment_status' => $order->payment_status,
                 'payment_date' => $order->payment_date,
                 'transaction_id' => $order->transaction_id,
+                'delivered_at' => optional($order->delivered_at)?->format('Y-m-d H:i:s'),
                 'created_at' => $order->created_at->format('Y-m-d H:i:s'),
             ]);
             return $orderDetail;
@@ -117,28 +130,32 @@ class OrderService {
         DB::beginTransaction();
         try {
             $data = $request->all();
+            $newStatus = $data['status'];
 
-            // Tìm đơn hàng để cập nhật trạng thái
-            $order = Order::where('unique_id',$uniqueId)
-                          ->first();
+            $order = Order::where('unique_id', $uniqueId)->first();
 
-            // Nếu không tìm thấy đơn hàng báo lỗi luôn
-            if(!$order) {
+            if (!$order) {
                 throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
             }
 
-            // Cập nhật trạng thái
             $order->update([
-                'status' => $data['status'],
+                'status' => $newStatus,
             ]);
 
-            DB::commit();
+            // Gửi mail nếu là các trạng thái cần gửi
+            $mailStatusesToSend = ['ordered', 'confirmed', 'delivered'];
 
+            if (in_array($newStatus, $mailStatusesToSend)) {
+                Common::sendOrderStatusMail($order, $newStatus);
+            }
+
+            DB::commit();
             return $order;
         } catch (ApiException $e) {
             DB::rollBack();
             throw $e;
         } catch (\Exception $e) {
+            DB::rollBack();
             logger('Log bug update status order', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),

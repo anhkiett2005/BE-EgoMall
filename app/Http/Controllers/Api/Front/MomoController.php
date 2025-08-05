@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Front;
 use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Jobs\SendOrderStatusMailJob;
 use App\Models\Order;
 use App\Response\ApiResponse;
 use Illuminate\Http\Request;
@@ -13,16 +14,18 @@ use Symfony\Component\HttpFoundation\Response;
 class MomoController extends Controller
 {
 
-    public function processPayment($order) {
+    public function processPayment($order)
+    {
         return Common::momoPayment($order);
     }
 
-    public function processRefundPayment($transId, $amount) {
+    public function processRefundPayment($transId, $amount)
+    {
         try {
             $isRefund = Common::refundMomoTransaction($transId, $amount);
 
             $order = Order::where('transaction_id', $transId)->first();
-            if($isRefund['resultCode'] == 0) {
+            if ($isRefund['resultCode'] == 0) {
                 // Hoàn lại số lượng từ đơn đã mua
                 Common::restoreOrderStock($order);
 
@@ -67,7 +70,7 @@ class MomoController extends Controller
         }
     }
 
-     // Xử lý IPN (Thông báo trạng thái thanh toán từ server MoMo)
+    // Xử lý IPN (Thông báo trạng thái thanh toán từ server MoMo)
     public function handleIPN(Request $request)
     {
         $data = $request->all();
@@ -111,8 +114,10 @@ class MomoController extends Controller
             $order->update([
                 'payment_status' => 'paid',
                 'payment_date' => now(),
-                'transaction_id' => $data['transId']
+                'transaction_id' => $data['transId'],
             ]);
+
+            Common::sendOrderStatusMail($order, 'ordered');
         }
 
         return ApiResponse::success('IPN processed successfully');

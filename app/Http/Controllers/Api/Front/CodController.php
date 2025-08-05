@@ -18,6 +18,8 @@ class CodController extends Controller
                 'transaction_id' => Common::generateCodTransactionId()
             ]);
 
+            Common::sendOrderStatusMail($order, 'ordered');
+
             return ApiResponse::success(data: [
                 'redirect_url' => env('FRONTEND_URL') . '/payment-result?status=success&order_id=' . $order->unique_id
             ]);
