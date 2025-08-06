@@ -232,6 +232,7 @@ Route::prefix('v1/admin')
         Route::controller('ProductController')->group(function () {
             Route::get('/products', 'index')->name('admin.products.index');
             Route::get('/product/{slug}', 'show')->name('admin.product.show');
+            Route::get('/product-by-id/{id}', 'showById')->name('admin.product.showById');
             Route::post('/products/create', 'store')->name('admin.products.store');
             Route::put('/products/{id}', 'update')->name('admin.products.update');
             Route::delete('/products/{slug}', 'destroy')->name('admin.products.destroy');

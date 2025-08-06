@@ -29,7 +29,7 @@ class ProductController extends Controller
     {
         $products = $this->productService->modifyIndex();
 
-        return ApiResponse::success('Lấy danh sách sản phẩm thành công!!',data: $products);
+        return ApiResponse::success('Lấy danh sách sản phẩm thành công!!', data: $products);
     }
 
     /**
@@ -40,8 +40,8 @@ class ProductController extends Controller
         try {
             $product = $this->productService->store($request);
 
-            if($product) {
-                return ApiResponse::success('Tạo sản phẩm thành công!!',Response::HTTP_CREATED);
+            if ($product) {
+                return ApiResponse::success('Tạo sản phẩm thành công!!', Response::HTTP_CREATED);
             }
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
@@ -55,10 +55,20 @@ class ProductController extends Controller
     {
         $product = $this->productService->showProduct($slug);
 
-        if($product) {
-            return ApiResponse::success('Lấy chi tiết sản phẩm thành công!!',data: $product);
+        if ($product) {
+            return ApiResponse::success('Lấy chi tiết sản phẩm thành công!!', data: $product);
         }
     }
+
+    public function showById($id)
+    {
+        $product = $this->productService->showProductById($id);
+
+        if ($product) {
+            return ApiResponse::success('Lấy chi tiết sản phẩm theo ID thành công!!', data: $product);
+        }
+    }
+
 
     /**
      * Update the specified resource in storage.
@@ -68,8 +78,8 @@ class ProductController extends Controller
         try {
             $isUpdated = $this->productService->update($request, $id);
 
-            if($isUpdated) {
-                return ApiResponse::success('Cập nhật sản phẩm thành công',data: $isUpdated);
+            if ($isUpdated) {
+                return ApiResponse::success('Cập nhật sản phẩm thành công', data: $isUpdated);
             }
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
@@ -84,7 +94,7 @@ class ProductController extends Controller
         try {
             $isDeleted = $this->productService->destroy($slug);
 
-            if($isDeleted) {
+            if ($isDeleted) {
                 return ApiResponse::success('Xóa sản phẩm thành công!!');
             }
         } catch (ApiException $e) {
