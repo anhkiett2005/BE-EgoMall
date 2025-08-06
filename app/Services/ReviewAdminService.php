@@ -87,8 +87,12 @@ class ReviewAdminService
             $query->where('status', $filters['status']);
         }
 
-        if (isset($filters['has_reply']) && $filters['has_reply'] === 'false') {
-            $query->whereDoesntHave('reply');
+        if (isset($filters['has_reply'])) {
+            if ($filters['has_reply'] === 'false') {
+                $query->whereDoesntHave('reply');
+            } elseif ($filters['has_reply'] === 'true') {
+                $query->whereHas('reply');
+            }
         }
 
         return $query->get();
