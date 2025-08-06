@@ -8,7 +8,7 @@ class UpdateUserStatusRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return auth('api')->check(); // Có thể thêm RoleMiddleware nếu cần
+        return true;
     }
 
     public function rules(): array

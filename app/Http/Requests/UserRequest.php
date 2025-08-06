@@ -16,9 +16,9 @@ class UserRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'nullable|regex:/^0\d{9}$/',
             'password' => 'nullable|string|min:6|confirmed',
-            'role_name' => 'required|in:admin,staff,customer',
+            'role_name' => 'required|in:admin,staff',
             'is_active' => 'nullable|boolean',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,svg,webp|max:10240',
         ];

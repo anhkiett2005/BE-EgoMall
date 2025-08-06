@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateUserRequest;
+use App\Http\Requests\UpdateUserStatusRequest;
 use App\Http\Requests\UserRequest;
 use App\Http\Resources\Admin\UserResource;
 use App\Response\ApiResponse;
@@ -39,15 +41,18 @@ class UserController extends Controller
     public function store(UserRequest $request): JsonResponse
     {
         $user = $this->userService->store($request->validated());
+        return ApiResponse::success('Tạo người dùng thành công!', 200, (new UserResource($user))->toArray($request));
+    }
 
-        return ApiResponse::success('Tạo người dùng thành công!', 201, [
-            'id' => $user->id,
-            'name' => $user->name,
-            'phone' => $user->phone,
-            'email' => $user->email,
-            'image' => $user->image,
-            'role' => $user->role->name,
-            'is_active' => $user->is_active,
-        ]);
+    public function update(UpdateUserRequest $request, int $id): JsonResponse
+    {
+        $user = $this->userService->update($request->validated(), $id);
+        return ApiResponse::success('Cập nhật người dùng thành công!', 200, (new UserResource($user))->toArray($request));
+    }
+
+    public function updateStatus(UpdateUserStatusRequest $request, int $id): JsonResponse
+    {
+        $user = $this->userService->updateStatus($id, $request->is_active);
+        return ApiResponse::success('Cập nhật trạng thái người dùng thành công!', 200, (new UserResource($user))->toArray($request));
     }
 }

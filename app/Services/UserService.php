@@ -85,6 +85,100 @@ class UserService
         }
     }
 
+    public function update(array $data, int $id)
+    {
+        DB::beginTransaction();
+        try {
+            $user = User::findOrFail($id);
+
+            $targetRoleName = $user->role->name;
+            if (!$this->checkCanManageRole($targetRoleName)) {
+                throw new ApiException('Bạn không có quyền cập nhật người dùng này!', Response::HTTP_FORBIDDEN);
+            }
+
+            // Nếu có cập nhật role
+            if (!empty($data['role_name']) && $data['role_name'] !== $targetRoleName) {
+                if (!$this->checkCanManageRole($data['role_name'])) {
+                    throw new ApiException('Không có quyền gán vai trò này!', Response::HTTP_FORBIDDEN);
+                }
+
+                $user->role_id = $this->getRoleIdByName($data['role_name']);
+            }
+
+            // Xử lý ảnh đại diện
+            if (request()->hasFile('image')) {
+                if (!empty($user->image)) {
+                    $publicId = Common::getCloudinaryPublicIdFromUrl($user->image);
+                    if ($publicId) {
+                        Common::deleteImageFromCloudinary($publicId);
+                    }
+                }
+
+                $data['image'] = Common::uploadImageToCloudinary(
+                    request()->file('image'),
+                    'egomall/avatars'
+                );
+            }
+
+            $user->name = $data['name'] ?? $user->name;
+            $user->phone = $data['phone'] ?? $user->phone;
+            $user->is_active = $data['is_active'] ?? $user->is_active;
+            $user->image = $data['image'] ?? $user->image;
+
+            $user->save();
+
+            DB::commit();
+
+            return $user->load('role');
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug update user', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Không thể cập nhật người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
+    public function updateStatus(int $id, bool $status)
+    {
+        DB::beginTransaction();
+        try {
+            $user = User::with('role')->findOrFail($id);
+
+            $targetRoleName = $user->role->name;
+            if (!$this->checkCanManageRole($targetRoleName)) {
+                throw new ApiException('Bạn không có quyền cập nhật trạng thái người dùng này!', Response::HTTP_FORBIDDEN);
+            }
+
+            $user->is_active = $status;
+            $user->save();
+
+            DB::commit();
+            return $user->load('role');
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug update status user', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Không thể cập nhật trạng thái người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
+
     protected function checkCanManageRole(string $targetRole): bool
     {
         $currentRole = auth('api')->user()->role->name;

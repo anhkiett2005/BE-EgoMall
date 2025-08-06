@@ -343,6 +343,17 @@ Route::prefix('v1/admin')
                 Route::post('/', 'store')
                     ->middleware('role:super-admin,admin')
                     ->name('admin.users.store');
+
+                // Super-admin update (admin, staff) / admin update (staff)
+                Route::post('/{id}', 'update')
+                    ->middleware('role:super-admin,admin')
+                    ->name('admin.users.update');
+
+                 // Super-admin update status (admin, staff, customer) / admin update status(staff, customer)
+                Route::put('/{id}/status', 'updateStatus')
+                    ->middleware('role:super-admin,admin')
+                    ->name('admin.users.update-status');
+
             });
     });
 
