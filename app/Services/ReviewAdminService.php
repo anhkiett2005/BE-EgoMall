@@ -98,6 +98,23 @@ class ReviewAdminService
         return $query->get();
     }
 
+    public function show(int $reviewId): Review
+    {
+        $review = Review::with([
+            'user:id,name,email,image',
+            'images',
+            'reply.user:id,name',
+            'orderDetail.productVariant.product:id,name,slug'
+        ])->find($reviewId);
+
+        if (!$review) {
+            throw new ApiException('Không tìm thấy đánh giá!', Response::HTTP_NOT_FOUND);
+        }
+
+        return $review;
+    }
+
+
 
     public function updateStatus(int $reviewId, string $status): Review
     {

@@ -216,6 +216,7 @@ Route::prefix('v1/admin')
         Route::controller('ReviewAdminController')
             ->group(function () {
                 Route::get('/reviews', 'index');
+                Route::get('/reviews/{reviewId}', 'show');
                 Route::put('/reviews/{reviewId}/status', 'updateStatus');
                 Route::delete('/reviews/{reviewId}', 'destroy');
             });
