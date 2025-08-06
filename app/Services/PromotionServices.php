@@ -166,7 +166,7 @@ class PromotionServices
                 }
             }
 
-            if($promotion->productVariants->isNotEmpty()) {
+            if ($promotion->productVariants->isNotEmpty()) {
                 foreach ($promotion->productVariants as $variant) {
                     $applied->push([
                         'type' => 'variant',
@@ -276,6 +276,21 @@ class PromotionServices
             }
 
             DB::commit();
+
+            // Nếu promotion active → gửi mail cho tất cả user đã xác thực
+            if ($promotion->status === 1) {
+                try {
+                    Common::sendPromotionEmails($promotion);
+                } catch (\Throwable $e) {
+                    logger()->error('Gửi mail thất bại sau khi tạo promotion', [
+                        'promotion_id' => $promotion->id,
+                        'error_message' => $e->getMessage(),
+                        'stack_trace' => $e->getTraceAsString(),
+                    ]);
+                }
+            }
+
+
             return $promotion; // Trả về model instance (có thể query tiếp)
         } catch (ApiException $e) {
             DB::rollBack();
@@ -362,7 +377,7 @@ class PromotionServices
 
             $hasActivePromotion = Promotion::where('status', '=', 1)->exists();
 
-            if($hasActivePromotion && $data['status'] == true) {
+            if ($hasActivePromotion && $data['status'] == true) {
                 throw new ApiException('Không thể cập nhật trạng thái hoạt động vì đang có chương trình đang diễn ra!!', Response::HTTP_CONFLICT);
             }
 
@@ -381,7 +396,7 @@ class PromotionServices
                 'gift_product_id' => $data['gift_product_id'] ?? null,
                 'gift_product_variant_id' => $data['gift_product_variant_id'] ?? null,
             ]);
-            
+
             // Sync sản phẩm áp dụng
             Common::syncApplicableProducts($promotion, $data['applicable_products']);
 
