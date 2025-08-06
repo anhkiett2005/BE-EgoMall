@@ -4,9 +4,12 @@ namespace App\Classes;
 
 use App\Exceptions\ApiException;
 use App\Jobs\SendOrderStatusMailJob;
+use App\Jobs\SendPromotionMailJob;
+use App\Jobs\SendSetPasswordMailJob;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\Promotion;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -595,5 +598,31 @@ class Common
         } catch (\Throwable $e) {
             logger()->error("Gửi mail thất bại (Order ID: {$order->id}) - Status: {$status} - Lỗi: {$e->getMessage()}");
         }
+    }
+
+    public static function sendSetPasswordMail(User $user, string $roleName): void
+    {
+        try {
+            SendSetPasswordMailJob::dispatch($user, $roleName);
+        } catch (\Throwable $e) {
+            logger()->error("Gửi mail thiết lập mật khẩu thất bại (User ID: {$user->id}) - Lỗi: {$e->getMessage()}");
+        }
+    }
+
+    public static function sendPromotionEmails(Promotion $promotion): void
+    {
+        $query = User::where('role_id', 4)
+            ->where('is_active', true)
+            ->whereNotNull('email_verified_at');
+
+        if (!$query->exists()) {
+            return;
+        }
+
+        $query->chunk(100, function ($customers) use ($promotion) {
+            foreach ($customers as $customer) {
+                dispatch(new SendPromotionMailJob($customer, $promotion));
+            }
+        });
     }
 }

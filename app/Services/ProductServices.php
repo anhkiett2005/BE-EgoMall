@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use App\Classes\Common;
@@ -14,7 +15,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-class ProductServices {
+class ProductServices
+{
 
     /**
      * Lấy toàn bộ danh sách products
@@ -22,86 +24,86 @@ class ProductServices {
     public function modifyIndex()
     {
         try {
-        // lấy product and các vairant và đánh giá trung bình review về sản phẩm này
-        $products = Product::with([
-            'category',
-            'brand',
-            'variants' => function($query) {
-                     $query->where('is_active', '!=', 0)
-                           ->with([
-                                'images',
-                                'values',
-                            ]);
-            }
-        ])
-        ->where('is_active', '!=', 0)
-        ->get();
+            // lấy product and các vairant và đánh giá trung bình review về sản phẩm này
+            $products = Product::with([
+                'category',
+                'brand',
+                'variants' => function ($query) {
+                    $query->where('is_active', '!=', 0)
+                        ->with([
+                            'images',
+                            'values',
+                        ]);
+                }
+            ])
+                ->where('is_active', '!=', 0)
+                ->get();
 
-        $productLists = $products->map(function($product): array {
+            $productLists = $products->map(function ($product): array {
 
-            return [
-                'id' => $product->id,
-                'name' => $product->name,
-                'slug' => $product->slug,
-                'category' => $product->category->id,
-                'brand' => $product->brand->id ?? null,
-                'type_skin' => $product->type_skin ?? null,
-                'description' => $product->description ?? null,
-                'image' => $product->image ?? null,
-                'is_active' => $product->is_active,
-                'created_at' => $product->created_at->format('Y-m-d H:i:s'),
-                'option_selecteds' => $product->variants
-                                ->flatMap(function ($variant) {
-                                    return $variant->values;
-                                })
-                                ->groupBy(fn ($value) => $value->option->id ?? null)
-                                ->filter(fn ($group, $optionId) => $optionId !== null)
-                                ->map(function ($group, $optionId) {
-                                    $option = $group->first()->option;
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'slug' => $product->slug,
+                    'category' => $product->category->id,
+                    'brand' => $product->brand->id ?? null,
+                    'type_skin' => $product->type_skin ?? null,
+                    'description' => $product->description ?? null,
+                    'image' => $product->image ?? null,
+                    'is_active' => $product->is_active,
+                    'created_at' => $product->created_at->format('Y-m-d H:i:s'),
+                    'option_selecteds' => $product->variants
+                        ->flatMap(function ($variant) {
+                            return $variant->values;
+                        })
+                        ->groupBy(fn($value) => $value->option->id ?? null)
+                        ->filter(fn($group, $optionId) => $optionId !== null)
+                        ->map(function ($group, $optionId) {
+                            $option = $group->first()->option;
 
+                            return [
+                                'id' => $option->id,
+                                'name' => $option->name,
+                                'values' => $group->map(function ($value) {
                                     return [
-                                        'id' => $option->id,
-                                        'name' => $option->name,
-                                        'values' => $group->map(function ($value) {
-                                            return [
-                                                'id' => $value->id,
-                                                'value' => $value->value,
-                                            ];
-                                        })->unique('id')->flatten()->toArray(), // bỏ key
+                                        'id' => $value->id,
+                                        'value' => $value->value,
                                     ];
-                                })->values(),
-                'variants' => $product->variants->map(function($variant) {
-                    return [
-                        'id' => $variant->id,
-                        'sku' => $variant->sku,
-                        'price' => $variant->price,
-                        'sale_price' => $variant->sale_price,
-                        'quantity' => $variant->quantity,
-                        'is_active' => $variant->is_active,
-                        'option_value_ids' => $variant->values->pluck('id')->toArray(),
-                        'option_labels' => $variant->values->map(function ($label) {
-                            return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
-                        })->implode(' | '),
-                        'images' => $variant->images->map(function($img) {
-                            return [
-                                'id' => $img->id,
-                                'url' => $img->image_url
+                                })->unique('id')->flatten()->toArray(), // bỏ key
                             ];
                         })->values(),
-                        'option_transform' => $variant->values->map(function ($value) {
-                            return [
-                                'name' => $value->option->name,
-                                'value' => $value->value
-                            ];
-                        })->values(),
-                    ];
-                })->values(),
-            ];
-        });
+                    'variants' => $product->variants->map(function ($variant) {
+                        return [
+                            'id' => $variant->id,
+                            'sku' => $variant->sku,
+                            'price' => $variant->price,
+                            'sale_price' => $variant->sale_price,
+                            'quantity' => $variant->quantity,
+                            'is_active' => $variant->is_active,
+                            'option_value_ids' => $variant->values->pluck('id')->toArray(),
+                            'option_labels' => $variant->values->map(function ($label) {
+                                return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
+                            })->implode(' | '),
+                            'images' => $variant->images->map(function ($img) {
+                                return [
+                                    'id' => $img->id,
+                                    'url' => $img->image_url
+                                ];
+                            })->values(),
+                            'option_transform' => $variant->values->map(function ($value) {
+                                return [
+                                    'name' => $value->option->name,
+                                    'value' => $value->value
+                                ];
+                            })->values(),
+                        ];
+                    })->values(),
+                ];
+            });
 
-        return $productLists;
+            return $productLists;
         } catch (Exception $e) {
-            logger('Log bug modify product',[
+            logger('Log bug modify product', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -122,19 +124,19 @@ class ProductServices {
         try {
             // Tạo sản phẩm chứa thông tin chung
             $product = Product::create([
-                    'name' => $data['name'],
-                    'slug' => Str::slug($data['name']) ?? null,
-                    'category_id' => $data['category_id'],
-                    'is_active' => $data['is_active'],
-                    'brand_id' => $data['brand_id'] ?? null,
-                    'type_skin' => $data['type_skin'] ?? null,
-                    'description' => $data['description'] ?? null,
-                    'image' => $data['image'] ?? null
+                'name' => $data['name'],
+                'slug' => Str::slug($data['name']) ?? null,
+                'category_id' => $data['category_id'],
+                'is_active' => $data['is_active'],
+                'brand_id' => $data['brand_id'] ?? null,
+                'type_skin' => $data['type_skin'] ?? null,
+                'description' => $data['description'] ?? null,
+                'image' => $data['image'] ?? null
             ]);
 
             // Nếu có biến thể
-            if(!empty($data['variants'])) {
-                foreach($data['variants'] as $variant) {
+            if (!empty($data['variants'])) {
+                foreach ($data['variants'] as $variant) {
                     // // Tạo name cho variant
                     // $variantName = Common::generateVariantName($product->name, $variant['options']);
 
@@ -146,12 +148,12 @@ class ProductServices {
                         'is_active' => $variant['is_active']
                     ]);
 
-                    foreach($variant['options'] as $optionId => $optionValue) {
+                    foreach ($variant['options'] as $optionId => $optionValue) {
 
                         // check nếu không nằm trong category_option thì báo lỗi
-                        $isValidOption = CategoryOption::where('category_id','=',$product->category_id)
-                                                       ->where('variant_option_id', '=', $optionId)
-                                                       ->exists();
+                        $isValidOption = CategoryOption::where('category_id', '=', $product->category_id)
+                            ->where('variant_option_id', '=', $optionId)
+                            ->exists();
 
                         if (!$isValidOption) {
                             throw new ApiException("Option Id {$optionId} không hợp lệ với danh mục {$product->category->name}", 400);
@@ -169,7 +171,7 @@ class ProductServices {
                     }
 
                     //  thêm hình ảnh cho variant
-                    foreach($variant['images'] as $image) {
+                    foreach ($variant['images'] as $image) {
                         $productVariant->images()->create([
                             'image_url' => $image['url']
                         ]);
@@ -180,12 +182,12 @@ class ProductServices {
             DB::commit();
 
             return $product;
-        } catch(ApiException $e) {
+        } catch (ApiException $e) {
             DB::rollBack();
             throw $e;
         } catch (Exception $e) {
             DB::rollBack();
-            logger('Log bug',[
+            logger('Log bug', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -193,7 +195,6 @@ class ProductServices {
             ]);
             throw new ApiException('Có lỗi xảy ra!!!');
         }
-
     }
 
     /**
@@ -206,63 +207,63 @@ class ProductServices {
             $product = Product::with([
                 'category',
                 'brand',
-                'variants' => function($query) {
-                        $query->where('is_active', '!=', 0)
-                            ->with([
-                                    'images',
-                                    'values',
-                                ]);
+                'variants' => function ($query) {
+                    $query->where('is_active', '!=', 0)
+                        ->with([
+                            'images',
+                            'values',
+                        ]);
                 }
             ])
-            ->where('is_active', '!=', 0)
-            ->where('slug', '=', $slug)
-            ->first();
+                ->where('is_active', '!=', 0)
+                ->where('slug', '=', $slug)
+                ->first();
 
-            if(!$product) {
+            if (!$product) {
                 throw new ApiException('Không tìm thấy sản phẩm!!', 404);
             }
 
             $productDetails = collect();
 
             $productDetails->push([
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'slug' => $product->slug,
-                    'category' => $product->category->id,
-                    'brand' => $product->brand->id ?? null,
-                    'type_skin' => $product->type_skin ?? null,
-                    'description' => $product->description ?? null,
-                    'image' => $product->image ?? null,
-                    'is_active' => $product->is_active,
-                    'created_at' => $product->created_at->format('Y-m-d H:i:s'),
-                    'variants' => $product->variants->map(function($variant) {
-                        return [
-                            'id' => $variant->id,
-                            'sku' => $variant->sku,
-                            'price' => $variant->price,
-                            'sale_price' => $variant->sale_price,
-                            'quantity' => $variant->quantity,
-                            'is_active' => $variant->is_active,
-                            'images' => $variant->images->map(function($img) {
-                                return [
-                                    'url' => $img->image_url
-                                ];
-                            })->values(),
-                            'options' => $variant->values->map(function ($value) {
-                                return [
-                                    'name' => $value->option->name,
-                                    'value' => $value->value
-                                ];
-                            })->values(),
-                        ];
-                    })->values(),
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'category' => $product->category->id,
+                'brand' => $product->brand->id ?? null,
+                'type_skin' => $product->type_skin ?? null,
+                'description' => $product->description ?? null,
+                'image' => $product->image ?? null,
+                'is_active' => $product->is_active,
+                'created_at' => $product->created_at->format('Y-m-d H:i:s'),
+                'variants' => $product->variants->map(function ($variant) {
+                    return [
+                        'id' => $variant->id,
+                        'sku' => $variant->sku,
+                        'price' => $variant->price,
+                        'sale_price' => $variant->sale_price,
+                        'quantity' => $variant->quantity,
+                        'is_active' => $variant->is_active,
+                        'images' => $variant->images->map(function ($img) {
+                            return [
+                                'url' => $img->image_url
+                            ];
+                        })->values(),
+                        'options' => $variant->values->map(function ($value) {
+                            return [
+                                'name' => $value->option->name,
+                                'value' => $value->value
+                            ];
+                        })->values(),
+                    ];
+                })->values(),
             ]);
 
             return $productDetails;
         } catch (ApiException $e) {
             throw $e;
         } catch (Exception $e) {
-            logger('Log bug show product',[
+            logger('Log bug show product', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -271,6 +272,74 @@ class ProductServices {
             throw new ApiException('Có lỗi xảy ra');
         }
     }
+
+    public static function showProductById(int $id)
+    {
+        try {
+            $product = Product::with([
+                'category',
+                'brand',
+                'variants' => function ($query) {
+                    $query->where('is_active', '!=', 0)
+                        ->with(['images', 'values']);
+                }
+            ])
+                ->where('is_active', '!=', 0)
+                ->where('id', '=', $id)
+                ->first();
+
+            if (!$product) {
+                throw new ApiException('Không tìm thấy sản phẩm!!', 404);
+            }
+
+            $productDetails = collect();
+
+            $productDetails->push([
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'category' => $product->category->id,
+                'brand' => $product->brand->id ?? null,
+                'type_skin' => $product->type_skin ?? null,
+                'description' => $product->description ?? null,
+                'image' => $product->image ?? null,
+                'is_active' => $product->is_active,
+                'created_at' => $product->created_at->format('Y-m-d H:i:s'),
+                'variants' => $product->variants->map(function ($variant) {
+                    return [
+                        'id' => $variant->id,
+                        'sku' => $variant->sku,
+                        'price' => $variant->price,
+                        'sale_price' => $variant->sale_price,
+                        'quantity' => $variant->quantity,
+                        'is_active' => $variant->is_active,
+                        'images' => $variant->images->map(function ($img) {
+                            return ['url' => $img->image_url];
+                        })->values(),
+                        'options' => $variant->values->map(function ($value) {
+                            return [
+                                'name' => $value->option->name,
+                                'value' => $value->value
+                            ];
+                        })->values(),
+                    ];
+                })->values(),
+            ]);
+
+            return $productDetails;
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (Exception $e) {
+            logger('Log bug show product by id', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra');
+        }
+    }
+
 
     /**
      * Cập nhật một product
@@ -285,7 +354,7 @@ class ProductServices {
             // Tìm sản phẩm
             $product = Product::find($id);
 
-            if(!$product) {
+            if (!$product) {
                 throw new ApiException('Không tìm thấy sản phẩm!!', 404);
             }
 
@@ -314,36 +383,36 @@ class ProductServices {
 
             $data = [
                 'id' => $product->id,
-                    'name' => $product->name,
-                    'slug' => $product->slug,
-                    'category' => $product->category->id,
-                    'brand' => $product->brand->id,
-                    'type_skin' => $product->type_skin,
-                    'description' => $product->description,
-                    'image' => $product->image,
-                    'is_active' => $product->is_active,
-                    'created_at' => $product->created_at->format('Y-m-d H:i:s'),
-                    'option_selecteds' => $product->variants
-                                ->flatMap(function ($variant) {
-                                    return $variant->values;
-                                })
-                                ->groupBy(fn ($value) => $value->option->id ?? null)
-                                ->filter(fn ($group, $optionId) => $optionId !== null)
-                                ->map(function ($group, $optionId) {
-                                    $option = $group->first()->option;
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'category' => $product->category->id,
+                'brand' => $product->brand->id,
+                'type_skin' => $product->type_skin,
+                'description' => $product->description,
+                'image' => $product->image,
+                'is_active' => $product->is_active,
+                'created_at' => $product->created_at->format('Y-m-d H:i:s'),
+                'option_selecteds' => $product->variants
+                    ->flatMap(function ($variant) {
+                        return $variant->values;
+                    })
+                    ->groupBy(fn($value) => $value->option->id ?? null)
+                    ->filter(fn($group, $optionId) => $optionId !== null)
+                    ->map(function ($group, $optionId) {
+                        $option = $group->first()->option;
 
-                                    return [
-                                        'id' => $option->id,
-                                        'name' => $option->name,
-                                        'values' => $group->map(function ($value) {
-                                            return [
-                                                'id' => $value->id,
-                                                'value' => $value->value,
-                                            ];
-                                        })->unique('id')->flatten()->toArray(), // bỏ key
-                                    ];
-                                })->values(),
-                'variants' => $product->variants->map(function($variant) {
+                        return [
+                            'id' => $option->id,
+                            'name' => $option->name,
+                            'values' => $group->map(function ($value) {
+                                return [
+                                    'id' => $value->id,
+                                    'value' => $value->value,
+                                ];
+                            })->unique('id')->flatten()->toArray(), // bỏ key
+                        ];
+                    })->values(),
+                'variants' => $product->variants->map(function ($variant) {
                     return [
                         'id' => $variant->id,
                         'sku' => $variant->sku,
@@ -355,7 +424,7 @@ class ProductServices {
                         'option_labels' => $variant->values->map(function ($label) {
                             return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
                         })->implode(' | '),
-                        'images' => $variant->images->map(function($img) {
+                        'images' => $variant->images->map(function ($img) {
                             return [
                                 'id' => $img->id,
                                 'url' => $img->image_url
@@ -371,13 +440,12 @@ class ProductServices {
                 })->values(),
             ];
             return $data;
-        } catch(ApiException $e) {
+        } catch (ApiException $e) {
             DB::rollBack();
             throw $e;
-        }
-        catch(Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
-            logger('Log bug update product',[
+            logger('Log bug update product', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
@@ -397,10 +465,10 @@ class ProductServices {
         try {
             // Tìm sản phẩm muốn xóa
             $product = Product::where('slug', '=', $slug)
-                              ->first();
+                ->first();
 
             // Nếu không tìm thấy trả về lỗi
-            if(!$product) {
+            if (!$product) {
                 throw new ApiException('Không tìm thấy sản phẩm!!', 404);
             }
 
@@ -415,7 +483,7 @@ class ProductServices {
             throw $e;
         } catch (Exception $e) {
             DB::rollBack();
-            logger('Log bug delete product',[
+            logger('Log bug delete product', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),

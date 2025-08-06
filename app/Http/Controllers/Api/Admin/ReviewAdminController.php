@@ -25,6 +25,14 @@ class ReviewAdminController extends Controller
         return ApiResponse::success('Danh sách đánh giá', 200, ReviewAdminResource::collection($reviews)->toArray($request));
     }
 
+    public function show(int $reviewId)
+    {
+        $review = $this->reviewAdminService->show($reviewId);
+
+        return ApiResponse::success('Chi tiết đánh giá', 200, (new ReviewAdminResource($review))->toArray(request()));
+    }
+
+
     public function updateStatus(Request $request, int $id)
     {
         $request->validate([

@@ -2,120 +2,134 @@
 
 namespace App\Services;
 
+use App\Classes\Common;
 use App\Exceptions\ApiException;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Str;
 
 class UserService
 {
-
-    /**
-     * Lấy toàn bộ danh sách users
-     */
-
-    public function modifyIndex()
+    public function getUsersByRole(array $roles)
     {
         try {
-            // Lấy all users trong hệ thống
-            $users = User::with(['role'])
+            return User::with('role')
+                ->whereHas('role', fn($q) => $q->whereIn('name', $roles))
                 ->get();
-
-            // Xử lý dữ liệu
-            $listUser = collect();
-
-            $users->each(function ($user) use ($listUser) {
-                $listUser->push([
-                    'id' => $user->id,
-                    'name' => $user->email,
-                    'phone' => $user->phone,
-                    'email_verified_at' => $user->email_verified_at?->format('d-m-Y H:i:s'),
-                    'image' => $user->image,
-                    'role' => $user->role->id,
-                    'is_active' => $user->is_active,
-                    'created_at' => $user->created_at->format('d-m-Y H:i:s'),
-                    'updated_at' => $user->updated_at->format('d-m-Y H:i:s'),
-                ]);
-            });
-
-            return $listUser;
         } catch (\Exception $e) {
-            logger('Log bug modify user', [
+            logger('Log bug getUsersByRole', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
-            throw new ApiException('Có lỗi xảy ra!!', 500);
+
+            throw new ApiException('Không thể lấy danh sách người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
-    /**
-     * Lấy chi tiết 1 users
-     */
-    public function show(string $id)
-    {
-        try {
-            // Tìm user
-            $user = User::with(['role'])
-                ->where('id', '=', $id)
-                ->first();
-
-            if (!$user) {
-                throw new ApiException('Không tìm thấy tài khoản trong hệ thống!!', 404);
-            }
-
-            $userDetail = collect();
-
-            $userDetail->push([
-                'id' => $user->id,
-                'name' => $user->email,
-                'phone' => $user->phone,
-                'email_verified_at' => $user->email_verified_at?->format('d-m-Y H:i:s'),
-                'image' => $user->image,
-                'role' => $user->role->id,
-                'is_active' => $user->is_active,
-                'created_at' => $user->created_at->format('d-m-Y H:i:s'),
-                'updated_at' => $user->updated_at->format('d-m-Y H:i:s'),
-            ]);
-
-            return $userDetail;
-        } catch (ApiException $e) {
-            throw $e;
-        } catch (\Exception $e) {
-            logger('Log bug show user', [
-                'error_message' => $e->getMessage(),
-                'error_file' => $e->getFile(),
-                'error_line' => $e->getLine(),
-                'stack_trace' => $e->getTraceAsString()
-            ]);
-            throw new ApiException('Có lỗi xảy ra!!', 500);
-        }
-    }
-
-    /**
-     * Cập nhật một User
-     */
-    public function update($request, string $id)
+    public function store(array $data)
     {
         DB::beginTransaction();
         try {
-            $user = User::find($id);
-            if (!$user) {
-                throw new ApiException('Không tìm thấy tài khoản trong hệ thống!!', Response::HTTP_NOT_FOUND);
+            $roleName = $data['role_name'];
+            $rawPassword = $data['password'] ?? Str::random(8);
+
+            if (!$this->checkCanManageRole($roleName)) {
+                throw new ApiException('Bạn không có quyền tạo tài khoản với vai trò này!', Response::HTTP_FORBIDDEN);
             }
 
-            $data = $request->only(['is_active']);
-            $user->update($data);
+            if (request()->hasFile('image')) {
+                $data['image'] = Common::uploadImageToCloudinary(request()->file('image'), 'egomall/avatars');
+            }
+
+            $user = User::create([
+                'name' => $data['name'],
+                'email' => $data['email'],
+                'phone' => $data['phone'] ?? null,
+                'password' => Hash::make($rawPassword),
+                'role_id' => $this->getRoleIdByName($roleName),
+                'is_active' => $data['is_active'] ?? true,
+                'image' => $data['image'] ?? null,
+            ]);
 
             DB::commit();
 
-            return [
-                'id'         => $user->id,
-                'email'      => $user->email,
-                'is_active'  => $user->is_active,
-                'updated_at' => $user->updated_at->format('d-m-Y H:i:s'),
-            ];
+            // Gửi mail yêu cầu đặt lại mật khẩu
+            try {
+                Common::sendSetPasswordMail($user, $roleName);
+            } catch (\Throwable $e) {
+                logger()->error('Gửi mail thất bại sau khi tạo user', [
+                    'user_id' => $user->id,
+                    'error_message' => $e->getMessage(),
+                    'stack_trace' => $e->getTraceAsString()
+                ]);
+            }
+
+            return $user;
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug store user', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Không thể tạo người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function update(array $data, int $id)
+    {
+        DB::beginTransaction();
+        try {
+            $user = User::findOrFail($id);
+
+            $targetRoleName = $user->role->name;
+            if (!$this->checkCanManageRole($targetRoleName)) {
+                throw new ApiException('Bạn không có quyền cập nhật người dùng này!', Response::HTTP_FORBIDDEN);
+            }
+
+            // Nếu có cập nhật role
+            if (!empty($data['role_name']) && $data['role_name'] !== $targetRoleName) {
+                if (!$this->checkCanManageRole($data['role_name'])) {
+                    throw new ApiException('Không có quyền gán vai trò này!', Response::HTTP_FORBIDDEN);
+                }
+
+                $user->role_id = $this->getRoleIdByName($data['role_name']);
+            }
+
+            // Xử lý ảnh đại diện
+            if (request()->hasFile('image')) {
+                if (!empty($user->image)) {
+                    $publicId = Common::getCloudinaryPublicIdFromUrl($user->image);
+                    if ($publicId) {
+                        Common::deleteImageFromCloudinary($publicId);
+                    }
+                }
+
+                $data['image'] = Common::uploadImageToCloudinary(
+                    request()->file('image'),
+                    'egomall/avatars'
+                );
+            }
+
+            $user->name = $data['name'] ?? $user->name;
+            $user->phone = $data['phone'] ?? $user->phone;
+            $user->is_active = $data['is_active'] ?? $user->is_active;
+            $user->image = $data['image'] ?? $user->image;
+
+            $user->save();
+
+            DB::commit();
+
+            return $user->load('role');
         } catch (ApiException $e) {
             DB::rollBack();
             throw $e;
@@ -123,11 +137,64 @@ class UserService
             DB::rollBack();
             logger('Log bug update user', [
                 'error_message' => $e->getMessage(),
-                'error_file'    => $e->getFile(),
-                'error_line'    => $e->getLine(),
-                'stack_trace'   => $e->getTraceAsString()
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
             ]);
-            throw new ApiException('Có lỗi xảy ra!!', 500);
+            throw new ApiException('Không thể cập nhật người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+    }
+
+
+    public function updateStatus(int $id, bool $status)
+    {
+        DB::beginTransaction();
+        try {
+            $user = User::with('role')->findOrFail($id);
+
+            $targetRoleName = $user->role->name;
+            if (!$this->checkCanManageRole($targetRoleName)) {
+                throw new ApiException('Bạn không có quyền cập nhật trạng thái người dùng này!', Response::HTTP_FORBIDDEN);
+            }
+
+            $user->is_active = $status;
+            $user->save();
+
+            DB::commit();
+            return $user->load('role');
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug update status user', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Không thể cập nhật trạng thái người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
+
+    protected function checkCanManageRole(string $targetRole): bool
+    {
+        $currentRole = auth('api')->user()->role->name;
+
+        $allowed = match ($currentRole) {
+            'super-admin' => ['admin', 'staff', 'customer'],
+            'admin'       => ['staff', 'customer'],
+            default       => []
+        };
+
+        return in_array($targetRole, $allowed);
+    }
+
+    protected function getRoleIdByName(string $roleName): int
+    {
+        return Role::where('name', $roleName)->value('id')
+            ?? throw new ApiException('Vai trò không tồn tại!', Response::HTTP_BAD_REQUEST);
     }
 }

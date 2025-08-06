@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Classes\Common;
 use App\Jobs\SendPromotionMailJob;
 use App\Models\Promotion;
 use App\Models\User;
@@ -61,34 +62,18 @@ class ActivatePromotions extends Command
             if (!$hasConflict) {
                 $promotion->update(['status' => 1]);
 
-                $totalRecipients = User::where('role_id', 4)
-                    ->where('is_active', true)
-                    ->whereNotNull('email_verified_at')
-                    ->count();
+                try {
+                    Common::sendPromotionEmails($promotion);
+                } catch (\Throwable $e) {
+                    logger()->error('Gửi mail thất bại khi kích hoạt promotion', [
+                        'promotion_id' => $promotion->id,
+                        'error_message' => $e->getMessage(),
+                        'stack_trace' => $e->getTraceAsString(),
+                    ]);
 
-                if ($totalRecipients === 0) {
-                    $promotion->update(['is_mail_sent' => true]);
-                    $this->info("Không có khách hàng nào nhận được mail.");
-                } else {
-                    $firstBatch = true;
-
-                    User::where('role_id', 4)
-                        ->where('is_active', true)
-                        ->whereNotNull('email_verified_at')
-                        ->chunk(100, function ($customers) use ($promotion, &$firstBatch) {
-                            $count = $customers->count();
-                            echo "⏳ Đang gửi mail cho {$count} khách hàng...\n";
-
-                            foreach ($customers as $customer) {
-                                SendPromotionMailJob::dispatch($customer, $promotion);
-                            }
-
-                            if ($firstBatch) {
-                                Promotion::where('id', $promotion->id)->update(['is_mail_sent' => true]);
-                                $firstBatch = false;
-                            }
-                        });
+                    $this->error("Lỗi khi gửi mail: " . $e->getMessage());
                 }
+
 
                 $this->info("Đã kích hoạt và gửi mail chương trình khuyến mãi: {$promotion->name}");
                 return;

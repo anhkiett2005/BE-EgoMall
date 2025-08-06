@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Services;
 
 use App\Exceptions\ApiException;
@@ -7,7 +8,8 @@ use App\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
-class RoleManagementService {
+class RoleManagementService
+{
 
     /**
      * Lấy toàn bộ role trong hệ thống, loại trừ role đang đăng nhập
@@ -24,22 +26,24 @@ class RoleManagementService {
 
             $currentRole = $currentUser->role->name;
 
-            // Danh sách role không bao giờ được hiển thị
+            // Danh sách role bị loại trừ luôn
             $excludedRoles = ['customer', $currentRole];
 
-            // Nếu không phải super-admin thì cũng không thấy super-admin
+            // Nếu không phải super-admin thì ẩn cả super-admin và admin (chỉ được tạo staff)
             if ($currentRole !== 'super-admin') {
                 $excludedRoles[] = 'super-admin';
+                $excludedRoles[] = 'admin';
             }
 
             $roles = Role::with(['permissions'])
-                         ->whereNotIn('name', $excludedRoles)
-                         ->get();
+                ->whereNotIn('name', $excludedRoles)
+                ->get();
 
             return $roles->map(function ($role) {
                 return [
                     'id' => $role->id,
                     'name' => $role->name,
+                    'display_name' => $role->display_name,
                     'perms' => $role->permissions->pluck('id')->toArray()
                 ];
             });
@@ -67,7 +71,7 @@ class RoleManagementService {
 
             $permissions = Permission::get();
 
-            $permissions->each(fn ($permission) => $permissionList->push([
+            $permissions->each(fn($permission) => $permissionList->push([
                 'id' => $permission->id,
                 'name' => $permission->name,
                 'display_name' => $permission->display_name,
@@ -134,12 +138,12 @@ class RoleManagementService {
             // Tìm role đang update, nếu kh throw exception
             $role = Role::find($roleId);
 
-            if(!$role) {
+            if (!$role) {
                 throw new ApiException('Không tìm thấy vai trò này!!', Response::HTTP_NOT_FOUND);
             }
 
             // check nếu là role hệ thống thì k cho update role
-            if($role->is_system && isset($data['role']['name']) && $data['role']['name'] !== $role->name) {
+            if ($role->is_system && isset($data['role']['name']) && $data['role']['name'] !== $role->name) {
                 throw new ApiException('Không được cập nhật lại vai trò mặc định trong hệ thống!!', Response::HTTP_BAD_REQUEST);
             }
 

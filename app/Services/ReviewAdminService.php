@@ -87,12 +87,33 @@ class ReviewAdminService
             $query->where('status', $filters['status']);
         }
 
-        if (isset($filters['has_reply']) && $filters['has_reply'] === 'false') {
-            $query->whereDoesntHave('reply');
+        if (isset($filters['has_reply'])) {
+            if ($filters['has_reply'] === 'false') {
+                $query->whereDoesntHave('reply');
+            } elseif ($filters['has_reply'] === 'true') {
+                $query->whereHas('reply');
+            }
         }
 
         return $query->get();
     }
+
+    public function show(int $reviewId): Review
+    {
+        $review = Review::with([
+            'user:id,name,email,image',
+            'images',
+            'reply.user:id,name',
+            'orderDetail.productVariant.product:id,name,slug'
+        ])->find($reviewId);
+
+        if (!$review) {
+            throw new ApiException('Không tìm thấy đánh giá!', Response::HTTP_NOT_FOUND);
+        }
+
+        return $review;
+    }
+
 
 
     public function updateStatus(int $reviewId, string $status): Review

@@ -16,7 +16,7 @@ class StoreReplyRequest extends FormRequest
     {
         return [
             'review_id' => 'required|exists:reviews,id|unique:review_replies,review_id',
-            'reply'     => 'required|string|min:10|max:1000',
+            'reply'     => 'required|string|min:5|max:1000',
         ];
     }
 

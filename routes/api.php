@@ -1,14 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\Auth\AuthController;
-use App\Http\Controllers\CategoryController;
-use App\Models\Product;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
-use App\Http\Middleware\JwtCookieAuth;
-use Illuminate\Session\Middleware\StartSession;
-use PHPOpenSourceSaver\JWTAuth\Http\Middleware\Authenticate;
 
 // Front route
 Route::prefix('v1/front')
@@ -198,20 +191,20 @@ Route::prefix('v1/admin')
 
         // Routes API Variant Options
         Route::controller('VariantOptionController')
-        ->prefix('/variant-options')
-        ->group(function () {
-            Route::get('/', 'index')->name('admin.variant-options.index');
-            Route::get('/{id}', 'show')->name('admin.variant-options.show');
-            Route::post('/', 'store')->name('admin.variant-options.store');
-            Route::put('/{id}', 'update')->name('admin.variant-options.update');
-            Route::delete('/{id}', 'destroy')->name('admin.variant-options.destroy');
+            ->prefix('/variant-options')
+            ->group(function () {
+                Route::get('/', 'index')->name('admin.variant-options.index');
+                Route::get('/{id}', 'show')->name('admin.variant-options.show');
+                Route::post('/', 'store')->name('admin.variant-options.store');
+                Route::put('/{id}', 'update')->name('admin.variant-options.update');
+                Route::delete('/{id}', 'destroy')->name('admin.variant-options.destroy');
 
 
-            // variant values
-            Route::post('/{optionId}/values', 'createValues');
-            Route::put('/values/{id}', 'updateValues');
-            Route::delete('/values/{id}', 'destroyValues');
-        });
+                // variant values
+                Route::post('/{optionId}/values', 'createValues');
+                Route::put('/values/{id}', 'updateValues');
+                Route::delete('/values/{id}', 'destroyValues');
+            });
         // Phản hồi đánh giá
         Route::controller('ReviewReplyController')
             ->group(function () {
@@ -223,6 +216,7 @@ Route::prefix('v1/admin')
         Route::controller('ReviewAdminController')
             ->group(function () {
                 Route::get('/reviews', 'index');
+                Route::get('/reviews/{reviewId}', 'show');
                 Route::put('/reviews/{reviewId}/status', 'updateStatus');
                 Route::delete('/reviews/{reviewId}', 'destroy');
             });
@@ -239,6 +233,7 @@ Route::prefix('v1/admin')
         Route::controller('ProductController')->group(function () {
             Route::get('/products', 'index')->name('admin.products.index');
             Route::get('/product/{slug}', 'show')->name('admin.product.show');
+            Route::get('/product-by-id/{id}', 'showById')->name('admin.product.showById');
             Route::post('/products/create', 'store')->name('admin.products.store');
             Route::put('/products/{id}', 'update')->name('admin.products.update');
             Route::delete('/products/{slug}', 'destroy')->name('admin.products.destroy');
@@ -314,15 +309,54 @@ Route::prefix('v1/admin')
 
         // Routes API RolesManagement
         Route::controller('RoleManagementController')->group(function () {
-            Route::prefix('roles-management')
-                 ->middleware(['role:super-admin'])
-                 ->group(function () {
-                     Route::get('/roles/assignable', 'getAllRoles')->name('admin.roles.assignable');
-                     Route::get('/permissions','getAllPermissions')->name('admin.roles.permissions');
-                     Route::post('/roles','storeRoleAndPermission')->name('admin.roles.store');
-                     Route::put('/roles/{roleId}/permissions','assignPermissionsToRole')->name('admin.roles.permissions.assign');
-                 });
+            Route::prefix('roles-management')->group(function () {
+                // super-admin và admin
+                Route::get('/roles/assignable', 'getAllRoles')
+                    ->middleware(['role:super-admin,admin'])
+                    ->name('admin.roles.assignable');
+
+                // Super-admin
+                Route::get('/permissions', 'getAllPermissions')->middleware(['role:super-admin'])->name('admin.roles.permissions');
+                Route::post('/roles', 'storeRoleAndPermission')->middleware(['role:super-admin'])->name('admin.roles.store');
+                Route::put('/roles/{roleId}/permissions', 'assignPermissionsToRole')->middleware(['role:super-admin'])->name('admin.roles.permissions.assign');
+            });
         });
+
+
+        Route::controller('UserController')
+            ->prefix('users')
+            ->group(function () {
+                // Super-admin xem danh sách admin
+                Route::get('/admins', 'listAdmins')
+                    ->middleware('role:super-admin')
+                    ->name('admin.users.admins');
+
+                // Super-admin + admin xem danh sách staff
+                Route::get('/staffs', 'listStaffs')
+                    ->middleware('role:super-admin,admin')
+                    ->name('admin.users.staffs');
+
+                // Super-admin + admin + staff xem danh sách customer
+                Route::get('/customers', 'listCustomers')
+                    ->middleware('role:super-admin,admin,staff')
+                    ->name('admin.users.customers');
+
+                // Super-admin tạo (admin, staff) / admin tạo (staff)
+                Route::post('/', 'store')
+                    ->middleware('role:super-admin,admin')
+                    ->name('admin.users.store');
+
+                // Super-admin update (admin, staff) / admin update (staff)
+                Route::post('/{id}', 'update')
+                    ->middleware('role:super-admin,admin')
+                    ->name('admin.users.update');
+
+                 // Super-admin update status (admin, staff, customer) / admin update status(staff, customer)
+                Route::put('/{id}/status', 'updateStatus')
+                    ->middleware('role:super-admin,admin')
+                    ->name('admin.users.update-status');
+
+            });
     });
 
 Route::prefix('v1/auth')->group(function () {

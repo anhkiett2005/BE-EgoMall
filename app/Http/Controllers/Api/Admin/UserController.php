@@ -2,76 +2,57 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UpdateUserStatusRequest;
+use App\Http\Requests\UserRequest;
+use App\Http\Resources\Admin\UserResource;
 use App\Response\ApiResponse;
 use App\Services\UserService;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 class UserController extends Controller
 {
-
-    protected $userService;
+    protected UserService $userService;
 
     public function __construct(UserService $userService)
     {
         $this->userService = $userService;
     }
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        $users = $this->userService->modifyIndex();
 
-        return ApiResponse::success('Lấy danh sách người dùng thành công!!', data: $users);
+    public function listAdmins(): JsonResponse
+    {
+        $users = $this->userService->getUsersByRole(['admin']);
+        return ApiResponse::success('Lấy danh sách admin thành công', 200, UserResource::collection($users)->toArray(request()));
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function listStaffs(): JsonResponse
     {
-        //
+        $users = $this->userService->getUsersByRole(['staff']);
+        return ApiResponse::success('Lấy danh sách nhân viên thành công', 200, UserResource::collection($users)->toArray(request()));
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function listCustomers(): JsonResponse
     {
-        try {
-            $user = $this->userService->show($id);
-
-            if ($user) {
-                return ApiResponse::success('Lấy chi tiết người dùng thành công!!', data: $user);
-            }
-        } catch (ApiException $e) {
-            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
-        }
+        $users = $this->userService->getUsersByRole(['customer']);
+        return ApiResponse::success('Lấy danh sách khách hàng thành công', 200, UserResource::collection($users)->toArray(request()));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-
-    public function update(UpdateUserStatusRequest $request, string $id)
+    public function store(UserRequest $request): JsonResponse
     {
-        try {
-            $user = $this->userService->update($request, $id);
-            return ApiResponse::success('Cập nhật trạng thái người dùng thành công!', data: $user);
-        } catch (ApiException $e) {
-            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
-        }
+        $user = $this->userService->store($request->validated());
+        return ApiResponse::success('Tạo người dùng thành công!', 200, (new UserResource($user))->toArray($request));
     }
 
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function update(UpdateUserRequest $request, int $id): JsonResponse
     {
-        //
+        $user = $this->userService->update($request->validated(), $id);
+        return ApiResponse::success('Cập nhật người dùng thành công!', 200, (new UserResource($user))->toArray($request));
+    }
+
+    public function updateStatus(UpdateUserStatusRequest $request, int $id): JsonResponse
+    {
+        $user = $this->userService->updateStatus($id, $request->is_active);
+        return ApiResponse::success('Cập nhật trạng thái người dùng thành công!', 200, (new UserResource($user))->toArray($request));
     }
 }
