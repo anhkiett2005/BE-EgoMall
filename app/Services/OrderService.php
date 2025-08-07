@@ -31,7 +31,6 @@ class OrderService
                     'total_discount' => $order->total_discount,
                     'discount_details' => $order->discount_details,
                     'status' => $order->status,
-                    'mail_status' => $order->mail_status,
                     'note' => $order->note,
                     'shipping_name' => $order->shipping_name,
                     'shipping_phone' => $order->shipping_phone,

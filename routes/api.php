@@ -165,7 +165,7 @@ Route::prefix('v1/front')
 
 Route::prefix('v1/admin')
     ->namespace('App\Http\Controllers\Api\Admin')
-    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin', 'permission:manage-products,manage-categories'])
+    ->middleware(['inject.api.auth.header', 'api.auth.check', 'role:admin,super-admin,staff'])
     ->group(function () {
         // Routes API Shipping Methods
         Route::controller('ShippingMethodController')
@@ -326,6 +326,11 @@ Route::prefix('v1/admin')
         Route::controller('UserController')
             ->prefix('users')
             ->group(function () {
+                // Super-admin + admin + staff xem thông tin người dùng
+                Route::get('/detail/{id}', 'show')
+                    ->middleware('role:super-admin,admin,staff')
+                    ->name('admin.users.show');
+
                 // Super-admin xem danh sách admin
                 Route::get('/admins', 'listAdmins')
                     ->middleware('role:super-admin')
@@ -351,11 +356,10 @@ Route::prefix('v1/admin')
                     ->middleware('role:super-admin,admin')
                     ->name('admin.users.update');
 
-                 // Super-admin update status (admin, staff, customer) / admin update status(staff, customer)
+                // Super-admin update status (admin, staff, customer) / admin update status(staff, customer)
                 Route::put('/{id}/status', 'updateStatus')
                     ->middleware('role:super-admin,admin')
                     ->name('admin.users.update-status');
-
             });
     });
 

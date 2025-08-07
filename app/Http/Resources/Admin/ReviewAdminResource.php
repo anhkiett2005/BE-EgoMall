@@ -14,7 +14,11 @@ class ReviewAdminResource extends JsonResource
             'user'          => [
                 'id'    => $this->user->id,
                 'name'  => $this->user->name,
+                'phone' => $this->user->phone,
+                'email' => $this->user->email,
                 'image' => $this->user->image,
+                'is_active' => $this->user->is_active,
+                'role'  => $this->user->role->name ?? null,
             ],
             'product' => optional($this->orderDetail?->productVariant?->product)?->only(['id', 'name', 'slug']),
             'rating'        => $this->rating,
@@ -24,9 +28,13 @@ class ReviewAdminResource extends JsonResource
             'status'        => $this->status,
             'reply' => $this->reply ? [
                 'id'     => $this->reply->id,
-                'user'   => [
+                'staff'   => [
                     'id'   => $this->reply->user->id,
                     'name' => $this->reply->user->name,
+                    'image' => $this->reply->user->image,
+                    'phone' => $this->reply->user->phone,
+                    'email' => $this->reply->user->email,
+                    'is_active' => $this->reply->user->is_active,
                     'role' => $this->reply->user->role->name ?? null,
                 ],
                 'reply'  => $this->reply->reply,
