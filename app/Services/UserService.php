@@ -31,6 +31,37 @@ class UserService
         }
     }
 
+    public function findById(int $id): User
+    {
+        try {
+            $user = User::with('role')->find($id);
+
+            if (!$user) {
+                throw new ApiException('Người dùng không tồn tại!', Response::HTTP_NOT_FOUND);
+            }
+
+            $targetRoleName = $user->role->name;
+
+            if (!$this->checkCanManageRole($targetRoleName)) {
+                throw new ApiException('Bạn không có quyền xem người dùng này!', Response::HTTP_FORBIDDEN);
+            }
+
+            return $user;
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            logger('Log bug find user by id', [
+                'user_id' => $id,
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Không thể lấy chi tiết người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
     public function store(array $data)
     {
         DB::beginTransaction();
@@ -186,6 +217,7 @@ class UserService
         $allowed = match ($currentRole) {
             'super-admin' => ['admin', 'staff', 'customer'],
             'admin'       => ['staff', 'customer'],
+            'staff'       => ['customer'],
             default       => []
         };
 

@@ -38,6 +38,12 @@ class UserController extends Controller
         return ApiResponse::success('Lấy danh sách khách hàng thành công', 200, UserResource::collection($users)->toArray(request()));
     }
 
+    public function show(int $id): JsonResponse
+    {
+        $user = $this->userService->findById($id);
+        return ApiResponse::success('Lấy chi tiết người dùng thành công!', 200, (new UserResource($user))->toArray(request()));
+    }
+
     public function store(UserRequest $request): JsonResponse
     {
         $user = $this->userService->store($request->validated());
