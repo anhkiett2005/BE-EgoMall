@@ -70,9 +70,9 @@ class ReviewAdminService
     public function list(array $filters = [])
     {
         $query = Review::with([
-            'user:id,name,email,image',
+            'user:id,name,email,image,phone,is_active,role_id',
             'images',
-            'reply.user:id,name',
+            'reply.user:id,name,email,image,phone,is_active,role_id',
             'orderDetail.productVariant.product:id,name,slug'
         ])
             ->latest();
@@ -101,9 +101,9 @@ class ReviewAdminService
     public function show(int $reviewId): Review
     {
         $review = Review::with([
-            'user:id,name,email,image',
+            'user:id,name,email,image,phone,is_active,role_id',
             'images',
-            'reply.user:id,name',
+            'reply.user:id,name,email,image,phone,is_active,role_id',
             'orderDetail.productVariant.product:id,name,slug'
         ])->find($reviewId);
 
