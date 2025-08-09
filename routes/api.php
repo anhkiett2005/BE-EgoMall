@@ -223,11 +223,11 @@ Route::prefix('v1/admin')
 
 
         // Routes API User
-        Route::controller('UserController')->group(function () {
-            Route::get('/users', 'index')->name('admin.users.index');
-            Route::get('/user/{id}', 'show')->name('admin.users.show');
-            Route::put('/user/{id}', 'update')->name('admin.users.update');
-        });
+        // Route::controller('UserController')->group(function () {
+        //     Route::get('/users', 'index')->name('admin.users.index');
+        //     Route::get('/user/{id}', 'show')->name('admin.users.show');
+        //     Route::put('/user/{id}', 'update')->name('admin.users.update');
+        // });
 
         // Routes API Product
         Route::controller('ProductController')->group(function () {
