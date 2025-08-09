@@ -10,6 +10,10 @@ use App\Http\Resources\Admin\UserResource;
 use App\Response\ApiResponse;
 use App\Services\UserService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+
+
 
 class UserController extends Controller
 {
@@ -60,5 +64,16 @@ class UserController extends Controller
     {
         $user = $this->userService->updateStatus($id, $request->is_active);
         return ApiResponse::success('Cập nhật trạng thái người dùng thành công!', 200, (new UserResource($user))->toArray($request));
+    }
+
+    // ==========================================================================
+
+    public function export(Request $request): BinaryFileResponse
+    {
+        // ?role=admin|staff|customer
+        $role = (string) $request->query('role');
+
+        // Controller mỏng: ủy quyền hết cho Service
+        return $this->userService->exportByRole($role);
     }
 }

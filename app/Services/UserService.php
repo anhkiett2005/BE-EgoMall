@@ -10,26 +10,33 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Str;
+use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\UsersExport;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class UserService
 {
     public function getUsersByRole(array $roles)
     {
         try {
-            return User::with('role')
+            return User::query()
+                ->select(['id', 'name', 'email', 'phone', 'email_verified_at', 'is_active', 'created_at', 'updated_at', 'role_id'])
+                ->with(['role:id,name,display_name'])
                 ->whereHas('role', fn($q) => $q->whereIn('name', $roles))
+                ->orderByDesc('created_at') // hoặc theo name tuỳ bạn
                 ->get();
         } catch (\Exception $e) {
-            logger('Log bug getUsersByRole', [
+            logger()->error('Log bug getUsersByRole', [
                 'error_message' => $e->getMessage(),
-                'error_file' => $e->getFile(),
-                'error_line' => $e->getLine(),
-                'stack_trace' => $e->getTraceAsString()
+                'error_file'    => $e->getFile(),
+                'error_line'    => $e->getLine(),
+                'stack_trace'   => $e->getTraceAsString()
             ]);
-
             throw new ApiException('Không thể lấy danh sách người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
 
     public function findById(int $id): User
     {
@@ -207,6 +214,62 @@ class UserService
             throw new ApiException('Không thể cập nhật trạng thái người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+     * Chuẩn bị và trả về response Excel xuất danh sách user theo role
+     */
+    public function exportByRole(string $role): BinaryFileResponse
+    {
+        try {
+            $role = strtolower(trim($role));
+
+            // 1) Validate
+            $validRoles = ['admin', 'staff', 'customer'];
+            if (!in_array($role, $validRoles, true)) {
+                throw new ApiException(
+                    'Vai trò không hợp lệ! Chỉ chấp nhận: admin, staff, customer.',
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+
+            // 2) Reuse service permission check
+            if (!$this->checkCanManageRole($role)) {
+                throw new ApiException('Bạn không có quyền export danh sách role này!', Response::HTTP_FORBIDDEN);
+            }
+
+            // 3) Data
+            $users = $this->getUsersByRole([$role]);
+
+            // 4) Role display
+            $roleDisplayName = match ($role) {
+                'admin'    => 'Quản trị viên',
+                'staff'    => 'Nhân viên',
+                'customer' => 'Khách hàng',
+                default    => ucfirst($role),
+            };
+
+            // 5) Filename
+            $ts = now('Asia/Ho_Chi_Minh')->format('Y-m-d_His');
+            $filename = "List_{$role}_{$ts}.xlsx";
+
+            // 6) Download
+            return Excel::download(new UsersExport($users, $roleDisplayName), $filename);
+        } catch (ApiException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            logger()->error('Log bug export users', [
+                'user_id'      => auth('api')->id(),
+                'request_role' => $role ?? null,
+                'current_role' => auth('api')->user()->role->name ?? null,
+                'error_message' => $e->getMessage(),
+                'error_file'   => $e->getFile(),
+                'error_line'   => $e->getLine(),
+                'stack_trace'  => $e->getTraceAsString(),
+            ]);
+            throw new ApiException('Không thể export danh sách người dùng!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
 
 
 

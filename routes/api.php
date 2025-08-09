@@ -360,6 +360,11 @@ Route::prefix('v1/admin')
                 Route::put('/{id}/status', 'updateStatus')
                     ->middleware('role:super-admin,admin')
                     ->name('admin.users.update-status');
+
+                // Super-admin export (admin, staff, customer) / admin export(staff, customer) / staff export(customer)
+                Route::get('/export', 'export')
+                    ->middleware('role:super-admin,admin,staff')
+                    ->name('admin.users.export');
             });
     });
 

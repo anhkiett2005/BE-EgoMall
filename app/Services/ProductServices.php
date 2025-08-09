@@ -29,15 +29,12 @@ class ProductServices
                 'category',
                 'brand',
                 'variants' => function ($query) {
-                    $query->where('is_active', '!=', 0)
-                        ->with([
-                            'images',
-                            'values',
-                        ]);
+                    $query->with([
+                        'images',
+                        'values',
+                    ]);
                 }
-            ])
-                ->where('is_active', '!=', 0)
-                ->get();
+            ])->get();
 
             $productLists = $products->map(function ($product): array {
 
@@ -45,8 +42,14 @@ class ProductServices
                     'id' => $product->id,
                     'name' => $product->name,
                     'slug' => $product->slug,
-                    'category' => $product->category->id,
-                    'brand' => $product->brand->id ?? null,
+                    'category' => [
+                        'id' => $product->category->id ?? null,
+                        'name' => $product->category->name ?? null,
+                    ],
+                    'brand' => [
+                        'name' => $product->brand->name ?? null,
+                        'id' => $product->brand->id ?? null,
+                    ],
                     'type_skin' => $product->type_skin ?? null,
                     'description' => $product->description ?? null,
                     'image' => $product->image ?? null,
@@ -208,15 +211,12 @@ class ProductServices
                 'category',
                 'brand',
                 'variants' => function ($query) {
-                    $query->where('is_active', '!=', 0)
-                        ->with([
-                            'images',
-                            'values',
-                        ]);
+                    $query->with([
+                        'images',
+                        'values',
+                    ]);
                 }
-            ])
-                ->where('is_active', '!=', 0)
-                ->where('slug', '=', $slug)
+            ])->where('slug', '=', $slug)
                 ->first();
 
             if (!$product) {
@@ -280,12 +280,9 @@ class ProductServices
                 'category',
                 'brand',
                 'variants' => function ($query) {
-                    $query->where('is_active', '!=', 0)
-                        ->with(['images', 'values']);
+                    $query->with(['images', 'values']);
                 }
-            ])
-                ->where('is_active', '!=', 0)
-                ->where('id', '=', $id)
+            ])->where('id', '=', $id)
                 ->first();
 
             if (!$product) {
