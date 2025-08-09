@@ -51,5 +51,7 @@ return [
         'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
         'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET'),
         'api_key' => env('CLOUDINARY_API_KEY'),
-    ]
+    ],
+
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
 ];

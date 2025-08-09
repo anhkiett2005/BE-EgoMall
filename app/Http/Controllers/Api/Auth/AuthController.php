@@ -254,10 +254,10 @@ class AuthController extends Controller
 
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
-            $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
-            $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
+            // $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
+            // $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
 
-            return redirect($redirectUrl)->withCookie($cookie);
+            return redirect()->away(config('services.frontend_url'))->withCookie($cookie);
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         } catch (Exception $e) {
@@ -335,10 +335,10 @@ class AuthController extends Controller
 
             $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
-            $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
-            $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
+            // $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
+            // $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
 
-            return redirect($redirectUrl)->withCookie($cookie);
+            return redirect()->away(config('services.frontend_url'))->withCookie($cookie);
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         } catch (Exception $e) {
@@ -465,16 +465,16 @@ class AuthController extends Controller
             JWTAuth::parseToken()->invalidate(); // ✅ parse token trước
 
             $cookie = new Cookie(
-            'token',
-            '',
-            now()->subMinute()->getTimestamp(),
-            '/',
-            null,
-            config('app.env') === 'production',
-            true,
-            false,
-            Cookie::SAMESITE_LAX
-        );
+                'token',
+                '',
+                now()->subMinute()->getTimestamp(),
+                '/',
+                null,
+                config('app.env') === 'production',
+                true,
+                false,
+                Cookie::SAMESITE_LAX
+            );
 
             return ApiResponse::success('Đã đăng xuất')->withCookie($cookie);
         } catch (JWTException $e) {
@@ -605,8 +605,7 @@ class AuthController extends Controller
             return ApiResponse::success('OTP đã được gửi đến email. Vui lòng kiểm tra.');
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             logger('Log bug send otp', [
                 'error_message' => $e->getMessage(),
                 'error_line' => $e->getLine(),
@@ -618,7 +617,7 @@ class AuthController extends Controller
 
     public function verifyResetOtp(VerifyOtpRequest $request): JsonResponse
     {
-       try {
+        try {
             $user = User::where('email', $request->email)->first();
 
             if (! $user || $user->otp !== $request->otp || now()->gt($user->otp_expires_at)) {
@@ -629,16 +628,16 @@ class AuthController extends Controller
             $user->save();
 
             return ApiResponse::success('Xác thực OTP thành công. Bạn có thể đặt lại mật khẩu.');
-       } catch (ApiException $e) {
+        } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
-       } catch (\Exception $e) {
+        } catch (\Exception $e) {
             logger('Log bug verify otp', [
                 'error_message' => $e->getMessage(),
                 'error_line' => $e->getLine(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
             throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
-       }
+        }
     }
 
     public function setNewPassword(ResetPasswordWithOtpRequest $request): JsonResponse
@@ -671,5 +670,4 @@ class AuthController extends Controller
             throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
 }
