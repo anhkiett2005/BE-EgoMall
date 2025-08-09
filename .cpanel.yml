@@ -1,9 +1,9 @@
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/egomalli/repositories/BE-EgoMall
+    - export DEPLOYPATH=/home/egomalli/public_html
     - /bin/cp -R * $DEPLOYPATH
     - cd $DEPLOYPATH
-    - /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader
+    - /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --prefer-dist
     - if [ ! -f $DEPLOYPATH/.env ]; then cp $DEPLOYPATH/.env.example $DEPLOYPATH/.env; fi
     - php artisan key:generate --force
     - php artisan migrate --force
