@@ -329,7 +329,7 @@ Route::prefix('v1/admin')
                 // Super-admin + admin + staff xem thông tin người dùng
                 Route::get('/detail/{id}', 'show')
                     ->middleware('role:super-admin,admin,staff')
-                    ->name('admin.users.show');
+                    ->name('admin.users.details');
 
                 // Super-admin xem danh sách admin
                 Route::get('/admins', 'listAdmins')
