@@ -1,46 +1,19 @@
 deployment:
   tasks:
-    - set -e  # Dừng ngay nếu có lỗi
-    - echo "=== Bắt đầu deploy ==="
     - export DEPLOYPATH=/home/egomalli/public_html
-
-    - echo "=== Đồng bộ file (bỏ .git và node_modules) ==="
     - rsync -av --exclude='.git' --exclude='node_modules' ./ $DEPLOYPATH
-
     - cd $DEPLOYPATH
-
-    - echo "=== Cài đặt Composer (nếu chưa có vendor) ==="
-    - if [ ! -d vendor ]; then
-        /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --prefer-dist;
-      else
-        echo "Bỏ qua Composer install (vendor đã tồn tại)";
-      fi
-
-    - echo "=== Tạo file .env nếu chưa có ==="
-    - if [ ! -f $DEPLOYPATH/.env ]; then
-        cp $DEPLOYPATH/.env.example $DEPLOYPATH/.env;
-      else
-        echo "Bỏ qua tạo .env (đã tồn tại)";
-      fi
-
-    - echo "=== Generate key ==="
+    - /opt/cpanel/composer/bin/composer install --no-dev --optimize-autoloader --prefer-dist
+    - if [ ! -f $DEPLOYPATH/.env ]; then cp $DEPLOYPATH/.env.example $DEPLOYPATH/.env; fi
     - php artisan key:generate --force
-
-    - echo "=== Chạy migrate ==="
     - php artisan migrate --force
-
-    - echo "=== Xóa cache cũ ==="
     - php artisan config:clear
     - php artisan route:clear
     - php artisan view:clear
-
-    - echo "=== Tạo cache mới ==="
     - php artisan config:cache
     - php artisan route:cache
     - php artisan view:cache
 
   post-deploy:
-    - echo "=== Restart queue workers ==="
     - cd $DEPLOYPATH
     - php artisan queue:restart
-    - echo "=== Hoàn tất deploy ==="
