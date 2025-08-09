@@ -223,11 +223,11 @@ Route::prefix('v1/admin')
 
 
         // Routes API User
-        Route::controller('UserController')->group(function () {
-            Route::get('/users', 'index')->name('admin.users.index');
-            Route::get('/user/{id}', 'show')->name('admin.users.show');
-            Route::put('/user/{id}', 'update')->name('admin.users.update');
-        });
+        // Route::controller('UserController')->group(function () {
+        //     Route::get('/users', 'index')->name('admin.users.index');
+        //     Route::get('/user/{id}', 'show')->name('admin.users.show');
+        //     Route::put('/user/{id}', 'update')->name('admin.users.update');
+        // });
 
         // Routes API Product
         Route::controller('ProductController')->group(function () {
@@ -329,7 +329,7 @@ Route::prefix('v1/admin')
                 // Super-admin + admin + staff xem thông tin người dùng
                 Route::get('/detail/{id}', 'show')
                     ->middleware('role:super-admin,admin,staff')
-                    ->name('admin.users.show');
+                    ->name('admin.users.details');
 
                 // Super-admin xem danh sách admin
                 Route::get('/admins', 'listAdmins')
