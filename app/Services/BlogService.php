@@ -177,8 +177,8 @@ class BlogService
             'products.variants' => function ($query) {
                 $query->where('is_active', '!=', 0)
                     ->with([
-                        'values.variantValue.option',
-                        'orderDetails.order.review'
+                        'values',
+                        'orderDetails.review'
                     ]);
             }
         ])
