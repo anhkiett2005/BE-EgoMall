@@ -67,8 +67,8 @@ class BlogResource extends JsonResource
                                 'sale_price' => $variant->sale_price,
                                 'options' => $variant->values->map(function ($value) {
                                     return [
-                                        'name' => $value->variantValue->option->name,
-                                        'value' => $value->variantValue->value
+                                        'name' => $value->option->name,
+                                        'value' => $value->value
                                     ];
                                 })->values(),
                             ];
