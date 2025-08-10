@@ -157,7 +157,7 @@ class BlogService
     {
         $query = Blog::with(['category', 'creator', 'products'])
             ->where('status', 'published')
-            ->where('published_at', '<=', now())
+            // ->where('published_at', '<=', now())
             ->latest();
 
         if (!empty($filters['category_id'])) {
@@ -184,7 +184,7 @@ class BlogService
         ])
             ->where('slug', $slug)
             ->where('status', 'published')
-            ->where('published_at', '<=', now())
+            // ->where('published_at', '<=', now())
             ->first();
 
         if (!$blog) {
@@ -213,7 +213,7 @@ class BlogService
         return Blog::where('category_id', $blog->category_id)
             ->where('id', '!=', $blog->id)
             ->where('status', 'published')
-            ->where('published_at', '<=', now())
+            // ->where('published_at', '<=', now())
             ->inRandomOrder()
             ->take($limit)
             ->get();
@@ -225,7 +225,7 @@ class BlogService
         return Cache::remember("top_viewed_blogs_$limit", now()->addMinutes(10), function () use ($limit) {
             return Blog::with(['category', 'creator'])
                 ->where('status', 'published')
-                ->where('published_at', '<=', now())
+                // ->where('published_at', '<=', now())
                 ->orderByDesc('views')
                 ->limit($limit)
                 ->get();
@@ -236,7 +236,7 @@ class BlogService
     {
         return Blog::with(['category', 'creator'])
             ->where('status', 'published')
-            ->where('published_at', '<=', now())
+            // ->where('published_at', '<=', now())
             ->orderByDesc('published_at')
             ->limit($limit)
             ->get();

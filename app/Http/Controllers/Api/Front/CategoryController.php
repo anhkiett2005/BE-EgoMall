@@ -28,7 +28,7 @@ class CategoryController extends Controller
 public function index(Request $request)
 {
     try {
-        $type = $request->get('type');
+        $type = $request->get('type', 'product');
 
         $query = Category::with('children')
             ->root()
