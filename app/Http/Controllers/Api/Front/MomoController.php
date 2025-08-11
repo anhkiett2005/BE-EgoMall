@@ -14,9 +14,19 @@ use Symfony\Component\HttpFoundation\Response;
 class MomoController extends Controller
 {
 
-    public function processPayment($order)
+public function processPayment($order)
     {
-        return Common::momoPayment($order);
+
+        $payUrl = Common::momoPayment($order); // <- string
+
+        if (empty($payUrl)) {
+            throw new ApiException('Tạo link thanh toán MoMo thất bại!', Response::HTTP_BAD_REQUEST);
+        }
+
+        return ApiResponse::success(
+            message: 'success',
+            data: ['redirect_url' => $payUrl]
+        );
     }
 
     public function processRefundPayment($transId, $amount)

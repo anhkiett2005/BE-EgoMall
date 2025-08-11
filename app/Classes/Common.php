@@ -231,7 +231,7 @@ class Common
             $secretKey = env('MOMO_SECRET_KEY');
             $orderInfo = "Thanh toán đơn hàng qua MoMo";
             $redirectUrl = route('payment.momo.redirect'); // ví dụ: định nghĩa route trả về sau thanh toán
-            $ipnUrl = 'https://18667f599642.ngrok-free.app/api/v1/front/payment/momo/ipn';  //route('payment.momo.ipn');      // ví dụ: route nhận callback IPN
+            $ipnUrl =  route('payment.momo.ipn');  //'https://18667f599642.ngrok-free.app/api/v1/front/payment/momo/ipn';       // ví dụ: route nhận callback IPN
             $requestId = now()->timestamp . '';
             $requestType = 'captureWallet';
             $extraData = '';

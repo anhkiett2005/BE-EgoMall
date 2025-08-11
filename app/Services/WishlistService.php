@@ -10,38 +10,67 @@ class WishlistService
 {
     public function listByUser(int $userId)
     {
-        $products = Wishlist::with([
-            'product.category',
-            'product.brand',
-            'product.variants.images',
-            'product.variants.values.variantValue.option',
-            'product.variants.orderDetails.order.review',
-        ])
-            ->where('user_id', $userId)
-            ->latest()
-            ->get()
-            ->pluck('product');
-
-        return $products;
+        try {
+            return Wishlist::with([
+                'product.category',
+                'product.brand',
+                'product.variants.images',
+            ])
+                ->where('user_id', $userId)
+                ->whereHas('product', fn($q) => $q->where('is_active', '!=', 0)) // chỉ lấy sp đang active
+                ->latest()
+                ->get()
+                ->pluck('product');
+        } catch (\Exception $e) {
+            logger('Wishlist:listByUser error', [
+                'error_message' => $e->getMessage(),
+                'error_file'    => $e->getFile(),
+                'error_line'    => $e->getLine(),
+                'stack_trace'   => $e->getTraceAsString(),
+            ]);
+            throw new ApiException('Không thể lấy danh sách wishlist!', 500);
+        }
     }
+
 
     public function add(int $userId, string $productSlug)
     {
-        $product = Product::where('slug', $productSlug)->first();
+        try {
+            $product = Product::where('slug', $productSlug)
+                ->where('is_active', '!=', 0) // không cho add sp ngừng hoạt động
+                ->first();
 
-        if (!$product) {
-            throw new ApiException('Sản phẩm không tồn tại!', 404);
+            if (!$product) {
+                throw new ApiException('Sản phẩm không tồn tại!', 404);
+            }
+
+            $wishlist = Wishlist::firstOrCreate([
+                'user_id'    => $userId,
+                'product_id' => $product->id,
+            ]);
+
+            if (!$wishlist->wasRecentlyCreated) {
+                throw new ApiException('Sản phẩm đã có trong danh sách yêu thích!', 422);
+            }
+
+            return $wishlist;
+        } catch (\Exception $e) {
+            logger('Wishlist:add error', [
+                'slug'          => $productSlug,
+                'user_id'       => $userId,
+                'error_message' => $e->getMessage(),
+                'error_file'    => $e->getFile(),
+                'error_line'    => $e->getLine(),
+                'stack_trace'   => $e->getTraceAsString(),
+            ]);
+            // Nếu là lỗi unique index DB cũng ném về 422
+            if (method_exists($e, 'getCode') && (int)$e->getCode() === 23000) {
+                throw new ApiException('Sản phẩm đã có trong danh sách yêu thích!', 422);
+            }
+            throw $e instanceof ApiException ? $e : new ApiException('Không thể thêm wishlist!', 500);
         }
-
-        if (Wishlist::where('user_id', $userId)->where('product_id', $product->id)->exists()) {
-            throw new ApiException('Sản phẩm đã có trong danh sách yêu thích!', 422);
-        }
-
-        return Wishlist::create([
-            'user_id' => $userId,
-            'product_id' => $product->id,
-        ]);
     }
+
 
     public function remove(int $userId, string $productSlug)
     {
