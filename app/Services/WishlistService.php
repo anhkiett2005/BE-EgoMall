@@ -8,29 +8,30 @@ use App\Models\Wishlist;
 
 class WishlistService
 {
+    // App\Services\WishlistService.php
     public function listByUser(int $userId)
     {
         try {
             return Wishlist::with([
                 'product.category',
                 'product.brand',
-                'product.variants.images',
+                'product.variants' => function ($q) {
+                    $q->with([
+                        'images',
+                        'values.option',
+                    ]);
+                },
             ])
                 ->where('user_id', $userId)
-                ->whereHas('product', fn($q) => $q->where('is_active', '!=', 0)) // chỉ lấy sp đang active
+                ->whereHas('product', fn($q) => $q->where('is_active', '!=', 0))
                 ->latest()
                 ->get()
                 ->pluck('product');
         } catch (\Exception $e) {
-            logger('Wishlist:listByUser error', [
-                'error_message' => $e->getMessage(),
-                'error_file'    => $e->getFile(),
-                'error_line'    => $e->getLine(),
-                'stack_trace'   => $e->getTraceAsString(),
-            ]);
             throw new ApiException('Không thể lấy danh sách wishlist!', 500);
         }
     }
+
 
 
     public function add(int $userId, string $productSlug)
@@ -55,14 +56,6 @@ class WishlistService
 
             return $wishlist;
         } catch (\Exception $e) {
-            logger('Wishlist:add error', [
-                'slug'          => $productSlug,
-                'user_id'       => $userId,
-                'error_message' => $e->getMessage(),
-                'error_file'    => $e->getFile(),
-                'error_line'    => $e->getLine(),
-                'stack_trace'   => $e->getTraceAsString(),
-            ]);
             // Nếu là lỗi unique index DB cũng ném về 422
             if (method_exists($e, 'getCode') && (int)$e->getCode() === 23000) {
                 throw new ApiException('Sản phẩm đã có trong danh sách yêu thích!', 422);
