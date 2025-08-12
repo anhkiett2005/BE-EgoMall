@@ -186,6 +186,7 @@ class SystemSettingService
                 foreach (array_keys($touchedGroups) as $g) {
                     Cache::forget(self::CACHE_GROUP . $g);
                 }
+                Cache::forget('settings:public');
 
                 // Nếu có thay đổi mail settings => apply runtime ngay
                 if ($this->containsEmailKeys($changedKeys)) {
@@ -371,5 +372,47 @@ class SystemSettingService
                 // string, text, email, url, image...
                 return (string) $value;
         }
+    }
+
+
+    // Whitelist key “an toàn” cho public
+    private const PUBLIC_KEYS = [
+        'site_name',
+        'site_logo',
+        'site_address',
+        'hotline',
+        'email_from_address',
+        'tiktok_url',
+        'instagram_url',
+        'youtube_url',
+        'facebook_url',
+        'zalo_url',
+    ];
+
+    // Lấy dữ liệu public cho FE user (footer/header)
+    public function publicSettings(): array
+    {
+        return Cache::rememberForever('settings:public', function () {
+            $rows = SystemSetting::query()
+                ->whereIn('setting_key', self::PUBLIC_KEYS)
+                ->get()
+                ->keyBy('setting_key');
+
+            $get = fn($k, $default = null) => $rows[$k]->setting_value ?? $default;
+
+            return [
+                'site_name'      => $get('site_name'),
+                'site_logo'      => $get('site_logo'),
+                'site_address'   => $get('site_address'),
+                'hotline'        => $get('hotline'),
+                'contact_email'  => $get('email_from_address'),
+                'tiktok_url'     => $get('tiktok_url'),
+                'instagram_url'  => $get('instagram_url'),
+                'youtube_url'    => $get('youtube_url'),
+                'facebook_url'   => $get('facebook_url'),
+                'zalo_url'       => $get('zalo_url'),
+                'updated_at'     => optional($rows->first()?->updated_at)->toDateTimeString(),
+            ];
+        });
     }
 }

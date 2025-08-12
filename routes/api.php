@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
+        // Routes API Public Settings
+        Route::controller('PublicSettingController')->group(function () {
+            Route::get('/public-settings', 'show');
+        });
+
         // Routes API User Addresses
         Route::middleware(['inject.api.auth.header', 'api.auth.check'])
             ->controller('UserAddressController')
