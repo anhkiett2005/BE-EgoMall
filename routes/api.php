@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -360,6 +361,15 @@ Route::prefix('v1/admin')
                 Route::put('/{id}/status', 'updateStatus')
                     ->middleware('role:super-admin,admin')
                     ->name('admin.users.update-status');
+            });
+
+        Route::prefix('system-settings')
+            ->middleware(['role:super-admin'])
+            ->controller(SystemSettingController::class)
+            ->group(function () {
+                Route::get('/', 'index');
+                Route::put('/', 'update');
+                Route::post('/email-test', 'sendTestEmail');
             });
     });
 
