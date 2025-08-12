@@ -23,15 +23,17 @@ class OrderStatusMail extends Mailable
     public function build(): self
     {
         $subjectMap = [
-            'ordered' => 'Đơn hàng của bạn đã được đặt thành công!',
+            'ordered'   => 'Đơn hàng của bạn đã được đặt thành công!',
             'confirmed' => 'Đơn hàng của bạn đã được xác nhận!',
             'delivered' => 'Đơn hàng đã giao thành công!',
         ];
 
-        return $this->subject($subjectMap[$this->status] ?? 'Cập nhật đơn hàng')
+        return $this
+            ->from(config('mail.from.address'), config('mail.from.name'))
+            ->subject($subjectMap[$this->status] ?? 'Cập nhật đơn hàng')
             ->view('emails.order-status')
             ->with([
-                'order' => $this->order,
+                'order'  => $this->order,
                 'status' => $this->status,
             ]);
     }

@@ -16,10 +16,9 @@ class PromotionNotificationMail extends Mailable
     public function build(): self
     {
         return $this
-            ->subject('[EgoMall] Khuyến mãi mới: ' . $this->promotion->name)
+            ->from(config('mail.from.address'), config('mail.from.name'))
+            ->subject('[EgoMall] Khuyến mãi mới: '.$this->promotion->name)
             ->view('emails.promotion_notification')
-            ->with([
-                'promotion' => $this->promotion,
-            ]);
+            ->with(['promotion' => $this->promotion]);
     }
 }
