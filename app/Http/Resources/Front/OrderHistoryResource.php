@@ -17,6 +17,13 @@ class OrderHistoryResource extends JsonResource
         // Xác định display_status
         if ($status === 'delivered' && !$this->review) {
             $displayStatus = 'Cần đánh giá';
+        } elseif ($status === 'return_sales') {
+            $mapReturn = [
+                'requested' => 'Yêu cầu hoàn trả',
+                'approved'  => 'Đã chấp nhận hoàn trả',
+                'completed' => 'Hoàn trả thành công',
+            ];
+            $displayStatus = $mapReturn[$this->return_status] ?? 'Trả hàng';
         } else {
             $map = [
                 'ordered'      => 'Chờ xác nhận',
@@ -41,9 +48,13 @@ class OrderHistoryResource extends JsonResource
                 && in_array($this->payment_method, ['MOMO', 'VNPAY'], true)
                 && $this->payment_status === 'unpaid',
             'can_review' => $status === 'delivered',
-            'can_request_return' => $status === 'delivered' &&
-                $deliveredAt &&
-                now()->diffInDays($deliveredAt) <= 7,
+            'can_request_return' => $status === 'delivered'
+                && is_null($this->return_status)
+                && $deliveredAt
+                && now()->diffInDays($deliveredAt) <= 7,
+            'return_status'       => $this->return_status,
+            'return_reason'       => $this->return_reason,
+            'return_requested_at' => optional($this->return_requested_at)->toDateTimeString(),
             'note' => $this->note,
             'shipping_name' => $this->shipping_name,
             'shipping_phone' => $this->shipping_phone,

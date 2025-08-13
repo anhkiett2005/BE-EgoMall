@@ -390,10 +390,10 @@ class OrderController extends Controller
             throw new ApiException('Đơn hàng không ở trạng thái chưa thanh toán!', 400);
         }
 
-         $order->update([
+        $order->update([
             'payment_method'    => $request->payment_method,
             'transaction_id'    => null,
-            'payment_created_at'=> null,
+            'payment_created_at' => null,
             'payment_date'      => null,
         ]);
 
@@ -405,6 +405,71 @@ class OrderController extends Controller
 
         // Gọi lại flow tạo link theo phương thức mới
         return $this->processPaymentByMethod($order);
+    }
+
+    public function requestReturn(Request $request, string $uniqueId)
+    {
+        $reason = (string) $request->input('reason', '');
+
+        try {
+            $user = auth('api')->user();
+
+            return DB::transaction(function () use ($uniqueId, $reason, $user) {
+                // Khoá hàng để tránh race
+                $order = Order::where('unique_id', $uniqueId)->lockForUpdate()->first();
+
+                if (!$order) {
+                    throw new ApiException('Không tìm thấy đơn hàng!', Response::HTTP_NOT_FOUND);
+                }
+                if ((int)$order->user_id !== (int)$user->id) {
+                    throw new ApiException('Bạn không có quyền với đơn này!', Response::HTTP_FORBIDDEN);
+                }
+
+                // Điều kiện cho phép yêu cầu hoàn trả
+                if ($order->status !== 'delivered') {
+                    throw new ApiException('Chỉ được yêu cầu hoàn trả khi đơn đã hoàn tất!', Response::HTTP_BAD_REQUEST);
+                }
+                if ($order->payment_status !== 'paid') {
+                    throw new ApiException('Đơn chưa thanh toán không thể hoàn trả!', Response::HTTP_BAD_REQUEST);
+                }
+                if (!$order->delivered_at || now()->diffInDays($order->delivered_at) > 7) {
+                    throw new ApiException('Đã quá thời hạn 7 ngày kể từ khi giao hàng!', Response::HTTP_BAD_REQUEST);
+                }
+
+                // Idempotent: đã có trạng thái hoàn trả thì trả về luôn
+                if (!is_null($order->return_status)) {
+                    return ApiResponse::success('Yêu cầu hoàn trả đã tồn tại', [
+                        'order_id'      => $order->unique_id,
+                        'return_status' => $order->return_status,
+                    ]);
+                }
+
+                // Cập nhật yêu cầu
+                $order->update([
+                    'return_status'       => 'requested',
+                    'return_reason'       => mb_substr($reason, 0, 255) ?: null,
+                    'return_requested_at' => now(),
+                    'status'              => 'return_sales',
+                ]);
+
+                // TODO (optional): bắn mail/thông báo cho admin tại đây
+
+                return ApiResponse::success('Gửi yêu cầu hoàn trả thành công!',200, [
+                    'order_id'      => $order->unique_id,
+                    'return_status' => 'requested',
+                ]);
+            });
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode());
+        } catch (\Throwable $e) {
+            logger('Return request error', [
+                'error_message' => $e->getMessage(),
+                'error_file'    => $e->getFile(),
+                'error_line'    => $e->getLine(),
+                'stack_trace'   => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
+        }
     }
 
     private function processPaymentByMethod($order)

@@ -31,6 +31,9 @@ class Order extends Model
         'coupon_id',
         'delivered_at',
         'cancel_reason',
+        'return_requested_at',
+        'return_reason',
+        'return_status',
     ];
 
     protected $hidden = [
@@ -42,6 +45,7 @@ class Order extends Model
         'delivered_at' => 'datetime',
         'payment_created_at'  => 'datetime',
         'payment_date'        => 'datetime',
+        'return_requested_at' => 'datetime',
     ];
 
     public function user()

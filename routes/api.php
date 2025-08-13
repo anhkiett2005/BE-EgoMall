@@ -137,9 +137,9 @@ Route::prefix('v1/front')
             ->middleware(['inject.api.auth.header', 'api.auth.check'])
             ->group(function () {
                 Route::post('/checkout-orders', 'checkOutOrders');
-                // Route::get('/cancel-orders/{uniqueId}', 'cancelOrders');
                 Route::post('user/cancel-orders/{uniqueId}', 'cancelOrders');
                 Route::post('user/repay/{uniqueId}', 'repay');
+                Route::post('user/return-request/{uniqueId}', 'requestReturn');
             });
 
         // Routes API Review
@@ -307,6 +307,9 @@ Route::prefix('v1/admin')
             Route::get('/orders', 'index')->name('admin.orders.index');
             Route::get('/order/{uniqueId}', 'show')->name('admin.orders.show');
             Route::post('/orders/change-status/{uniqueId}', 'update')->name('admin.orders.change-status');
+            Route::post('/orders/return-approve/{uniqueId}', 'approveReturn');
+            Route::post('/orders/return-reject/{uniqueId}',  'rejectReturn');
+            Route::post('/orders/return-complete/{uniqueId}', 'completeReturn');
         });
 
         // Routes API Dashboard Statistics
