@@ -15,6 +15,8 @@ class OrderHistoryService
         $query = Order::with([
             'details.productVariant.product',
             'details.productVariant.values',
+            'details.review.images',
+            'coupon',
         ])
             ->where('user_id', $userId)
             ->latest();

@@ -139,6 +139,7 @@ Route::prefix('v1/front')
                 Route::post('/checkout-orders', 'checkOutOrders');
                 // Route::get('/cancel-orders/{uniqueId}', 'cancelOrders');
                 Route::post('user/cancel-orders/{uniqueId}', 'cancelOrders');
+                Route::post('user/repay/{uniqueId}', 'repay');
             });
 
         // Routes API Review

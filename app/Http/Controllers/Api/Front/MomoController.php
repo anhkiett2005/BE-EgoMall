@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
 class MomoController extends Controller
 {
 
-public function processPayment($order)
+    public function processPayment($order)
     {
 
         $payUrl = Common::momoPayment($order); // <- string
@@ -67,6 +67,7 @@ public function processPayment($order)
     {
         $orderId = $request->input('orderId');
         $resultCode = $request->input('resultCode');
+        $baseId    = $request->input('extraData') ?: explode('-', (string)$orderId)[0];
 
         // Giao diện phía client sẽ xử lý giao diện hiển thị
         if ($resultCode == 0) {
@@ -74,7 +75,7 @@ public function processPayment($order)
             //     'order_id' => $orderId
             // ]);
 
-            return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=success&order_id=" . $orderId);
+            return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=success&order_id=" . $baseId);
         } else {
             return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=failed");
         }
@@ -113,19 +114,47 @@ public function processPayment($order)
             throw new ApiException('Chữ ký không hợp lệ!', Response::HTTP_BAD_REQUEST);
         }
 
+        $baseOrderId = $data['extraData'] ?? null;
+        if (!$baseOrderId) {
+            // fallback nếu thiếu extraData: tách trước dấu '-'
+            $baseOrderId = explode('-', (string)$data['orderId'])[0] ?? '';
+        }
+
         // Tìm đơn hàng và cập nhật trạng thái
-        $order = Order::where('unique_id', $data['orderId'])->first();
+        $order = Order::where('unique_id', $baseOrderId)->first();
 
         if (!$order) {
             throw new ApiException('Không tìm thấy đơn hàng!', Response::HTTP_NOT_FOUND);
         }
 
         if ($data['resultCode'] == 0) {
+            // Chặn nếu đơn đã hủy
+            if ($order->status === 'cancelled') {
+                logger('MoMo IPN ignored - order cancelled', ['order_id' => $order->unique_id]);
+                return ApiResponse::success('IPN ignored: order cancelled');
+            }
+
+            if (in_array($order->payment_status, ['paid', 'refunded'], true)) {
+                logger('MoMo IPN ignored - payment finalized', ['order_id' => $order->unique_id]);
+                return ApiResponse::success('IPN ignored: payment already finalized');
+            }
+
+            if ((int)$data['amount'] !== (int)$order->total_price) {
+                logger('MoMo IPN amount mismatch', [
+                    'order_id' => $order->unique_id,
+                    'ipn_amount' => $data['amount'],
+                    'order_amount' => $order->total_price,
+                ]);
+                throw new ApiException('Số tiền IPN không khớp!', Response::HTTP_BAD_REQUEST);
+            }
+
+
             $order->update([
                 'payment_status' => 'paid',
-                'payment_date' => now(),
+                'payment_date'   => now(),
                 'transaction_id' => $data['transId'],
             ]);
+
 
             Common::sendOrderStatusMail($order, 'ordered');
         }

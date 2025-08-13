@@ -115,10 +115,15 @@ class VnpayController extends Controller
             }
 
             if ($request->vnp_ResponseCode == "00") { // Thành công
+                // Chặn nếu đơn đã hủy
+                if ($order->status === 'cancelled') {
+                    logger('VNPAY callback ignored - order cancelled', ['order_id' => $order->unique_id]);
+                    return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=ignored");
+                }
 
                 $order->update([
                     'payment_status' => 'paid',
-                    'payment_date' => now(),
+                    'payment_date'   => now(),
                     'transaction_id' => $request->vnp_TransactionNo,
                 ]);
 

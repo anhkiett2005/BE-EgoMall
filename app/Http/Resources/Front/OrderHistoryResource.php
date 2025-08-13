@@ -32,20 +32,23 @@ class OrderHistoryResource extends JsonResource
         return [
             'unique_id' => $this->unique_id,
             'status' => $status,
+            'display_status'       => $displayStatus,
             'total_price' => $this->total_price,
             'total_discount' => $this->total_discount,
             'delivered_at' => optional($deliveredAt)->toDateTimeString(),
             'can_cancel' => $status === 'ordered',
+            'can_pay' => $this->status === 'ordered'
+                && in_array($this->payment_method, ['MOMO', 'VNPAY'], true)
+                && $this->payment_status === 'unpaid',
             'can_review' => $status === 'delivered',
             'can_request_return' => $status === 'delivered' &&
                 $deliveredAt &&
                 now()->diffInDays($deliveredAt) <= 7,
-
             'note' => $this->note,
             'shipping_name' => $this->shipping_name,
             'shipping_phone' => $this->shipping_phone,
             'payment_method' => $this->payment_method,
-            'payment_date' => $this->payment_date,
+            'payment_date'   => optional($this->payment_date)->toDateTimeString(),
             'payment_status' => $this->payment_status,
             'address' => $this->shipping_address,
             'shipping_method_snapshot' => $this->shipping_method_snapshot,
