@@ -390,25 +390,21 @@ class OrderController extends Controller
             throw new ApiException('Đơn hàng không ở trạng thái chưa thanh toán!', 400);
         }
 
-        // Cập nhật phương thức (user chọn lại)
-        $order->payment_method = $request->payment_method;
-        // Reset dấu vết attempt cũ (nếu có)
-        $order->transaction_id = null;
-        $order->payment_created_at = null;
-        $order->save();
+         $order->update([
+            'payment_method'    => $request->payment_method,
+            'transaction_id'    => null,
+            'payment_created_at'=> null,
+            'payment_date'      => null,
+        ]);
+
+        // logger('Order repay', [
+        //     'order_id'       => $order->unique_id,
+        //     'method'         => $order->payment_method,
+        //     'user_id'        => $user->id,
+        // ]);
 
         // Gọi lại flow tạo link theo phương thức mới
-        switch ($order->payment_method) {
-            case 'COD':
-                // Nếu chọn COD, coi như xác nhận COD luôn (như hiện tại bạn đang làm)
-                return app(CodController::class)->processPayment($order);
-
-            case 'MOMO':
-                return app(MomoController::class)->processPayment($order);
-
-            case 'VNPAY':
-                return app(VnpayController::class)->processPayment($order);
-        }
+        return $this->processPaymentByMethod($order);
     }
 
     private function processPaymentByMethod($order)
@@ -420,8 +416,6 @@ class OrderController extends Controller
                 return app(VnpayController::class)->processPayment($order);
             case 'MOMO':
                 return app(MomoController::class)->processPayment($order);
-                // case 'e-wallet':
-                //     return app(EWalletPaymentController::class)->processPayment($order);
         }
     }
 
