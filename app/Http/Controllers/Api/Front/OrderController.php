@@ -317,7 +317,7 @@ class OrderController extends Controller
                     'status'         => 'cancelled',
                     'payment_status' => 'refunded',
                     'payment_date'   => now(),
-                    'cancel_reason'  => $reason,
+                    'reason'  => $reason,
                 ]);
 
                 Common::sendOrderStatusMail($order, 'cancelled');
@@ -447,7 +447,7 @@ class OrderController extends Controller
                 // Cập nhật yêu cầu
                 $order->update([
                     'return_status'       => 'requested',
-                    'return_reason'       => mb_substr($reason, 0, 255) ?: null,
+                    'reason'       => mb_substr($reason, 0, 255) ?: null,
                     'return_requested_at' => now(),
                     'status'              => 'return_sales',
                 ]);

@@ -30,9 +30,8 @@ class Order extends Model
         'transaction_id',
         'coupon_id',
         'delivered_at',
-        'cancel_reason',
+        'reason',
         'return_requested_at',
-        'return_reason',
         'return_status',
     ];
 

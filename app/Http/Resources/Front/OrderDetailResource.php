@@ -49,7 +49,7 @@ class OrderDetailResource extends JsonResource
                 && $deliveredAt
                 && now()->diffInDays($deliveredAt) <= 7,
             'return_status'       => $this->return_status,
-            'return_reason'       => $this->return_reason,
+            'reason'       => $this->reason,
             'return_requested_at' => optional($this->return_requested_at)->toDateTimeString(),
 
             'note' => $this->note,

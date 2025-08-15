@@ -44,7 +44,6 @@ class OrderService
 
                     'return_status'         => $order->return_status,
                     'display_return_status' => $displayReturn,
-                    'return_reason'         => $order->return_reason,
                     'return_requested_at'   => optional($order->return_requested_at)?->format('Y-m-d H:i:s'),
                     'return_note'           => $order->return_note,
                     'can_approve_return'    => $order->return_status === 'requested',
@@ -58,7 +57,7 @@ class OrderService
                     'shipping_address' => $order->shipping_address,
                     'shipping_method_snapshot' => $order->shipping_method_snapshot,
                     'shipping_fee' => $order->shipping_fee,
-                    'cancel_reason' => $order->cancel_reason,
+                    'reason' => $order->reason,
                     'voucher' => $order->coupon?->code,
                     'payment_method' => $order->payment_method,
                     'payment_status' => $order->payment_status,
@@ -122,7 +121,6 @@ class OrderService
 
                 'return_status'         => $order->return_status,
                 'display_return_status' => $displayReturn,
-                'return_reason'         => $order->return_reason,
                 'return_requested_at'   => optional($order->return_requested_at)?->format('Y-m-d H:i:s'),
                 'return_note'           => $order->return_note,
                 'can_approve_return'    => $order->return_status === 'requested',
@@ -136,7 +134,7 @@ class OrderService
                 'shipping_address' => $order->shipping_address,
                 'shipping_method_snapshot' => $order->shipping_method_snapshot,
                 'shipping_fee' => $order->shipping_fee,
-                'cancel_reason' => $order->cancel_reason,
+                'reason' => $order->reason,
                 'voucher' => $order->coupon?->code,
                 'payment_method' => $order->payment_method,
                 'payment_status' => $order->payment_status,
