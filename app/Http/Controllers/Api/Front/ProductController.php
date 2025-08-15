@@ -40,8 +40,7 @@ class ProductController extends Controller
                         $query->where('is_active', '!=', 0)
                             ->with([
                                 'images',
-                                'values',
-                                'orderDetails.review'
+                                'values.option',
                             ]);
                     }
                 ])
@@ -186,21 +185,47 @@ class ProductController extends Controller
             // xử lý dữ liệu và trả về
             $products = $query->get();
 
+            // >>> TỔNG HỢP RATING THEO PRODUCT_ID (chỉ tính review approved, không phụ thuộc variant active)
+            $productIds = $products->pluck('id');
+
+            $ratingAgg = DB::table('product_variants as pv')
+                ->join('order_details as od', 'od.product_variant_id', '=', 'pv.id')
+                ->join('reviews as r', 'r.order_detail_id', '=', 'od.id')
+                ->select(
+                    'pv.product_id',
+                    DB::raw('AVG(r.rating) as avg_rating'),
+                    DB::raw('COUNT(r.id) as review_count')
+                )
+                ->whereIn('pv.product_id', $productIds)
+                ->where('r.status', 'approved')
+                ->groupBy('pv.product_id')
+                ->get()
+                ->keyBy('product_id');
+
+            // Tổng số lượng đã bán theo product_id (đơn delivered, bỏ quà tặng)
+            $soldAgg = DB::table('product_variants as pv')
+                ->join('order_details as od', 'od.product_variant_id', '=', 'pv.id')
+                ->join('orders as o', 'o.id', '=', 'od.order_id')
+                ->select('pv.product_id', DB::raw('SUM(od.quantity) as sold_qty'))
+                ->whereIn('pv.product_id', $productIds)
+                ->where('o.status', 'delivered')
+                ->where('od.is_gift', 0)
+                ->groupBy('pv.product_id')
+                ->get()
+                ->keyBy('product_id');
 
 
-            $productLists = $products->map(function ($product) use ($promotions): array {
-                $allReviews = collect();
 
-                foreach ($product->variants as $variant) {
-                    foreach ($variant->orderDetails as $detail) {
-                        if ($detail && $detail->review) {
-                            $allReviews->push($detail->review);
-                        }
-                    }
-                }
 
-                $averageRating = $allReviews->avg('rating') ?? 0;
-                $reviewCount = $allReviews->count();
+            $productLists = $products->map(function ($product) use ($promotions, $ratingAgg, $soldAgg): array {
+
+                // >>> LẤY SỐ LIỆU ĐÃ TỔNG HỢP
+                $agg = $ratingAgg->get($product->id);
+                $averageRating = $agg ? round((float)$agg->avg_rating, 1) : 0.0;
+                $reviewCount   = $agg ? (int)$agg->review_count : 0;
+
+                $aggSold   = $soldAgg->get($product->id);
+                $soldCount = $aggSold ? (int)$aggSold->sold_qty : 0;
 
                 return [
                     'id' => $product->id,
@@ -218,7 +243,8 @@ class ProductController extends Controller
                     'description' => $product->description ?? null,
                     'image' => $product->image ?? null,
                     'average_rating' => $averageRating,
-                    'review_count' => $reviewCount,
+                    'review_count'   => $reviewCount,
+                    'sold_count'     => $soldCount,
                     'options' => $product->variants
                         ->flatMap(function ($variant) {
                             return $variant->values;
@@ -257,12 +283,6 @@ class ProductController extends Controller
                                 return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
                             })->implode(' | '),
                             'image' => $variant->images->pluck('image_url')->first(),
-                            // 'options' => $variant->values->map(function ($value) {
-                            //     return [
-                            //         'name' => $value->option->name,
-                            //         'value' => $value->value
-                            //     ];
-                            // })->values(),
                         ];
                     })->values(),
                 ];
@@ -291,24 +311,40 @@ class ProductController extends Controller
                     $query->where('is_active', '!=', 0)
                         ->with([
                             'images',
-                            'values',
+                            'values.option',
                             'orderDetails.order.user' => function ($q) {
                                 $q->where('is_active', '!=', 0)
                                     ->select('id', 'name', 'image');
                             },
                             'orderDetails.review' => function ($q) {
                                 $q->where('status', 'approved');
-                            }
+                            },
+                            'orderDetails.review.user',
                         ]);
                 }
             ])
-                ->where('slug', 'like', '%' . $slug . '%')
+                ->where('slug', $slug)
                 ->where('is_active', '!=', 0)
                 ->first();
 
             if (!$product) {
                 return ApiResponse::error('Product not found', 404);
             }
+
+            // Tổng số lượng đã bán của sản phẩm hiện tại (đơn delivered, bỏ quà tặng)
+            $soldRow = DB::table('product_variants as pv')
+                ->join('order_details as od', 'od.product_variant_id', '=', 'pv.id')
+                ->join('orders as o', 'o.id', '=', 'od.order_id')
+                ->where('pv.product_id', $product->id)
+                ->where('o.status', 'delivered')
+                ->where(function ($q) {
+                    $q->whereNull('od.is_gift')->orWhere('od.is_gift', 0);
+                })
+                ->select(DB::raw('SUM(od.quantity) as sold_qty'))
+                ->first();
+
+            $soldCount = (int) ($soldRow->sold_qty ?? 0);
+
 
             $promotions = self::getActivePromotions();
 
@@ -319,21 +355,22 @@ class ProductController extends Controller
 
             foreach ($product->variants as $variant) {
                 foreach ($variant->orderDetails as $detail) {
-                    if ($detail->review && $detail->user !== null) {
+                    if ($detail->review) {
                         $allReviews->push($detail->review);
                     }
                 }
             }
 
-            $averageRating = $allReviews->avg('rating') ?? 0;
-            $reviewCount = $allReviews->count();
+            $averageRating = (float) round($allReviews->avg('rating') ?? 0, 1);
+            $reviewCount   = (int) $allReviews->count();
+
             $reviews = $allReviews->map(function ($review) {
                 return [
-                    'name' => $review->user->name,
-                    'image' => $review->user->image,
-                    'rating' => $review->rating,
+                    'name'    => $review->user->name ?? 'Người dùng',
+                    'image'   => $review->user->image ?? null,
+                    'rating'  => $review->rating,
                     'comment' => $review->comment,
-                    'date' => Carbon::parse($review->created_at)->format('d-m-Y H:i'),
+                    'date'    => Carbon::parse($review->created_at)->format('d-m-Y H:i'),
                 ];
             });
 
@@ -392,57 +429,78 @@ class ProductController extends Controller
             $totalQuantity = $product->variants->sum('quantity');
             $status = $totalQuantity > 0 ? 'Còn hàng' : 'Hết hàng';
 
-            // lấy sản phẩm cùng loại
-            $related = collect();
-
-            // Tính rating trung bình và số lượng đánh giá và lấy ra đánh giá của sản phẩm cùng loại
-            $allReviewRelateds = collect();
-
+            // ===== Related: lấy sản phẩm cùng loại =====
             $relatedProducts = Product::with([
                 'brand',
                 'variants' => function ($query) {
                     $query->where('is_active', '!=', 0)
-                        ->with([
-                            'orderDetails.review' => function ($q) {
-                                $q->where('status', 'approved');
-                            }
-                        ]);
+                        ->with(['images', 'values.option']);
                 }
             ])
-                ->where('category_id', '=', $product->category_id)
+                ->where('category_id', $product->category_id)
                 ->where('id', '!=', $product->id)
                 ->where('is_active', '!=', 0)
                 ->inRandomOrder()
                 ->limit(5)
                 ->get();
 
-            foreach ($relatedProducts as $relatedProduct) {
-                foreach ($relatedProduct->variants as $variant) {
-                    foreach ($variant->orderDetails as $detail) {
-                        if ($detail && $detail->review) {
-                            $allReviewRelateds->push($detail->review);
-                        }
-                    }
-                }
-            }
+            // ID các sản phẩm related
+            $relatedIds = $relatedProducts->pluck('id');
 
-            $averageRatingRelated = $allReviewRelateds->avg('rating') ?? 0;
-            $reviewCountRelated = $allReviewRelateds->count();
+            // Aggregate rating RIÊNG cho từng related product (chỉ tính review approved)
+            $relatedAgg = DB::table('product_variants as pv')
+                ->join('order_details as od', 'od.product_variant_id', '=', 'pv.id')
+                ->join('reviews as r', 'r.order_detail_id', '=', 'od.id')
+                ->select(
+                    'pv.product_id',
+                    DB::raw('AVG(r.rating) as avg_rating'),
+                    DB::raw('COUNT(r.id) as review_count')
+                )
+                ->whereIn('pv.product_id', $relatedIds)
+                ->where('r.status', 'approved')
+                ->groupBy('pv.product_id')
+                ->get()
+                ->keyBy('product_id');
 
-            // trả về sản phẩm cùng loại
-            $relatedProducts->each(function ($relatedProduct) use (&$related, $averageRatingRelated, $reviewCountRelated, $promotions) {
-                $related->push([
-                    'id' => $relatedProduct->id,
-                    'name' => $relatedProduct->name,
-                    'slug' => $relatedProduct->slug,
-                    'price' => $relatedProduct->variants->first()?->price,
-                    'sale_price' => $relatedProduct->variants->first()?->sale_price,
-                    'final_price_discount' => self::checkPromotion($relatedProduct->variants->first(), $promotions),
-                    'brand' => $relatedProduct->brand->name ?? null,
-                    'image' => $relatedProduct->image,
-                    'average_rating' => $averageRatingRelated,
-                    'review_count' => $reviewCountRelated,
-                ]);
+            // (Tuỳ chọn) Aggregate sold_count cho related — bật nếu FE cần
+            $relatedSoldAgg = DB::table('product_variants as pv')
+                ->join('order_details as od', 'od.product_variant_id', '=', 'pv.id')
+                ->join('orders as o', 'o.id', '=', 'od.order_id')
+                ->select('pv.product_id', DB::raw('SUM(od.quantity) as sold_qty'))
+                ->whereIn('pv.product_id', $relatedIds)
+                ->where('o.status', 'delivered')
+                ->where(function ($q) {
+                    $q->whereNull('od.is_gift')->orWhere('od.is_gift', 0);
+                })
+                ->groupBy('pv.product_id')
+                ->get()
+                ->keyBy('product_id');
+
+            // Build danh sách related với rating đúng cho từng item
+            $related = $relatedProducts->map(function ($rp) use ($promotions, $relatedAgg , $relatedSoldAgg) {
+                $agg = $relatedAgg->get($rp->id);
+                $avg = $agg ? round((float)$agg->avg_rating, 1) : 0.0;
+                $cnt = $agg ? (int)$agg->review_count : 0;
+
+                $firstVariant = $rp->variants->first();
+
+                // (Tuỳ chọn) sold_count cho related
+                $sold = $relatedSoldAgg->get($rp->id);
+                $soldCount = $sold ? (int)$sold->sold_qty : 0;
+
+                return [
+                    'id'                   => $rp->id,
+                    'name'                 => $rp->name,
+                    'slug'                 => $rp->slug,
+                    'price'                => $firstVariant?->price,
+                    'sale_price'           => $firstVariant?->sale_price,
+                    'final_price_discount' => $firstVariant ? self::checkPromotion($firstVariant, $promotions) : null,
+                    'brand'                => $rp->brand->name ?? null,
+                    'image'                => $rp->image,
+                    'average_rating'       => $avg,
+                    'review_count'         => $cnt,
+                    'sold_count'        => $soldCount,
+                ];
             });
 
 
@@ -457,6 +515,7 @@ class ProductController extends Controller
                 'average_rating' => $averageRating,
                 'review_count' => $reviewCount,
                 'reviews' => $reviews,
+                'sold_count'     => $soldCount,
                 'options' => $options,
                 'variants' => $variantLists,
                 'related' => $related

@@ -218,7 +218,9 @@ class Common
     {
 
         try {
-            $orderId = $order->unique_id;
+            $baseOrderId = $order->unique_id;
+            // orderId phải UNIQUE cho mỗi request
+            $orderId = $baseOrderId . '-' . now()->timestamp;
             $amount = $order->total_price;
 
 
@@ -231,10 +233,10 @@ class Common
             $secretKey = env('MOMO_SECRET_KEY');
             $orderInfo = "Thanh toán đơn hàng qua MoMo";
             $redirectUrl = route('payment.momo.redirect'); // ví dụ: định nghĩa route trả về sau thanh toán
-            $ipnUrl = 'https://18667f599642.ngrok-free.app/api/v1/front/payment/momo/ipn';  //route('payment.momo.ipn');      // ví dụ: route nhận callback IPN
+            $ipnUrl =  route('payment.momo.ipn');  //'https://18667f599642.ngrok-free.app/api/v1/front/payment/momo/ipn';       // ví dụ: route nhận callback IPN
             $requestId = now()->timestamp . '';
             $requestType = 'captureWallet';
-            $extraData = '';
+            $extraData = $baseOrderId;
 
             // Build raw signature string
             $rawHash = "accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=$requestType";

@@ -4,32 +4,51 @@ namespace App\Jobs;
 
 use App\Mail\SetPasswordMail;
 use App\Models\User;
+use App\Services\SystemSettingService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class SendSetPasswordMailJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected User $user;
-    protected string $roleName;
+    public function __construct(
+        protected User $user,
+        protected string $roleName
+    ) {}
 
-    public function __construct(User $user, string $roleName)
+    // (tuỳ chọn) retry/backoff
+    public int $tries = 3;
+    public function backoff(): int
     {
-        $this->user = $user;
-        $this->roleName = $roleName;
+        return 10;
     }
 
-    public function handle(): void
+    public function handle(SystemSettingService $settings): void
     {
+        if (empty($this->user->email)) {
+            Log::warning("SetPasswordMail: user {$this->user->id} không có email.");
+            return;
+        }
+
         try {
-            Mail::to($this->user->email)->send(new SetPasswordMail($this->user, $this->roleName));
+            // 1) Áp cấu hình mail runtime mới nhất
+            $mail = $settings->getEmailConfig(true);
+            $settings->applyMailConfig($mail);
+
+            // 2) Gửi
+            Mail::to($this->user->email)
+                ->send(new SetPasswordMail($this->user, $this->roleName));
+
+            Log::info("Đã gửi mail set password cho user {$this->user->id}");
         } catch (\Throwable $e) {
-            logger()->error("Gửi mail đặt mật khẩu thất bại (User ID: {$this->user->id}) - Lỗi: {$e->getMessage()}");
+            Log::error("Gửi mail set password lỗi (user {$this->user->id}): {$e->getMessage()}");
+            throw $e; // cho phép queue retry
         }
     }
 }

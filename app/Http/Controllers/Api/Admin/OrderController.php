@@ -50,11 +50,68 @@ class OrderController extends Controller
         try {
             $isUpdated = $this->orderService->updateStatus($request, $uniqueId);
 
-            if($isUpdated) {
+            if ($isUpdated) {
                 return ApiResponse::success('Cập nhật trạng thái đơn hàng thành công!!');
             }
-        }catch (ApiException $e) {
+        } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        }
+    }
+
+    public function approveReturn(string $uniqueId)
+    {
+        try {
+            $order = $this->orderService->approveReturn($uniqueId);
+
+            return ApiResponse::success('Duyệt yêu cầu hoàn trả thành công!!', 200, data: [
+                'unique_id'     => $order->unique_id,
+                'status'        => $order->status,
+                'return_status' => $order->return_status,
+            ]);
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        } catch (\Throwable $e) {
+            logger('Admin approve return error', ['e' => $e]);
+            throw new ApiException('Có lỗi xảy ra!!', 500);
+        }
+    }
+
+    public function rejectReturn(string $uniqueId)
+    {
+        try {
+            $order = $this->orderService->rejectReturn($uniqueId);
+
+            return ApiResponse::success('Từ chối yêu cầu hoàn trả thành công!!', 200, data: [
+                'unique_id'     => $order->unique_id,
+                'status'        => $order->status,
+                'return_status' => $order->return_status,
+            ]);
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        } catch (\Throwable $e) {
+            logger('Admin reject return error', ['e' => $e]);
+            throw new ApiException('Có lỗi xảy ra!!', 500);
+        }
+    }
+
+    public function completeReturn(string $uniqueId)
+    {
+        try {
+            $order = $this->orderService->completeReturn($uniqueId);
+
+            return ApiResponse::success('Hoàn tất hoàn trả thành công!!', 200, data: [
+                'unique_id'     => $order->unique_id,
+                'status'        => $order->status,         // expect: return_sales
+                'return_status' => $order->return_status,  // expect: completed
+                'payment_status' => $order->payment_status, // expect: refunded (nếu paid)
+                'payment_date'  => optional($order->payment_date)->toDateTimeString(),
+                'transaction_id' => $order->transaction_id,
+            ]);
+        } catch (ApiException $e) {
+            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+        } catch (\Throwable $e) {
+            logger('Admin complete return error', ['e' => $e]);
+            throw new ApiException('Có lỗi xảy ra!!', 500);
         }
     }
 

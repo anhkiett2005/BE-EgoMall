@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\SystemSettingController;
 use App\Http\Controllers\Api\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -7,6 +8,11 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1/front')
     ->namespace('App\Http\Controllers\Api\Front')
     ->group(function () {
+        // Routes API Public Settings
+        Route::controller('PublicSettingController')->group(function () {
+            Route::get('/public-settings', 'show');
+        });
+
         // Routes API User Addresses
         Route::middleware(['inject.api.auth.header', 'api.auth.check'])
             ->controller('UserAddressController')
@@ -131,8 +137,9 @@ Route::prefix('v1/front')
             ->middleware(['inject.api.auth.header', 'api.auth.check'])
             ->group(function () {
                 Route::post('/checkout-orders', 'checkOutOrders');
-                // Route::get('/cancel-orders/{uniqueId}', 'cancelOrders');
                 Route::post('user/cancel-orders/{uniqueId}', 'cancelOrders');
+                Route::post('user/repay/{uniqueId}', 'repay');
+                Route::post('user/return-request/{uniqueId}', 'requestReturn');
             });
 
         // Routes API Review
@@ -300,6 +307,9 @@ Route::prefix('v1/admin')
             Route::get('/orders', 'index')->name('admin.orders.index');
             Route::get('/order/{uniqueId}', 'show')->name('admin.orders.show');
             Route::post('/orders/change-status/{uniqueId}', 'update')->name('admin.orders.change-status');
+            Route::post('/orders/return-approve/{uniqueId}', 'approveReturn');
+            Route::post('/orders/return-reject/{uniqueId}',  'rejectReturn');
+            Route::post('/orders/return-complete/{uniqueId}', 'completeReturn');
         });
 
         // Routes API Dashboard Statistics
@@ -360,6 +370,15 @@ Route::prefix('v1/admin')
                 Route::put('/{id}/status', 'updateStatus')
                     ->middleware('role:super-admin,admin')
                     ->name('admin.users.update-status');
+            });
+
+        Route::prefix('system-settings')
+            ->middleware(['role:super-admin'])
+            ->controller(SystemSettingController::class)
+            ->group(function () {
+                Route::get('/', 'index');
+                Route::put('/', 'update');
+                Route::post('/email-test', 'sendTestEmail');
             });
     });
 

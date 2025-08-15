@@ -12,25 +12,20 @@ class SetPasswordMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public User $user;
-    public string $roleName;
+    public function __construct(public User $user, public string $roleName) {}
 
-    public function __construct(User $user, string $roleName)
+    public function build(): self
     {
-        $this->user = $user;
-        $this->roleName = $roleName;
-    }
+        $frontendResetPasswordUrl = rtrim(config('app.frontend_url'), '/') . '/auth/forgot-password';
 
-    public function build()
-    {
-        $frontendResetPasswordUrl = config('app.frontend_url') . '/auth/forgot-password';
-
-        return $this->subject('Thiết lập mật khẩu cho tài khoản EgoMall')
+        return $this
+            ->from(config('mail.from.address'), config('mail.from.name'))
+            ->subject('Thiết lập mật khẩu cho tài khoản EgoMall')
             ->view('emails.set-password')
             ->with([
-                'userName' => $this->user->name,
-                'userEmail' => $this->user->email,
-                'roleName' => $this->roleName,
+                'userName'          => $this->user->name,
+                'userEmail'         => $this->user->email,
+                'roleName'          => $this->roleName,
                 'resetPasswordLink' => $frontendResetPasswordUrl,
             ]);
     }

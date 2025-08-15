@@ -6,7 +6,6 @@ use App\Models\Promotion;
 use App\Models\PromotionProduct;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Log;
 
 class OrderDetailResource extends JsonResource
 {
@@ -15,9 +14,15 @@ class OrderDetailResource extends JsonResource
         $status = $this->status;
         $deliveredAt = $this->delivered_at;
 
-        // Xác định display_status
         if ($status === 'delivered' && !$this->review) {
             $displayStatus = 'Cần đánh giá';
+        } elseif ($status === 'return_sales') {
+            $mapReturn = [
+                'requested' => 'Yêu cầu hoàn trả',
+                'approved'  => 'Đã chấp nhận hoàn trả',
+                'completed' => 'Hoàn trả thành công',
+            ];
+            $displayStatus = $mapReturn[$this->return_status] ?? 'Trả hàng';
         } else {
             $map = [
                 'ordered'      => 'Chờ xác nhận',
@@ -33,14 +38,19 @@ class OrderDetailResource extends JsonResource
         return [
             'unique_id' => $this->unique_id,
             'status' => $status,
+            'display_status'       => $displayStatus,
             'total_price' => $this->total_price,
             'total_discount' => $this->total_discount,
             'delivered_at' => optional($deliveredAt)->toDateTimeString(),
             'can_cancel' => $status === 'ordered',
             'can_review' => $status === 'delivered',
-            'can_request_return' => $status === 'delivered' &&
-                $deliveredAt &&
-                now()->diffInDays($deliveredAt) <= 7,
+            'can_request_return' => $status === 'delivered'
+                && is_null($this->return_status)
+                && $deliveredAt
+                && now()->diffInDays($deliveredAt) <= 7,
+            'return_status'       => $this->return_status,
+            'return_reason'       => $this->return_reason,
+            'return_requested_at' => optional($this->return_requested_at)->toDateTimeString(),
 
             'note' => $this->note,
             'shipping_name' => $this->shipping_name,
