@@ -23,12 +23,20 @@ use App\Models\User;
 use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\ResetPasswordWithOtpRequest;
 use App\Response\ApiResponse;
+use App\Services\SystemSettingService;
 use Exception;
 use Laravel\Socialite\Facades\Socialite;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
 {
+    public function __construct(private SystemSettingService $settings) {}
+
+    private function applyMailRuntime(): void
+    {
+        $mail = $this->settings->getEmailConfig(true);
+        $this->settings->applyMailConfig($mail);
+    }
     /**
      * Đăng ký khách hàng mới, lưu OTP và gửi mail.
      */
@@ -52,6 +60,7 @@ class AuthController extends Controller
             $user->otp_sent_at = now();
             $user->save();
 
+            $this->applyMailRuntime();
             // Gửi mail OTP
             $user->notify(new OtpNotification($otp, 5));
 
@@ -549,6 +558,7 @@ class AuthController extends Controller
             $user->save();
 
             // 5. Gửi mail OTP
+            $this->applyMailRuntime();
             $user->notify(new OtpNotification($otp, 5));
 
             return ApiResponse::success('OTP mới đã được gửi. Vui lòng kiểm tra email.');
@@ -600,6 +610,7 @@ class AuthController extends Controller
             $user->save();
 
             // 5. Gửi mail OTP
+            $this->applyMailRuntime();
             $user->notify(new OtpNotification($otp, 5));
 
             return ApiResponse::success('OTP đã được gửi đến email. Vui lòng kiểm tra.');
