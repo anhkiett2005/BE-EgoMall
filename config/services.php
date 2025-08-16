@@ -53,5 +53,5 @@ return [
         'api_key' => env('CLOUDINARY_API_KEY'),
     ],
 
-    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+    'frontend_url' => env('FRONTEND_URL', 'https://egomall.io.vn'),
 ];
