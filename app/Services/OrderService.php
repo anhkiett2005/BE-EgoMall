@@ -179,8 +179,19 @@ class OrderService
             $order->status = $newStatus;
 
             // Set delivered_at MỘT LẦN khi lần đầu vào delivered
+            // Set delivered_at MỘT LẦN khi lần đầu vào delivered
             if ($newStatus === 'delivered' && is_null($order->delivered_at)) {
-                $order->delivered_at = now(); // lưu UTC, cast datetime sẽ lo hiển thị
+                $order->delivered_at = now();
+            }
+
+            // COD: giao thành công => coi như đã thu tiền
+            if (
+                $newStatus === 'delivered'
+                && $order->payment_method === 'COD'
+                && $order->payment_status !== 'paid'
+            ) {
+                $order->payment_status = 'paid';
+                $order->payment_date   = now();
             }
 
             // KHÔNG reset delivered_at nếu admin lỡ đổi ngược trạng thái
