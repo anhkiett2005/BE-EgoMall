@@ -258,6 +258,10 @@ class Common
                 'signature' => $signature
             ];
 
+            logger('body', [
+                'body' => $body
+            ]);
+
             $response = Http::post('https://test-payment.momo.vn/v2/gateway/api/create', $body);
 
             if ($response->failed()) {
