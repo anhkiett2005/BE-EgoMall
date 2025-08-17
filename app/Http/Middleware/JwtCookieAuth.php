@@ -14,12 +14,10 @@ class JwtCookieAuth
      */
     public function handle($request, Closure $next)
     {
-        $token = $request->cookie('token');
-        if ($token) {
-            $request->headers->set('Authorization', 'Bearer ' . $token);
-        } else {
+        if (!$request->hasHeader('Authorization')) {
             return ApiResponse::error('Không thể xác thực!!', Response::HTTP_UNAUTHORIZED);
         }
+
         return $next($request);
     }
 }
