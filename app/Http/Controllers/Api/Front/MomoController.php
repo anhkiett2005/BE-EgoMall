@@ -68,6 +68,9 @@ class MomoController extends Controller
         $orderId = $request->input('orderId');
         $resultCode = $request->input('resultCode');
         $baseId    = $request->input('extraData') ?: explode('-', (string)$orderId)[0];
+        logger('baseRequestMoMo', [
+            'data' => $request->all(),
+        ]);
 
         // Giao diện phía client sẽ xử lý giao diện hiển thị
         if ($resultCode == 0) {
