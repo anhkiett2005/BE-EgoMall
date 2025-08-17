@@ -258,8 +258,6 @@ class Common
                 'signature' => $signature
             ];
 
-            dd($body);
-
             logger('body', [
                 'body' => $body
             ]);
