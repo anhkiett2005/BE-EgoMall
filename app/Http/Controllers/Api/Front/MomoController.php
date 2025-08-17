@@ -92,6 +92,12 @@ class MomoController extends Controller
         $accessKey = env('MOMO_ACCESS_KEY');
         $secretKey = env('MOMO_SECRET_KEY');
 
+        logger([
+            'accessKey' => $accessKey,
+            'secretKey' => $secretKey,
+            'data' => $data
+        ]);
+
         $rawHash = "accessKey={$accessKey}" .
             "&amount={$data['amount']}" .
             "&extraData={$data['extraData']}" .
