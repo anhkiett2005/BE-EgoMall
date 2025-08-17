@@ -92,8 +92,8 @@ class MomoController extends Controller
         // logger('MoMo IPN callback:', $data);
 
         // Kiểm tra chữ ký hợp lệ
-        $accessKey = env('MOMO_ACCESS_KEY');
-        $secretKey = env('MOMO_SECRET_KEY');
+        $accessKey = config('services.momo.accessKey');
+        $secretKey = config('services.momo.secretKey');
 
         logger([
             'accessKey' => $accessKey,

@@ -228,12 +228,12 @@ class Common
                 throw new ApiException("Số tiền thanh toán không hợp lệ!");
             }
 
-            $partnerCode = env('MOMO_PARTNER_CODE');
-            $accessKey = env('MOMO_ACCESS_KEY');
-            $secretKey = env('MOMO_SECRET_KEY');
+            $partnerCode = config('services.momo.partnerCode');
+            $accessKey = config('services.momo.accessKey');
+            $secretKey = config('services.momo.secretKey');
             $orderInfo = "Thanh toán đơn hàng qua MoMo";
-            $redirectUrl = route('payment.momo.redirect'); // ví dụ: định nghĩa route trả về sau thanh toán
-            $ipnUrl =  route('payment.momo.ipn');  //'https://18667f599642.ngrok-free.app/api/v1/front/payment/momo/ipn';       // ví dụ: route nhận callback IPN
+            $redirectUrl = config('services.momo.redirectUrl'); // ví dụ: định nghĩa route trả về sau thanh toán
+            $ipnUrl =  config('services.momo.ipnUrl');  //'https://18667f599642.ngrok-free.app/api/v1/front/payment/momo/ipn';       // ví dụ: route nhận callback IPN
             $requestId = now()->timestamp . '';
             $requestType = 'captureWallet';
             $extraData = $baseOrderId;

@@ -53,5 +53,13 @@ return [
         'api_key' => env('CLOUDINARY_API_KEY'),
     ],
 
+    'momo' => [
+        'partnerCode' => env('MOMO_PARTNER_CODE'),
+        'accessKey' => env('MOMO_ACCESS_KEY'),
+        'secretKey' => env('MOMO_SECRET_KEY'),
+        'redirectUrl' => route('payment.momo.redirect'),
+        'ipnUrl' => route('payment.momo.ipn')
+    ],
+
     'frontend_url' => env('FRONTEND_URL', 'https://egomall.io.vn'),
 ];
