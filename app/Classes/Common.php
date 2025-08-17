@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\Promotion;
 use App\Models\User;
+use App\Response\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -626,5 +627,14 @@ class Common
                 dispatch(new SendPromotionMailJob($customer, $promotion));
             }
         });
+    }
+
+    public static function respondWithToken($token)
+    {
+        return [
+            'token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => Carbon::now()->addMinutes(config('jwt.ttl'))->timestamp
+        ];
     }
 }
