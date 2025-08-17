@@ -104,11 +104,11 @@ class AuthController extends Controller
                 $token,
                 now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
                 '/',
-                null,
-                config('app.env') === 'production',
-                true,
-                false,
-                Cookie::SAMESITE_LAX
+                config('app.url'), // domain backend
+                config('app.env') === 'production', // secure = true khi production
+                true, // HttpOnly
+                false, // raw
+                Cookie::SAMESITE_NONE // sameSite
             );
 
             return ApiResponse::success('Xác thực OTP thành công!!')->withCookie($cookie);
@@ -175,11 +175,11 @@ class AuthController extends Controller
                 $token,
                 now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
                 '/',
-                null,
-                config('app.env') === 'production',
-                true,
-                false,
-                Cookie::SAMESITE_LAX
+                config('app.url'), // domain backend
+                config('app.env') === 'production', // secure = true khi production
+                true, // HttpOnly
+                false, // raw
+                Cookie::SAMESITE_NONE // sameSite
             );
 
             // $cookie = new Cookie(
@@ -261,7 +261,18 @@ class AuthController extends Controller
             $token = JWTAuth::fromUser($user);
 
 
-            $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            // $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            $cookie = new Cookie(
+                'token',
+                $token,
+                now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+                '/',
+                config('app.url'), // domain backend
+                config('app.env') === 'production', // secure = true khi production
+                true, // HttpOnly
+                false, // raw
+                Cookie::SAMESITE_NONE // sameSite
+            );
 
             // $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
             // $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
@@ -342,7 +353,18 @@ class AuthController extends Controller
 
 
 
-            $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            // $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            $cookie = new Cookie(
+                'token',
+                $token,
+                now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+                '/',
+                config('app.url'), // domain backend
+                config('app.env') === 'production', // secure = true khi production
+                true, // HttpOnly
+                false, // raw
+                Cookie::SAMESITE_NONE // sameSite
+            );
 
             // $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
             // $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
@@ -475,14 +497,14 @@ class AuthController extends Controller
 
             $cookie = new Cookie(
                 'token',
-                '',
-                now()->subMinute()->getTimestamp(),
+                '', // clear value
+                now()->subMinute()->getTimestamp(), // expired
                 '/',
-                null,
-                config('app.env') === 'production',
-                true,
-                false,
-                Cookie::SAMESITE_LAX
+                config('app.url'), // phải giống khi login
+                config('app.env') === 'production', // secure
+                true, // HttpOnly
+                false, // raw
+                Cookie::SAMESITE_NONE // sameSite phải giống khi login
             );
 
             return ApiResponse::success('Đã đăng xuất')->withCookie($cookie);
@@ -504,7 +526,17 @@ class AuthController extends Controller
         try {
             $newToken = JWTAuth::parseToken()->refresh();
 
-            $cookie = new Cookie('token', $newToken, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            $cookie = new Cookie(
+                'token',
+                $newToken,
+                now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+                '/',
+                config('app.url'), // domain backend
+                config('app.env') === 'production', // secure = true khi production
+                true, // HttpOnly
+                false, // raw
+                Cookie::SAMESITE_NONE // sameSite
+            );
             return ApiResponse::success()->withCookie($cookie);
         } catch (JWTException $e) {
             logger('Log bug refresh token', [
