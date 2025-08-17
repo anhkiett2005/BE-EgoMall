@@ -19,11 +19,11 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH' , 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => ["https://egomall.io.vn"],
+    'allowed_origins' => ['https://egomall.io.vn','http://localhost:3000'],
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Content-Type', 'X-Requested-With', 'Accept', 'ngrok-skip-browser-warning'],
+    'allowed_headers' => ['Content-Type', 'X-Requested-With', 'Accept'],
 
     'exposed_headers' => [],
 
