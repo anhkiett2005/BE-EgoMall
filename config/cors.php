@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH' , 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => [config('services.frontend_url')],
+    'allowed_origins' => ["https://egomall.io.vn"],
 
     'allowed_origins_patterns' => [],
 
