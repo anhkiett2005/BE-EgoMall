@@ -111,6 +111,7 @@ class Common
             'id' => $category->id,
             'name' => $category->name,
             'slug' => $category->slug,
+            'parent_id' => $category->parent_id,
             'description' => $category->description,
             'thumbnail' => $category->thumbnail,
             'is_active' => $category->is_active,
