@@ -29,13 +29,13 @@ class StoreCategoryRequest extends FormRequest
             'slug' => 'required|string|unique:categories,slug',
             'parent_id' => 'nullable|exists:categories,id',
             'description' => 'nullable|string',
-            'thumbnail' => ['nullable','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
+            'thumbnail' => ['nullable', 'url', 'regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
             'is_featured' => 'nullable|boolean|in:0,1',
             'type' => 'nullable|string|in:product,blog',
 
-            // Nếu có ràng buộc các options của variants thì validate
-            'options' => 'nullable|array|min:1|',
-            'options.*' => 'integer|exists:variant_options,id',
+            // CHỈ cho phép khi type=product; blog thì cấm field này xuất hiện
+            'options'     => 'prohibited_unless:type,product|nullable|array',
+            'options.*'   => 'integer|exists:variant_options,id',
         ];
     }
 
@@ -67,6 +67,7 @@ class StoreCategoryRequest extends FormRequest
             'options.min' => 'Danh sách options phải có ít nhất 1 options',
             'options.*.integer' => 'Các options phải là số',
             'options.*.exists' => 'Các options không tồn tại',
+            'options.prohibited_unless' => 'Trường options chỉ được sử dụng khi loại danh mục là sản phẩm',
         ];
     }
 
