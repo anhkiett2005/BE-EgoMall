@@ -38,7 +38,7 @@ class UpdateCategoryRequest extends FormRequest
             'description' => 'nullable|string',
             'thumbnail' => ['nullable', 'url', 'regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
             'is_active' => 'nullable|boolean|in:0,1',
-            'is_featured' => 'nullable|boolean|in:0,1',
+            'is_featured' => 'nullable|boolean',
             'type' => 'required|string|in:product,blog',
 
             // Đổi về cùng 1 tên field để nhất quán

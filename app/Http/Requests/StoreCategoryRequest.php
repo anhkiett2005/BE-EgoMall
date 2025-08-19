@@ -30,7 +30,7 @@ class StoreCategoryRequest extends FormRequest
             'parent_id' => 'nullable|exists:categories,id',
             'description' => 'nullable|string',
             'thumbnail' => ['nullable', 'url', 'regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
-            'is_featured' => 'nullable|boolean|in:0,1',
+            'is_featured' => 'nullable|boolean',
             'type' => 'nullable|string|in:product,blog',
 
             // CHỈ cho phép khi type=product; blog thì cấm field này xuất hiện
