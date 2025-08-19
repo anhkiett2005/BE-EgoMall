@@ -79,7 +79,7 @@ class AuthController extends Controller
     /**
      * Xác thực OTP đăng ký, kích hoạt tài khoản và cấp JWT.
      */
-    public function verifyOtp(VerifyOtpRequest $request): JsonResponse
+    public function verifyOtp(VerifyOtpRequest $request)
     {
 
         try {
@@ -99,19 +99,23 @@ class AuthController extends Controller
             // Cấp JWT
             $token = JWTAuth::fromUser($user);
 
-            $cookie = new Cookie(
-                'token',
-                $token,
-                now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
-                '/',
-                null,
-                config('app.env') === 'production',
-                true,
-                false,
-                Cookie::SAMESITE_LAX
-            );
+            // $cookie = new Cookie(
+            //     'token',
+            //     $token,
+            //     now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+            //     '/',
+            //     null,
+            //     config('app.env') === 'production',
+            //     true,
+            //     false,
+            //     Cookie::SAMESITE_LAX
+            // );
 
-            return ApiResponse::success('Xác thực OTP thành công!!')->withCookie($cookie);
+            // return ApiResponse::success('Xác thực OTP thành công!!')->withCookie($cookie);
+
+            $data = Common::respondWithToken($token);
+
+            return ApiResponse::success('Xác thực OTP thành công!!', data: $data);
         } catch (JWTException $e) {
             logger('Log bug create auth token verify otp', [
                 'error_message' => $e->getMessage(),
@@ -134,7 +138,7 @@ class AuthController extends Controller
     /**
      * Đăng nhập bình thường: phát JWT và cookie.
      */
-    public function login(LoginRequest $request): JsonResponse
+    public function login(LoginRequest $request)
     {
 
         try {
@@ -170,17 +174,17 @@ class AuthController extends Controller
             //     Cookie::SAMESITE_LAX
             // );
 
-            $cookie = new Cookie(
-                'token',
-                $token,
-                now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
-                '/',
-                null,
-                config('app.env') === 'production',
-                true,
-                false,
-                Cookie::SAMESITE_LAX
-            );
+            // $cookie = new Cookie(
+            //     'token',
+            //     $token,
+            //     now()->addMinutes(config('jwt.ttl'))->getTimestamp(),
+            //     '/',
+            //     null,
+            //     config('app.env') === 'production',
+            //     true,
+            //     false,
+            //     Cookie::SAMESITE_LAX
+            // );
 
             // $cookie = new Cookie(
             //     'token',
@@ -194,7 +198,11 @@ class AuthController extends Controller
             //     Cookie::SAMESITE_NONE // <-- phải là None để gửi cross-origin
             // );
 
-            return ApiResponse::success('Đăng nhập thành công')->withCookie($cookie);
+            // return ApiResponse::success('Đăng nhập thành công')->withCookie($cookie);
+
+            $data = Common::respondWithToken($token);
+
+            return ApiResponse::success('Đăng nhập thành công!!', data: $data);
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         } catch (JWTException $e) {
@@ -261,12 +269,17 @@ class AuthController extends Controller
             $token = JWTAuth::fromUser($user);
 
 
-            $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            // $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
             // $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
             // $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
 
-            return redirect()->away(config('services.frontend_url'))->withCookie($cookie);
+            $time_valid =  now()->addMinutes(config('jwt.ttl'))->getTimestamp();
+
+            $redirectUrl = config('services.frontend_url') . '/authentication?token=' . $token . '&time_valid=' . $time_valid;
+
+            // return redirect()->away(config('services.frontend_url'))->withCookie($cookie);
+            return redirect()->away($redirectUrl);
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         } catch (Exception $e) {
@@ -342,12 +355,17 @@ class AuthController extends Controller
 
 
 
-            $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            // $cookie = new Cookie('token', $token, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
 
             // $hasManagementAccess = Common::hasRole($user->role->name, 'super-admin', 'admin', 'staff');
             // $redirectUrl = $hasManagementAccess ? env('ADMIN_URL') : env('FRONTEND_URL');
 
-            return redirect()->away(config('services.frontend_url'))->withCookie($cookie);
+            $time_valid =  now()->addMinutes(config('jwt.ttl'))->getTimestamp();
+
+            $redirectUrl = config('services.frontend_url') . '/authentication?token=' . $token . '&time_valid=' . $time_valid;
+
+            // return redirect()->away(config('services.frontend_url'))->withCookie($cookie);
+            return redirect()->away($redirectUrl);
         } catch (ApiException $e) {
             return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
         } catch (Exception $e) {
@@ -473,19 +491,19 @@ class AuthController extends Controller
         try {
             JWTAuth::parseToken()->invalidate(); // ✅ parse token trước
 
-            $cookie = new Cookie(
-                'token',
-                '',
-                now()->subMinute()->getTimestamp(),
-                '/',
-                null,
-                config('app.env') === 'production',
-                true,
-                false,
-                Cookie::SAMESITE_LAX
-            );
+            // $cookie = new Cookie(
+            //     'token',
+            //     '',
+            //     now()->subMinute()->getTimestamp(),
+            //     '/',
+            //     null,
+            //     config('app.env') === 'production',
+            //     true,
+            //     false,
+            //     Cookie::SAMESITE_LAX
+            // );
 
-            return ApiResponse::success('Đã đăng xuất')->withCookie($cookie);
+            return ApiResponse::success('Đã đăng xuất thành công!!');
         } catch (JWTException $e) {
             logger('Log bug sign out', [
                 'error_message' => $e->getMessage(),
@@ -499,13 +517,18 @@ class AuthController extends Controller
     /**
      * Làm mới token JWT.
      */
-    public function refresh(): JsonResponse
+    public function refresh()
     {
         try {
             $newToken = JWTAuth::parseToken()->refresh();
 
-            $cookie = new Cookie('token', $newToken, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
-            return ApiResponse::success()->withCookie($cookie);
+            // $cookie = new Cookie('token', $newToken, now()->addMinutes(config('jwt.ttl'))->getTimestamp(), '/', null, config('app.env') === 'production', true, false, Cookie::SAMESITE_LAX);
+            // return ApiResponse::success()->withCookie($cookie);
+
+
+            $data = Common::respondWithToken($newToken);
+
+            return ApiResponse::success('Làm mới token thành công!!', data: $data);
         } catch (JWTException $e) {
             logger('Log bug refresh token', [
                 'error_message' => $e->getMessage(),
