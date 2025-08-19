@@ -36,13 +36,14 @@ class UpdateCategoryRequest extends FormRequest
             ],
             'parent_id' => 'nullable|integer|exists:categories,id',
             'description' => 'nullable|string',
-            'thumbnail' => ['nullable','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
+            'thumbnail' => ['nullable', 'url', 'regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
             'is_active' => 'nullable|boolean|in:0,1',
-            'is_featured' => 'nullable|boolean|in:0,1',
+            'is_featured' => 'nullable|boolean',
             'type' => 'required|string|in:product,blog',
 
-            'variant_options' => 'required|array|min:1',
-            'variant_options.*.id' => 'required|integer|exists:variant_options,id',
+            // Đổi về cùng 1 tên field để nhất quán
+            'option_ids'   => 'prohibited_unless:type,product|nullable|array',
+            'option_ids.*' => 'integer|exists:variant_options,id',
         ];
     }
 
@@ -82,6 +83,7 @@ class UpdateCategoryRequest extends FormRequest
             'variant_options.*.id.required' => 'ID option là trường bắt buộc',
             'variant_options.*.id.integer' => 'ID option phải là số',
             'variant_options.*.id.exists' => 'ID option không tồn tại',
+            'option_ids.prohibited_unless' => 'Trường option_ids chỉ được sử dụng khi loại danh mục là sản phẩm',
         ];
     }
 
