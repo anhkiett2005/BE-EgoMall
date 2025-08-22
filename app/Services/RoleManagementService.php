@@ -47,7 +47,6 @@ class RoleManagementService
                     'perms' => $role->permissions->pluck('id')->toArray()
                 ];
             });
-
         } catch (\Exception $e) {
             logger('Log bug get all roles', [
                 'error_message' => $e->getMessage(),
@@ -89,6 +88,85 @@ class RoleManagementService
             throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    public function createPermission(array $data)
+    {
+        DB::beginTransaction();
+        try {
+            $perm = Permission::create($data);
+            DB::commit();
+            return $perm;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug store permission', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Tạo permission thất bại!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function updatePermission(int $id, array $data)
+    {
+        DB::beginTransaction();
+        try {
+            $perm = Permission::withTrashed()->find($id);
+            if (!$perm) {
+                throw new ApiException('Không tìm thấy permission!', Response::HTTP_NOT_FOUND);
+            }
+
+            $perm->update($data);
+
+            DB::commit();
+            return $perm;
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug update permission', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Cập nhật permission thất bại!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function softDeletePermission(int $id): void
+    {
+        DB::beginTransaction();
+        try {
+            $perm = Permission::find($id);
+            if (!$perm) {
+                throw new ApiException('Không tìm thấy permission!', Response::HTTP_NOT_FOUND);
+            }
+
+            if ($perm->roles()->exists()) {
+                throw new ApiException('Permission đang được gán cho role, không thể xoá!', Response::HTTP_BAD_REQUEST);
+            }
+
+            $perm->delete(); // soft delete
+            DB::commit();
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug delete permission', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Xóa permission thất bại!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
 
     /**
      * Tạo mới role và gán quyền cho role

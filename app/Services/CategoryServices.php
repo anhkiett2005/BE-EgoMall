@@ -18,46 +18,53 @@ class CategoryServices
     /**
      * Lấy toàn bộ danh sách categories
      */
-
     public function modifyIndex(Request $request)
     {
         try {
-            // ===== Filters =====
-            $type        = $request->query('type');            // 'product' | 'blog'
-            $isActive    = $request->query('is_active');       // 0|1
-            $isFeatured  = $request->query('is_featured');     // 0|1
+            $q = Category::with([
+                'categoryOptions.variantOption',
+                'children.categoryOptions.variantOption',
+                'children.children.categoryOptions.variantOption',
+                'children.children.children.categoryOptions.variantOption',
+            ])->root();
 
-            $with = ['categoryOptions.variantOption'];
-
-            $query = Category::with($with);
-
-            // lọc loại danh mục
-            if (!empty($type)) {
-                $query->where('type', $type);
+            // lọc type
+            if ($request->filled('type')) {
+                $type = $request->input('type');
+                if (!in_array($type, ['product', 'blog'], true)) {
+                    throw new ApiException('Tham số type không hợp lệ!', Response::HTTP_BAD_REQUEST);
+                }
+                $q->where('type', $type);
             }
 
-            // lọc trạng thái
-            if ($isActive !== null) {
-                $query->where('is_active', (bool) $isActive);
-            }
-            if ($isFeatured !== null) {
-                $query->where('is_featured', (bool) $isFeatured);
+            // lọc is_active
+            if ($request->has('is_active')) {
+                $q->where('is_active', (int) $request->boolean('is_active'));
             }
 
-            $categories = $query->orderBy('name')->get();
+            // lọc is_featured
+            if ($request->has('is_featured')) {
+                $q->where('is_featured', (int) $request->boolean('is_featured'));
+            }
 
-            // build tree từ dữ liệu đã preload (không N+1)
-            return $categories->map(fn($c) => Common::formatCategoryWithChildren($c));
+            $categories = $q->orderBy('name')->get();
+
+            $list = $categories->map(function ($category) {
+                return \App\Classes\Common::formatCategoryWithChildren($category);
+            })->values();
+
+            return $list;
         } catch (\Exception $e) {
-            logger('Log bug modify category index', [
+            logger('Log bug modify category', [
                 'error_message' => $e->getMessage(),
                 'error_file'    => $e->getFile(),
                 'error_line'    => $e->getLine(),
-                'stack_trace'   => $e->getTraceAsString()
+                'stack_trace'   => $e->getTraceAsString(),
             ]);
-            throw new ApiException('Có lỗi xảy ra!!', Response::HTTP_INTERNAL_SERVER_ERROR);
+            throw new ApiException('Không thể lấy danh mục!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
 
     /**
      * Lấy chi tiết một category

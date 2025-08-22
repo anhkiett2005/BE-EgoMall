@@ -325,10 +325,17 @@ Route::prefix('v1/admin')
                     ->middleware(['role:super-admin,admin'])
                     ->name('admin.roles.assignable');
 
-                // Super-admin
-                Route::get('/permissions', 'getAllPermissions')->middleware(['role:super-admin'])->name('admin.roles.permissions');
-                Route::post('/roles', 'storeRoleAndPermission')->middleware(['role:super-admin'])->name('admin.roles.store');
-                Route::put('/roles/{roleId}/permissions', 'assignPermissionsToRole')->middleware(['role:super-admin'])->name('admin.roles.permissions.assign');
+
+                Route::middleware(['role:super-admin'])->group(function () {
+                    Route::post('/roles', 'storeRoleAndPermission')->name('admin.roles.store');
+                    Route::put('/roles/{roleId}/permissions', 'assignPermissionsToRole')->name('admin.roles.permissions.assign');
+
+                    // Permissions
+                    Route::get('/permissions', 'getAllPermissions')->name('admin.roles.permissions');
+                    Route::post('/permissions', 'storePermission')->name('admin.permissions.store');
+                    Route::put('/permissions/{id}', 'updatePermission')->name('admin.permissions.update');
+                    Route::delete('/permissions/{id}', 'destroyPermission')->name('admin.permissions.destroy'); // soft delete
+                });
             });
         });
 

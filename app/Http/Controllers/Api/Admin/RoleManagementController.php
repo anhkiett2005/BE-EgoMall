@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StorePermissionRequest;
 use App\Http\Requests\StoreRoleAndPermissionRequest;
+use App\Http\Requests\UpdatePermissionRequest;
 use App\Http\Requests\UpdateRoleAndPermissionRequest;
+use App\Http\Resources\Admin\PermissionResource;
 use App\Response\ApiResponse;
 use App\Services\RoleManagementService;
 
@@ -22,21 +25,14 @@ class RoleManagementController extends Controller
     {
         $roles = $this->roleManagementService->getAllRolesExceptCurrent();
 
-        return ApiResponse::success('Lấy danh sách vài trò thành công!!',data: $roles);
-    }
-
-    public function getAllPermissions()
-    {
-        $permissions = $this->roleManagementService->getAllSystemPermissions();
-
-        return ApiResponse::success('Lấy danh sách quyền thành công!!',data: $permissions);
+        return ApiResponse::success('Lấy danh sách vài trò thành công!!', data: $roles);
     }
 
     public function storeRoleAndPermission(StoreRoleAndPermissionRequest $request)
     {
         $role = $this->roleManagementService->storeRoleAndPermission($request);
 
-        if($role) {
+        if ($role) {
             return ApiResponse::success('Tạo vai trò thành công!!');
         }
     }
@@ -45,8 +41,34 @@ class RoleManagementController extends Controller
     {
         $isRoleAssigned = $this->roleManagementService->updateRoleAndPermissions($request, $roleId);
 
-        if($isRoleAssigned) {
+        if ($isRoleAssigned) {
             return ApiResponse::success('Cập nhật vai trò với quyền thành công!!');
         }
+    }
+
+    // Permissions
+    public function getAllPermissions()
+    {
+        $permissions = $this->roleManagementService->getAllSystemPermissions();
+
+        return ApiResponse::success('Lấy danh sách quyền thành công!!', data: $permissions);
+    }
+
+    public function storePermission(StorePermissionRequest $request)
+    {
+        $perm = $this->roleManagementService->createPermission($request->validated());
+        return ApiResponse::success('Tạo permission thành công!', 200, (new PermissionResource($perm))->toArray(request()));
+    }
+
+    public function updatePermission(UpdatePermissionRequest $request, int $id)
+    {
+        $perm = $this->roleManagementService->updatePermission($id, $request->validated());
+        return ApiResponse::success('Cập nhật permission thành công!', 200, (new PermissionResource($perm))->toArray(request()));
+    }
+
+    public function destroyPermission(int $id)
+    {
+        $this->roleManagementService->softDeletePermission($id);
+        return ApiResponse::success('Xóa (mềm) permission thành công!');
     }
 }
