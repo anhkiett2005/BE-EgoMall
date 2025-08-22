@@ -95,7 +95,7 @@ class MomoController extends Controller
         $accessKey = config('services.momo.accessKey');
         $secretKey = config('services.momo.secretKey');
 
-        \Log::info('MoMo IPN called', $request->all());
+        logger('MoMo IPN callback:', $data);
 
         $rawHash = "accessKey={$accessKey}" .
             "&amount={$data['amount']}" .
