@@ -478,9 +478,9 @@ class OrderController extends Controller
             case 'COD':
                 return app(CodController::class)->processPayment($order);
             case 'VNPAY':
-                return app(VnpayController::class)->processPayment($order);
+                return app(VnPayController::class)->processPayment($order);
             case 'MOMO':
-                return app(MomoController::class)->processPayment($order);
+                return app(MoMoController::class)->processPayment($order);
         }
     }
 
