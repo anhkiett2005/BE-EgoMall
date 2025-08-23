@@ -164,7 +164,7 @@ Route::prefix('v1/front')
         });
 
         // Routes API Momo
-        Route::controller('MomoController')->group(function () {
+        Route::controller('MoMoController')->group(function () {
             Route::get('/payment/momo/redirect', 'handleRedirect')->name('payment.momo.redirect');
             Route::post('/payment/momo/ipn', 'handleIpn')->name('payment.momo.ipn');
         });
