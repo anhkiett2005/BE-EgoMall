@@ -484,39 +484,39 @@ class OrderController extends Controller
         }
     }
 
-    private function processRefundPaymentByMethod($order)
-    {
-        switch ($order->payment_method) {
-            case 'VNPAY':
-                return app(VnpayController::class)->processRefundPayment($order);
-            case 'MOMO':
-                return app(MomoController::class)->processRefundPayment($order->transaction_id, $order->total_price);
-        }
-    }
+    // private function processRefundPaymentByMethod($order)
+    // {
+    //     switch ($order->payment_method) {
+    //         case 'VNPAY':
+    //             return app(VnpayController::class)->processRefundPayment($order);
+    //         case 'MOMO':
+    //             return app(MomoController::class)->processRefundPayment($order->transaction_id, $order->total_price);
+    //     }
+    // }
 
-    private function checkPromotion($variant)
-    {
-        $now = now();
-        $promotions = Promotion::with(['products', 'productVariants'])
-            ->where('status', '!=', 0)
-            ->where('start_date', '<=', $now)
-            ->where('end_date', '>=', $now)
-            ->first();
+    // private function checkPromotion($variant)
+    // {
+    //     $now = now();
+    //     $promotions = Promotion::with(['products', 'productVariants'])
+    //         ->where('status', '!=', 0)
+    //         ->where('start_date', '<=', $now)
+    //         ->where('end_date', '>=', $now)
+    //         ->first();
 
-        $matchedPromotion = null;
+    //     $matchedPromotion = null;
 
-        // 1. Nếu promotion áp dụng theo biến thể
-        if ($promotions->productVariants->contains('id', $variant->id)) {
-            $matchedPromotion = $promotions;
-        }
+    //     // 1. Nếu promotion áp dụng theo biến thể
+    //     if ($promotions->productVariants->contains('id', $variant->id)) {
+    //         $matchedPromotion = $promotions;
+    //     }
 
-        // 2. Nếu promotion áp dụng theo product cha
-        if ($promotions->products->contains('id', $variant->product_id)) {
-            $matchedPromotion = $promotions;
-        }
+    //     // 2. Nếu promotion áp dụng theo product cha
+    //     if ($promotions->products->contains('id', $variant->product_id)) {
+    //         $matchedPromotion = $promotions;
+    //     }
 
-        return $matchedPromotion;
-    }
+    //     return $matchedPromotion;
+    // }
 
     private function checkVoucher($userId, $voucherId)
     {
@@ -567,24 +567,24 @@ class OrderController extends Controller
         return true;
     }
 
-    private function checkBuyAndGift($variantId, $promotion = null)
-    {
-        if (!$promotion || $promotion->promotion_type !== 'buy_get') {
-            return false;
-        }
+    // private function checkBuyAndGift($variantId, $promotion = null)
+    // {
+    //     if (!$promotion || $promotion->promotion_type !== 'buy_get') {
+    //         return false;
+    //     }
 
-        // Nếu promotion có gift_product_id → kiểm tra variantId có nằm trong danh sách variant của product đó không
-        if ($promotion->gift_product_id && $promotion->giftProduct && $promotion->giftProduct->variants) {
-            return $promotion->giftProduct->variants->contains('id', $variantId);
-        }
+    //     // Nếu promotion có gift_product_id → kiểm tra variantId có nằm trong danh sách variant của product đó không
+    //     if ($promotion->gift_product_id && $promotion->giftProduct && $promotion->giftProduct->variants) {
+    //         return $promotion->giftProduct->variants->contains('id', $variantId);
+    //     }
 
-        // Nếu promotion có gift_product_variant_id → kiểm tra trực tiếp
-        if ($promotion->gift_product_variant_id) {
-            return $promotion->gift_product_variant_id == $variantId;
-        }
+    //     // Nếu promotion có gift_product_variant_id → kiểm tra trực tiếp
+    //     if ($promotion->gift_product_variant_id) {
+    //         return $promotion->gift_product_variant_id == $variantId;
+    //     }
 
-        return false;
-    }
+    //     return false;
+    // }
 
     private function getApplicablePromotions($variant, $promotions)
     {
