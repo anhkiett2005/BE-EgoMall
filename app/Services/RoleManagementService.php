@@ -253,4 +253,86 @@ class RoleManagementService
             throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+     * Xoá role (soft delete)
+     */
+    public function softDeleteRole(int $roleId): void
+    {
+        DB::beginTransaction();
+        try {
+            // lấy cả role đã xóa hay chưa? -> chỉ lấy active để tránh xóa lần 2
+            $role = Role::find($roleId);
+            if (!$role) {
+                throw new ApiException('Không tìm thấy vai trò!', Response::HTTP_NOT_FOUND);
+            }
+
+            // 1) Chặn xóa role hệ thống
+            if ($role->is_system) {
+                throw new ApiException('Không được xóa vai trò hệ thống!', Response::HTTP_BAD_REQUEST);
+            }
+
+            // 2) Chặn xóa nếu đang có user gán role này
+            if ($role->users()->exists()) {
+                throw new ApiException('Vai trò đang được gán cho người dùng, không thể xóa!', Response::HTTP_BAD_REQUEST);
+            }
+
+            // Soft delete
+            $role->delete();
+
+            DB::commit();
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug soft delete role', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Xóa vai trò thất bại!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    public function restoreRole(int $roleId)
+    {
+        DB::beginTransaction();
+        try {
+            // chỉ tìm trong thùng rác
+            $role = Role::onlyTrashed()->find($roleId);
+            if (!$role) {
+                throw new ApiException('Không tìm thấy vai trò đã xóa!', Response::HTTP_NOT_FOUND);
+            }
+
+            // Chặn trùng name/display_name với role đang active
+            $dupName = Role::where('name', $role->name)->whereNull('deleted_at')->exists();
+            if ($dupName) {
+                throw new ApiException('Tên vai trò đã tồn tại, không thể khôi phục!', Response::HTTP_BAD_REQUEST);
+            }
+
+            $dupDisplay = Role::where('display_name', $role->display_name)->whereNull('deleted_at')->exists();
+            if ($dupDisplay) {
+                throw new ApiException('Tên hiển thị vai trò đã tồn tại, không thể khôi phục!', Response::HTTP_BAD_REQUEST);
+            }
+
+            $role->restore(); // restore xong vẫn giữ nguyên permissions pivot
+
+            DB::commit();
+            return $role;
+        } catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug restore role', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Khôi phục vai trò thất bại!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
 }

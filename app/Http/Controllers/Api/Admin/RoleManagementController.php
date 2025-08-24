@@ -10,6 +10,8 @@ use App\Http\Requests\UpdateRoleAndPermissionRequest;
 use App\Http\Resources\Admin\PermissionResource;
 use App\Response\ApiResponse;
 use App\Services\RoleManagementService;
+use Illuminate\Http\JsonResponse;
+
 
 class RoleManagementController extends Controller
 {
@@ -33,16 +35,33 @@ class RoleManagementController extends Controller
         $role = $this->roleManagementService->storeRoleAndPermission($request);
 
         if ($role) {
-            return ApiResponse::success('Tạo vai trò thành công!!');
+            return ApiResponse::success('Tạo vai trò thành công!!', 200);
         }
     }
+
+    public function destroyRole($roleId): JsonResponse
+    {
+        $this->roleManagementService->softDeleteRole($roleId);
+        return ApiResponse::success('Xóa (mềm) vai trò thành công!!', 200);
+    }
+
+    public function restoreRole(int $roleId)
+    {
+        $role = $this->roleManagementService->restoreRole($roleId);
+        return ApiResponse::success('Khôi phục vai trò thành công!', 200, data: [
+            'id' => $role->id,
+            'name' => $role->name,
+            'display_name' => $role->display_name,
+        ]);
+    }
+
 
     public function assignPermissionsToRole(UpdateRoleAndPermissionRequest $request, $roleId)
     {
         $isRoleAssigned = $this->roleManagementService->updateRoleAndPermissions($request, $roleId);
 
         if ($isRoleAssigned) {
-            return ApiResponse::success('Cập nhật vai trò với quyền thành công!!');
+            return ApiResponse::success('Cập nhật vai trò với quyền thành công!!', 200);
         }
     }
 
@@ -69,6 +88,6 @@ class RoleManagementController extends Controller
     public function destroyPermission(int $id)
     {
         $this->roleManagementService->softDeletePermission($id);
-        return ApiResponse::success('Xóa (mềm) permission thành công!');
+        return ApiResponse::success('Xóa (mềm) permission thành công!', 200);
     }
 }

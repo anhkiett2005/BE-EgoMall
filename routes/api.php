@@ -329,6 +329,10 @@ Route::prefix('v1/admin')
                 Route::middleware(['role:super-admin'])->group(function () {
                     Route::post('/roles', 'storeRoleAndPermission')->name('admin.roles.store');
                     Route::put('/roles/{roleId}/permissions', 'assignPermissionsToRole')->name('admin.roles.permissions.assign');
+                    // Roles
+                    Route::delete('/roles/{roleId}', 'destroyRole')->name('admin.roles.destroy'); // soft delete
+                    Route::patch('/roles/{roleId}/restore', 'restoreRole')->name('admin.roles.restore');
+
 
                     // Permissions
                     Route::get('/permissions', 'getAllPermissions')->name('admin.roles.permissions');
