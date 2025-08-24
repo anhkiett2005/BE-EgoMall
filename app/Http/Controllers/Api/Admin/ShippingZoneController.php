@@ -5,16 +5,30 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ShippingZoneRequest;
 use App\Http\Resources\Admin\ShippingZoneResource;
+use App\Http\Resources\Front\ProvinceResource;
 use App\Response\ApiResponse;
+use App\Services\LocationService;
 use App\Services\ShippingMethodService;
 
 class ShippingZoneController extends Controller
 {
     protected ShippingMethodService $shippingMethodService;
+    protected LocationService $locationService;
 
-    public function __construct(ShippingMethodService $shippingMethodService)
+    public function __construct(ShippingMethodService $shippingMethodService, LocationService $locationService)
     {
         $this->shippingMethodService = $shippingMethodService;
+        $this->locationService = $locationService;
+    }
+
+    public function getProvinces()
+    {
+        $provinces = $this->locationService->getProvinces();
+        return ApiResponse::success(
+            'Lấy danh sách tỉnh/thành thành công!',
+            200,
+            ProvinceResource::collection($provinces)->toArray(request())
+        );
     }
 
     public function store(ShippingZoneRequest $request, int $shippingMethodId)
