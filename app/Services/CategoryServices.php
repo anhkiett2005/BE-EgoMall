@@ -24,8 +24,6 @@ class CategoryServices
             $q = Category::with([
                 'categoryOptions.variantOption',
                 'children.categoryOptions.variantOption',
-                'children.children.categoryOptions.variantOption',
-                'children.children.children.categoryOptions.variantOption',
             ])->root();
 
             // lọc type
