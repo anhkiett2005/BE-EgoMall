@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ShippingZoneRequest;
+use App\Http\Requests\ShippingZoneStoreRequest;
+use App\Http\Requests\ShippingZoneUpdateRequest;
 use App\Http\Resources\Admin\ShippingZoneResource;
 use App\Http\Resources\Front\ProvinceResource;
 use App\Response\ApiResponse;
@@ -31,14 +33,18 @@ class ShippingZoneController extends Controller
         );
     }
 
-    public function store(ShippingZoneRequest $request, int $shippingMethodId)
+    public function store(ShippingZoneStoreRequest $request, int $shippingMethodId)
     {
-        $zone = $this->shippingMethodService->addShippingZone($shippingMethodId, $request->validated());
+        $zones = $this->shippingMethodService->addShippingZones($shippingMethodId, $request->validated());
 
-        return ApiResponse::success('Thêm phí vận chuyển theo tỉnh thành công!', 200, (new ShippingZoneResource($zone))->toArray(request()));
+        return ApiResponse::success(
+            'Thêm phí vận chuyển theo tỉnh thành công!',
+            200,
+            ShippingZoneResource::collection($zones)->toArray(request())
+        );
     }
 
-    public function update(ShippingZoneRequest $request, int $shippingMethodId, int $zoneId)
+    public function update(ShippingZoneUpdateRequest $request, int $shippingMethodId, int $zoneId)
     {
         $zone = $this->shippingMethodService->updateShippingZone($zoneId, $request->validated());
 
