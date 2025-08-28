@@ -8,6 +8,7 @@ use App\Models\ShippingZone;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class ShippingMethodService
 {
@@ -102,29 +103,63 @@ class ShippingMethodService
 
     // Shipping_Zones
 
-    public function addShippingZone(int $methodId, array $data): ShippingZone
+    public function addShippingZones(int $methodId, array $data): \Illuminate\Support\Collection
     {
         $method = ShippingMethod::find($methodId);
-
         if (!$method) {
             throw new ApiException('Không tìm thấy phương thức vận chuyển.', Response::HTTP_NOT_FOUND);
         }
 
-        // Nếu đã tồn tại zone cho province_code này thì ném lỗi
-        $exists = ShippingZone::where('shipping_method_id', $methodId)
-            ->where('province_code', $data['province_code'])
-            ->exists();
-
-        if ($exists) {
-            throw new ApiException('Đã tồn tại phí vận chuyển cho tỉnh này.', Response::HTTP_CONFLICT);
+        $codes = array_values(array_unique($data['province_codes'] ?? []));
+        if (empty($codes)) {
+            throw new ApiException('Danh sách tỉnh/thành rỗng.', Response::HTTP_BAD_REQUEST);
         }
 
-        return $method->zones()->create([
-            'province_code' => $data['province_code'],
-            'fee'           => $data['fee'],
-            'is_available'  => $data['is_available'] ?? true,
-        ]);
+        // Tìm các mã đã tồn tại để báo lỗi sớm
+        $existing = ShippingZone::where('shipping_method_id', $methodId)
+            ->whereIn('province_code', $codes)
+            ->pluck('province_code')
+            ->all();
+
+        if (!empty($existing)) {
+            throw new ApiException(
+                'Đã tồn tại phí vận chuyển cho các tỉnh: ' . implode(', ', $existing),
+                Response::HTTP_CONFLICT
+            );
+        }
+
+        try {
+            return DB::transaction(function () use ($method, $codes, $data) {
+                $payload = array_map(function ($code) use ($data) {
+                    return [
+                        'province_code' => $code,
+                        'fee'           => $data['fee'],
+                        'is_available'  => $data['is_available'] ?? true,
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ];
+                }, $codes);
+
+                // Tạo hàng loạt
+                ShippingZone::insert(array_map(function ($row) use ($method) {
+                    return ['shipping_method_id' => $method->id] + $row;
+                }, $payload));
+
+                return ShippingZone::where('shipping_method_id', $method->id)
+                    ->whereIn('province_code', $codes)
+                    ->get();
+            });
+        } catch (\Exception $e) {
+            logger('Log bug addShippingZones', [
+                'error_message' => $e->getMessage(),
+                'error_file'    => $e->getFile(),
+                'error_line'    => $e->getLine(),
+                'stack_trace'   => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Không thể thêm phí vận chuyển theo tỉnh!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
+
 
     public function updateShippingZone(int $zoneId, array $data): ShippingZone
     {

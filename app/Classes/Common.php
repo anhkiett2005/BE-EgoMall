@@ -5,6 +5,7 @@ namespace App\Classes;
 use App\Exceptions\ApiException;
 use App\Jobs\SendOrderStatusMailJob;
 use App\Jobs\SendPromotionMailJob;
+use App\Jobs\SendReturnApprovedMailJob;
 use App\Jobs\SendSetPasswordMailJob;
 use App\Models\Order;
 use App\Models\ProductVariant;
@@ -112,6 +113,7 @@ class Common
             'id' => $category->id,
             'name' => $category->name,
             'slug' => $category->slug,
+            'parent_id' => $category->parent_id,
             'description' => $category->description,
             'thumbnail' => $category->thumbnail,
             'is_active' => $category->is_active,
@@ -632,6 +634,20 @@ class Common
             }
         });
     }
+
+    public static function sendReturnApprovedMail(Order $order, bool $afterCommit = false): void
+    {
+        try {
+            $job = SendReturnApprovedMailJob::dispatch($order->id);
+
+            if ($afterCommit) {
+                $job->afterCommit();
+            }
+        } catch (\Throwable $e) {
+            logger()->error("Gửi mail hoàn trả thất bại (Order ID: {$order->id}) - Lỗi: {$e->getMessage()}");
+        }
+    }
+
 
     public static function respondWithToken($token)
     {

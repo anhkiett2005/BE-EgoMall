@@ -172,15 +172,20 @@ class BlogService
         $blog = Blog::with([
             'category',
             'creator',
-            'products.category',
-            'products.brand',
-            'products.variants' => function ($query) {
-                $query->where('is_active', '!=', 0)
+            'products' => function ($q) {
+                $q->where('is_active', '!=', 0)
+                    ->whereHas('variants', function ($v) {
+                        $v->where('is_active', '!=', 0);
+                    })
                     ->with([
-                        'values',
-                        'orderDetails.review'
+                        'category',
+                        'brand',
+                        'variants' => function ($v) {
+                            $v->where('is_active', '!=', 0)
+                                ->with(['values', 'orderDetails.review']);
+                        }
                     ]);
-            }
+            },
         ])
             ->where('slug', $slug)
             ->where('status', 'published')

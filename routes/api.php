@@ -190,6 +190,7 @@ Route::prefix('v1/admin')
         Route::controller('ShippingZoneController')
             ->prefix('shipping-methods')
             ->group(function () {
+                Route::get('/location/provinces', 'getProvinces')->name('admin.shipping-methods.provinces');
                 Route::post('/{shippingMethodId}/zones', 'store')->name('admin.shipping-methods.zones.store');
                 Route::put('/{shippingMethodId}/zones/{zoneId}', 'update')->name('admin.shipping-methods.zones.update');
                 Route::delete('/{shippingMethodId}/zones/{zoneId}', 'destroy')->name('admin.shipping-methods.zones.destroy');

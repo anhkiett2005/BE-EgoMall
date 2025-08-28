@@ -8,6 +8,7 @@ use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
+
 class OrderService
 {
 
@@ -224,9 +225,9 @@ class OrderService
     }
 
 
-    public function approveReturn(string $uniqueId)
+    public function approveReturn(string $uniqueId, ?string $note = null)
     {
-        return DB::transaction(function () use ($uniqueId) {
+        return DB::transaction(function () use ($uniqueId, $note) {
             $order = Order::where('unique_id', $uniqueId)
                 ->lockForUpdate()
                 ->first();
@@ -235,7 +236,7 @@ class OrderService
                 throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
             }
 
-            // Chỉ cho approve khi user đã gửi yêu cầu
+            // Idempotent
             if ($order->return_status === 'approved') {
                 return $order;
             }
@@ -246,7 +247,11 @@ class OrderService
             $order->update([
                 'return_status' => 'approved',
                 'status'        => 'return_sales',
+                'return_note'   => $note ?? $order->return_note,
             ]);
+
+            // Gửi mail sau commit để chắc chắn đọc được trạng thái mới
+            Common::sendReturnApprovedMail($order, true);
 
             return $order;
         });

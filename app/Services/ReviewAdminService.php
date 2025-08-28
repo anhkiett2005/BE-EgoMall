@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Models\Review;
 use App\Models\ReviewReply;
@@ -25,8 +26,15 @@ class ReviewAdminService
             }
 
             $user = auth('api')->user();
-            if (!in_array($user->role->name, ['staff', 'admin', 'super_admin'])) {
-                throw new ApiException('Chỉ nhân viên mới được phản hồi đánh giá!', Response::HTTP_FORBIDDEN);
+            $roleName = $user->role->name ?? null;
+
+            if (!Common::hasRole($roleName, 'staff', 'admin', 'super-admin')) {
+                throw new ApiException('Cấm: Quyền truy cập bị từ chối!!', Response::HTTP_FORBIDDEN);
+            }
+
+            // chỉ cho reply khi review đã approved
+            if ($review->status !== 'approved') {
+                throw new ApiException('Chỉ phản hồi review đã được duyệt.', Response::HTTP_BAD_REQUEST);
             }
 
             return ReviewReply::create([
@@ -39,29 +47,41 @@ class ReviewAdminService
 
     public function update(int $reviewId, array $data, int $userId): ReviewReply
     {
-        return DB::transaction(function () use ($reviewId, $data, $userId) {
-            $review = Review::with('reply')->find($reviewId);
+        try {
+            return DB::transaction(function () use ($reviewId, $data, $userId) {
+                $review = Review::with('reply')->find($reviewId);
+                if (!$review || !$review->reply) {
+                    throw new ApiException('Không tìm thấy phản hồi để cập nhật!', Response::HTTP_NOT_FOUND);
+                }
 
-            if (!$review || !$review->reply) {
-                throw new ApiException('Không tìm thấy phản hồi để cập nhật!', Response::HTTP_NOT_FOUND);
-            }
+                $reply = $review->reply;
 
-            $reply = $review->reply;
+                $user = auth('api')->user();
+                $roleName = $user->role->name ?? null;
 
-            // Kiểm tra người sửa phải là người đã phản hồi, hoặc có quyền admin
-            $user = auth('api')->user();
-            $canEdit = $reply->user_id === $userId || in_array($user->role->name, ['admin', 'super_admin']);
+                $isOwner = ($reply->user_id === $userId);
+                $isAdmin = in_array($roleName, ['admin', 'super-admin']); // sửa tên role tại đây
 
-            if (!$canEdit) {
-                throw new ApiException('Bạn không có quyền sửa phản hồi này!', Response::HTTP_FORBIDDEN);
-            }
+                if (!$isOwner && !$isAdmin) {
+                    throw new ApiException('Bạn không có quyền sửa phản hồi này!', Response::HTTP_FORBIDDEN);
+                }
 
-            $reply->update([
-                'reply' => $data['reply'],
+                $reply->update(['reply' => $data['reply']]);
+
+                // trả về bản mới nhất kèm quan hệ nếu cần hiển thị
+                return $reply->fresh(['user', 'review']);
+            });
+        } catch (\Exception $e) {
+            logger('Log bug update review reply', [
+                'error_message' => $e->getMessage(),
+                'error_file'    => $e->getFile(),
+                'error_line'    => $e->getLine(),
+                'stack_trace'   => $e->getTraceAsString(),
             ]);
-
-            return $reply;
-        });
+            throw $e instanceof ApiException
+                ? $e
+                : new ApiException('Không thể cập nhật phản hồi.', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
 
