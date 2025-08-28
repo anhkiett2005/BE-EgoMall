@@ -14,7 +14,7 @@
     <p>Để thiết lập mật khẩu của bạn, vui lòng nhấn vào nút bên dưới:</p>
 
     <p>
-        <a href="{{ $resetPasswordLink }}"
+        <a href="https://admin.egomall.io.vn/auth/forgotpassword"
            style="display: inline-block; padding: 12px 24px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 4px;">
             Đặt lại mật khẩu
         </a>

@@ -16,8 +16,6 @@ class SetPasswordMail extends Mailable implements ShouldQueue
 
     public function build(): self
     {
-        $frontendResetPasswordUrl = rtrim(config('app.frontend_url'), '/') . '/auth/forgot-password';
-
         return $this
             ->from(config('mail.from.address'), config('mail.from.name'))
             ->subject('Thiết lập mật khẩu cho tài khoản EgoMall')
@@ -26,7 +24,6 @@ class SetPasswordMail extends Mailable implements ShouldQueue
                 'userName'          => $this->user->name,
                 'userEmail'         => $this->user->email,
                 'roleName'          => $this->roleName,
-                'resetPasswordLink' => $frontendResetPasswordUrl,
             ]);
     }
 }
