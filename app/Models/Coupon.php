@@ -35,6 +35,26 @@ class Coupon extends Model
         'status' => 'boolean',
     ];
 
+    protected $appends = ['is_voucher_valiable'];
+
+    public function getIsVoucherValiableAttribute()
+    {
+        $user = auth('api')->user();
+
+        // Đếm số lượt user đã dùng voucher này
+        $usedCount = $this->usages()
+            ->where('user_id', $user->id)
+            ->count();
+
+        // Nếu có giới hạn discount_limit
+        if (!is_null($this->discount_limit)) {
+            return $usedCount < $this->discount_limit;
+        }
+
+        // Nếu không set discount_limit thì dùng thoải mái
+        return true;
+    }
+
     // Danh sách lượt dùng
     public function usages()
     {
