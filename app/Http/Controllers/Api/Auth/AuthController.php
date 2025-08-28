@@ -276,7 +276,7 @@ class AuthController extends Controller
 
             $time_valid =  now()->addMinutes(config('jwt.ttl'))->getTimestamp();
 
-            $redirectUrl = config('services.frontend_url') . '/authentication?token=' . $token . '&time_valid=' . $time_valid;
+            $redirectUrl = config('services.frontend_url.url') . '/authentication?token=' . $token . '&time_valid=' . $time_valid;
 
             // return redirect()->away(config('services.frontend_url'))->withCookie($cookie);
             return redirect()->away($redirectUrl);
@@ -362,7 +362,7 @@ class AuthController extends Controller
 
             $time_valid =  now()->addMinutes(config('jwt.ttl'))->getTimestamp();
 
-            $redirectUrl = config('services.frontend_url') . '/authentication?token=' . $token . '&time_valid=' . $time_valid;
+            $redirectUrl = config('services.frontend_url.url') . '/authentication?token=' . $token . '&time_valid=' . $time_valid;
 
             // return redirect()->away(config('services.frontend_url'))->withCookie($cookie);
             return redirect()->away($redirectUrl);
