@@ -201,7 +201,7 @@ class ProductController extends Controller
                 //         ) BETWEEN ? AND ?
                 //     ", [now(), now(), $min, $max]);
                 // });
-                $query->whereBetween('final_price', [$min, $max]);
+                $query->havingBetween('final_price', [$min, $max]);
             }
 
             // Sort theo các tiêu chí
