@@ -19,9 +19,9 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH' , 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => ['https://egomall.io.vn','http://localhost:3000'],
+    'allowed_origins' => ['https://egomall.io.vn','https://admin.egomall.io.vn','http://localhost:3000'],
 
-    'allowed_origins_patterns' => ['^https://([a-z0-9-]+\.)*egomall\.io\.vn(:[0-9]+)?$'],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['Content-Type', 'X-Requested-With', 'Accept', 'Authorization'],
 
