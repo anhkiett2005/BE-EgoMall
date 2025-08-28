@@ -29,6 +29,17 @@ class Product extends Model
         'is_active' => 'boolean'
     ];
 
+    protected $appends = ['is_featured'];
+
+    public function getIsFeaturedAttribute()
+    {
+        $totalSold = OrderDetail::join('product_variants', 'order_details.product_variant_id', '=', 'product_variants.id')
+                                ->where('product_variants.product_id', $this->id)
+                                ->sum('order_details.quantity');
+
+        return $totalSold >= 10;
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);

@@ -25,14 +25,43 @@ class ProductController extends Controller
         try {
             // lấy product and các vairant và đánh giá trung bình review về sản phẩm này and filter
             $request = request();
-            $sub = DB::table('product_variants')
-                ->selectRaw('MAX(COALESCE(sale_price, price))')
-                ->whereColumn('product_variants.product_id', 'products.id');
+
             $now = now();
+
+            $sub = DB::table('product_variants')
+                    ->selectRaw("
+                        MIN(
+                            COALESCE(
+                                sale_price,
+                                price - (
+                                    COALESCE((
+                                        SELECT CASE
+                                            WHEN p.promotion_type = 'percentage'
+                                                THEN price * (p.discount_value / 100)
+                                            WHEN p.promotion_type = 'fixed_amount'
+                                                THEN p.discount_value
+                                            ELSE 0
+                                        END
+                                        FROM promotions p
+                                        JOIN promotion_product pp
+                                            ON p.id = pp.promotion_id
+                                        WHERE pp.product_variant_id = product_variants.id
+                                        AND p.status = 'active'
+                                        AND p.start_date <= ?
+                                        AND p.end_date >= ?
+                                        ORDER BY p.discount_value DESC
+                                        LIMIT 1
+                                    ), 0)
+                                )
+                            )
+                        )
+                    ", [$now, $now])
+                    ->whereColumn('product_variants.product_id', 'products.id');
+
 
             $query = Product::query()
                 ->select('*')
-                ->selectSub($sub, 'max_price')
+                ->selectSub($sub, 'final_price')
                 ->with([
                     'category',
                     'brand',
@@ -244,6 +273,7 @@ class ProductController extends Controller
                     'image' => $product->image ?? null,
                     'average_rating' => $averageRating,
                     'review_count'   => $reviewCount,
+                    'is_featured'    => $product->is_featured,
                     'sold_count'     => $soldCount,
                     'options' => $product->variants
                         ->flatMap(function ($variant) {
@@ -521,7 +551,7 @@ class ProductController extends Controller
                 'related' => $related
             ]);
 
-            return ApiResponse::success('Data fetched successfully', data: $listDetails);
+            return ApiResponse::success('Lấy chi tiết sản phẩm thành công!!', data: $listDetails);
         } catch (\Exception $e) {
             logger('Log bug', [
                 'error_message' => $e->getMessage(),
@@ -544,10 +574,10 @@ class ProductController extends Controller
                 $query->orderBy('name', 'desc');
                 break;
             case 'price_asc':
-                $query->orderBy('max_price', 'asc'); // Đã có sẵn từ selectSub
+                $query->orderBy('final_price', 'asc'); // Đã có sẵn từ selectSub
                 break;
             case 'price_desc':
-                $query->orderBy('max_price', 'desc'); // Đã có sẵn từ selectSub
+                $query->orderBy('final_price', 'desc'); // Đã có sẵn từ selectSub
                 break;
             case 'new':
                 $query->where('created_at', '>=', now()->subDays(7)) // lọc hàng mới 7 ngày gần đây
