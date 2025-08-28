@@ -16,7 +16,7 @@ class SetPasswordMail extends Mailable implements ShouldQueue
 
     public function build(): self
     {
-        $frontendResetPasswordUrl = rtrim(config('services.admin_url.url'), '/') . '/auth/forgotpassword';
+        $frontendResetPasswordUrl = env('ADMIN_URL') . '/auth/forgotpassword';
 
         return $this
             ->from(config('mail.from.address'), config('mail.from.name'))
