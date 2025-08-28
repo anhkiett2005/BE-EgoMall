@@ -171,36 +171,37 @@ class ProductController extends Controller
                 // });
                 // });
 
-                $query->whereHas('variants', function ($q) use ($min, $max) {
-                    $q->whereRaw("
-                        COALESCE(
-                            sale_price,
-                            price - (
-                                COALESCE(
-                                    (
-                                        SELECT
-                                            CASE
-                                                WHEN p.promotion_type = 'percentage'
-                                                    THEN price * (p.discount_value / 100)
-                                                WHEN p.promotion_type = 'fixed_amount'
-                                                    THEN p.discount_value
-                                                ELSE 0
-                                            END
-                                        FROM promotions p
-                                        JOIN promotion_product pp
-                                            ON p.id = pp.promotion_id
-                                        WHERE pp.product_variant_id = product_variants.id
-                                            AND p.status = 'active'
-                                            AND p.start_date <= ?
-                                            AND p.end_date >= ?
-                                        ORDER BY p.discount_value DESC
-                                        LIMIT 1
-                                    ), 0
-                                )
-                            )
-                        ) BETWEEN ? AND ?
-                    ", [now(), now(), $min, $max]);
-                });
+                // $query->whereHas('variants', function ($q) use ($min, $max) {
+                //     $q->whereRaw("
+                //         COALESCE(
+                //             sale_price,
+                //             price - (
+                //                 COALESCE(
+                //                     (
+                //                         SELECT
+                //                             CASE
+                //                                 WHEN p.promotion_type = 'percentage'
+                //                                     THEN price * (p.discount_value / 100)
+                //                                 WHEN p.promotion_type = 'fixed_amount'
+                //                                     THEN p.discount_value
+                //                                 ELSE 0
+                //                             END
+                //                         FROM promotions p
+                //                         JOIN promotion_product pp
+                //                             ON p.id = pp.promotion_id
+                //                         WHERE pp.product_variant_id = product_variants.id
+                //                             AND p.status = 'active'
+                //                             AND p.start_date <= ?
+                //                             AND p.end_date >= ?
+                //                         ORDER BY p.discount_value DESC
+                //                         LIMIT 1
+                //                     ), 0
+                //                 )
+                //             )
+                //         ) BETWEEN ? AND ?
+                //     ", [now(), now(), $min, $max]);
+                // });
+                $query->whereBetween('final_price', [$min, $max]);
             }
 
             // Sort theo các tiêu chí
