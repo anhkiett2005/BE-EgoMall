@@ -39,6 +39,7 @@ class CouponController extends Controller
                         'discount_type' => $coupon->discount_type,
                         'discount_value' => (int) $coupon->discount_value,
                         'conditions' => (int) $coupon->min_order_value,
+                        'is_voucher_valiable' => $coupon->is_voucher_valiable,
                         'end_date' => $coupon->end_date->format('d-m-Y H:i'),
                     ];
 
