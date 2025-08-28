@@ -131,6 +131,20 @@ class ProductController extends Controller
                 });
             }
 
+            // Lọc sản phẩm nổi bật
+            if($request->filled('is_featured') && $request->is_featured == 1){
+                $query->whereIn('products.id', function($q) {
+                    $q->select('pv.product_id')
+                      ->from('product_variants as pv')
+                      ->join('order_details as od', 'pv.id', '=', 'od.product_variant_id')
+                      ->join('orders as o', 'o.id', '=', 'od.order_id')
+                      ->where('o.status', 'delivered')
+                      ->where('od.is_gift', 0)
+                      ->groupBy('pv.product_id')
+                      ->havingRaw('SUM(od.quantity) >= 10');
+                });
+            }
+
 
             // Lọc theo loại da
             if ($request->has('type_skin')) {
@@ -256,6 +270,7 @@ class ProductController extends Controller
 
                 $aggSold   = $soldAgg->get($product->id);
                 $soldCount = $aggSold ? (int)$aggSold->sold_qty : 0;
+                $isFeatured = $soldCount >= 10;
 
                 return [
                     'id' => $product->id,
@@ -274,7 +289,7 @@ class ProductController extends Controller
                     'image' => $product->image ?? null,
                     'average_rating' => $averageRating,
                     'review_count'   => $reviewCount,
-                    'is_featured'    => $product->is_featured,
+                    'is_featured'    => $isFeatured,
                     'sold_count'     => $soldCount,
                     'options' => $product->variants
                         ->flatMap(function ($variant) {
