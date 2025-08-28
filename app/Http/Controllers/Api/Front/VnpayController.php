@@ -133,11 +133,11 @@ class VnpayController extends Controller
                 // Mail::to($order->user->email)->queue(new OrderSuccessMail($order,'success'));
 
 
-                return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=success&order_id=" . $order->unique_id);
+                return redirect()->away(env('FRONTEND_URL') . "/thank-you?status=success&order_id=" . $order->unique_id);
                 // return response()->json(['success' => true, 'message' => 'Thanh toán thành công',]);
 
             } else {
-                return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=failed");
+                return redirect()->away(env('FRONTEND_URL') . "/profile/orders");
                 // return response()->json(['success' => false, 'message' => 'Thanh toán thất bại']);
             }
         } catch (\Exception $e) {
