@@ -60,4 +60,6 @@ return [
     ],
 
     'frontend_url' => env('FRONTEND_URL', 'https://egomall.io.vn'),
+
+    'admin_url' => env('ADMIN_URL', 'https://admin.egomall.io.vn'),
 ];
