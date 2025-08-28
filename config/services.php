@@ -59,7 +59,11 @@ return [
         'secretKey' => env('MOMO_SECRET_KEY'),
     ],
 
-    'frontend_url' => env('FRONTEND_URL', 'https://egomall.io.vn'),
+    'frontend_url' => [
+        'url' => env('FRONTEND_URL', 'https://egomall.io.vn')
+    ],
 
-    'admin_url' => env('ADMIN_URL', 'https://admin.egomall.io.vn'),
+    'admin_url' => [
+        'url' => env('ADMIN_URL', 'https://admin.egomall.io.vn')
+    ],
 ];
