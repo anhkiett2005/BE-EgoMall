@@ -53,17 +53,19 @@ class SearchController extends Controller
                 ->leftJoin('order_details as od', 'od.product_variant_id', '=', 'pv.id')
                 ->leftJoin('orders as o', 'o.id', '=', 'od.order_id')
                 ->leftJoin('reviews as r', 'r.order_detail_id', '=', 'od.id')
+                ->leftJoin('brands as b', 'b.id', '=', 'p.brand_id')
                 ->where('p.is_active', '!=', 0)
                 ->where('pv.is_active', '!=', 0)
                 ->when($term !== '', function ($q) use ($term) {
                     $q->where('p.name', 'like', "%{$term}%");
                 })
-                ->groupBy('p.id', 'p.name', 'p.slug', 'p.image')
+                ->groupBy('p.id', 'p.name', 'p.slug', 'p.image', 'b.name')
                 ->select([
                     'p.id',
                     'p.name',
                     'p.slug',
                     'p.image',
+                    'b.name as brand_name',
                 ])
                 ->selectSub($finalPriceSub, 'final_price')
                 ->addSelect([
@@ -91,6 +93,10 @@ class SearchController extends Controller
                     $row->average_rating = (float) ($row->average_rating ?? 0);
                     $row->review_count   = (int)   ($row->review_count ?? 0);
                     $row->sold_count     = (int)   ($row->sold_count ?? 0);
+                    $row->final_price    = $row->final_price !== null ? (float) $row->final_price : 0;
+                    $row->brand = [
+                        'name' => $row->brand_name,
+                    ];
                     return $row;
                 });
 
