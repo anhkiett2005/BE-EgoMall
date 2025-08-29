@@ -19,7 +19,8 @@ class SearchController extends Controller
             $request = request();
 
             $dataSearch = Product::with(['variants' => function($query) {
-                                    $query->where('is_active', '!=', 0);
+                                    $query->where('is_active', '!=', 0)
+                                          ->with(['orderDetails.review']);
                                 }])
                                 ->where('is_active', '!=', 0)
                                 ->where('name', 'like', '%' . $request->search . '%')
@@ -29,12 +30,30 @@ class SearchController extends Controller
             $listProduct = collect();
 
             foreach ($dataSearch as $product) {
-                $firstVariant = $product->variants->first(); // Lấy variant đầu tiên
+                $firstVariant = $product->variants->sortBy('price')->first(); // Lấy variant đầu tiên
+
+                $avgRating = 0;
+                $soldCount = 0;
+                $totalReviews = 0;
+
+                foreach ($product->variants as $variant) {
+                    foreach ($variant->orderDetails as $orderDetail) {
+                        if ($orderDetail->review) {
+                            $avgRating += $orderDetail->review->rating;
+                            $totalReviews++;
+                        }
+                        $soldCount += $orderDetail->quantity;
+                    }
+                }
+
+                $avgRating = $totalReviews > 0 ? $avgRating / $totalReviews : 0;
 
                 $listProduct->push([
                     'name' => $product->name,
                     'slug' => $product->slug,
                     'image' => $product->image,
+                    'avg_rating' => $avgRating ?? 0,
+                    'sold_count' => $soldCount ?? 0,
                     'price' => $firstVariant?->price ?? 0,
                     'sale_price' => $firstVariant?->sale_price ?? 0,
                 ]);

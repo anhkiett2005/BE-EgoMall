@@ -210,6 +210,51 @@ class BlogService
             cache()->put($cacheKey, true, now()->addMinutes(15));
         }
 
+        if ($blog->relationLoaded('products') && $blog->products->isNotEmpty()) {
+            $productIds = $blog->products->pluck('id');
+
+            // Tổng hợp rating (chỉ review approved) theo product_id
+            $ratingAgg = DB::table('product_variants as pv')
+                ->join('order_details as od', 'od.product_variant_id', '=', 'pv.id')
+                ->join('reviews as r', 'r.order_detail_id', '=', 'od.id')
+                ->select(
+                    'pv.product_id',
+                    DB::raw('AVG(r.rating) as avg_rating'),
+                    DB::raw('COUNT(r.id) as review_count')
+                )
+                ->whereIn('pv.product_id', $productIds)
+                ->where('r.status', 'approved') // CHỈNH: đồng bộ với luồng product
+                ->groupBy('pv.product_id')
+                ->get()
+                ->keyBy('product_id');
+
+            // Tổng hợp sold_count theo product_id (đơn delivered, bỏ quà tặng)
+            $soldAgg = DB::table('product_variants as pv')
+                ->join('order_details as od', 'od.product_variant_id', '=', 'pv.id')
+                ->join('orders as o', 'o.id', '=', 'od.order_id')
+                ->select('pv.product_id', DB::raw('SUM(od.quantity) as sold_qty'))
+                ->whereIn('pv.product_id', $productIds)
+                ->where('o.status', 'delivered')
+                ->where(function ($q) {
+                    // Đồng bộ với luồng product; nếu dữ liệu cũ có NULL thì thêm OR whereNull
+                    $q->where('od.is_gift', 0);
+                    // $q->whereNull('od.is_gift')->orWhere('od.is_gift', 0);
+                })
+                ->groupBy('pv.product_id')
+                ->get()
+                ->keyBy('product_id');
+
+            // Gắn attribute vào từng product để Resource dùng lại
+            $blog->products->each(function ($p) use ($ratingAgg, $soldAgg) {
+                $r = $ratingAgg->get($p->id);
+                $s = $soldAgg->get($p->id);
+
+                $p->setAttribute('avg_rating',   $r ? round((float)$r->avg_rating, 1) : 0.0);
+                $p->setAttribute('review_count', $r ? (int)$r->review_count : 0);
+                $p->setAttribute('sold_count',   $s ? (int)$s->sold_qty : 0);
+            });
+        }
+
         return $blog;
     }
 
