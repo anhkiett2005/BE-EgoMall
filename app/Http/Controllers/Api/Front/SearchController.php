@@ -28,6 +28,8 @@ class SearchController extends Controller
                                 ->where('o.status', 'delivered');
                         })
                         ->leftJoin('reviews as r', 'r.order_detail_id', '=', 'od.id')
+                        ->where('r.status', 'approved')
+                        ->where('od.is_gift', '!=', 1)
                         ->select(
                             'p.id',
                             'p.name',
