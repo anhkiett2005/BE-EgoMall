@@ -560,6 +560,7 @@ class ProductController extends Controller
                 'slug' => $product->slug,
                 'brand' => $product->brand->name ?? null,
                 'image' => $product->image,
+                'description' => $product->description,
                 'status' => $status,
                 'average_rating' => $averageRating,
                 'review_count' => $reviewCount,
