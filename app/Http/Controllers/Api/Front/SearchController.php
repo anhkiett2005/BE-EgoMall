@@ -21,29 +21,30 @@ class SearchController extends Controller
 
             // Lấy product kèm variants
             $products = DB::table('products as p')
-                        ->join('product_variants as pv', 'pv.product_id', '=', 'p.id')
-                        ->leftJoin('order_details as od', 'od.product_variant_id', '=', 'pv.id')
-                        ->leftJoin('orders as o', function($join) {
-                            $join->on('o.id', '=', 'od.order_id')
-                                ->where('o.status', 'delivered');
-                        })
-                        ->leftJoin('reviews as r', 'r.order_detail_id', '=', 'od.id')
-                        ->where('r.status', 'approved')
-                        ->where('od.is_gift', '!=', 1)
-                        ->select(
-                            'p.id',
-                            'p.name',
-                            'p.slug',
-                            'p.image',
-                            DB::raw('MIN(pv.price) as min_price'), // variant giá thấp nhất
-                            DB::raw('MIN(pv.sale_price) as min_sale_price'),
-                            DB::raw('COALESCE(SUM(od.quantity), 0) as sold_count'),
-                            DB::raw('COALESCE(ROUND(AVG(r.rating), 1), 0) as avg_rating')
-                        )
-                        ->where('p.is_active', '!=', 0)
-                        ->where('p.name', 'like', "%{$request->search}%")
-                        ->groupBy('p.id', 'p.name', 'p.slug', 'p.image')
-                        ->get();
+                            ->join('product_variants as pv', 'pv.product_id', '=', 'p.id')
+                            ->leftJoin('order_details as od', 'od.product_variant_id', '=', 'pv.id')
+                            ->leftJoin('orders as o', function($join) {
+                                $join->on('o.id', '=', 'od.order_id')
+                                    ->where('o.status', 'delivered');
+                            })
+                            ->leftJoin('reviews as r', function($join){
+                                $join->on('r.order_detail_id', '=', 'od.id')
+                                    ->where('r.status', 'approved');
+                            })
+                            ->select(
+                                'p.id',
+                                'p.name',
+                                'p.slug',
+                                'p.image',
+                                DB::raw('MIN(pv.price) as price'),
+                                DB::raw('MIN(pv.sale_price) as sale_price'),
+                                DB::raw('COALESCE(SUM(CASE WHEN od.is_gift != 1 THEN od.quantity ELSE 0 END), 0) as sold_count'),
+                                DB::raw('COALESCE(ROUND(AVG(r.rating), 1), 0) as avg_rating')
+                            )
+                            ->where('p.is_active', '!=', 0)
+                            ->where('p.name', 'like', "%{$request->search}%")
+                            ->groupBy('p.id', 'p.name', 'p.slug', 'p.image')
+                            ->get();
 
             return ApiResponse::success('Tìm kiếm sản phẩm thành công!!', data: $products);
         } catch (\Exception $e) {
