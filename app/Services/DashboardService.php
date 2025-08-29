@@ -147,7 +147,7 @@ class DashboardService
 
             // === Thống kê doanh thu 12 tháng gần nhất ===
             $now = Carbon::now()->startOfMonth();
-            $start = $now->copy()->subMonths(11);
+            $start = $now->copy()->subMonths(12);
 
             $revenues = DB::table('orders')
                 ->selectRaw("YEAR(created_at) as year, MONTH(created_at) as month, SUM(total_price) as total_revenue")

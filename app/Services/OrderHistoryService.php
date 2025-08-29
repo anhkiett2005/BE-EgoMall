@@ -23,7 +23,10 @@ class OrderHistoryService
 
         if ($status && $status !== 'all') {
             if ($status === 'needReview') {
-                $query->where('status', 'delivered')->whereDoesntHave('review');
+                $query->where('status', 'delivered')
+                  ->whereHas('details', function ($q) {
+                      $q->where('is_gift', 0)->whereDoesntHave('review');
+                  });
             } else {
                 $query->where('status', $status);
             }
