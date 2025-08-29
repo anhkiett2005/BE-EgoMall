@@ -14,8 +14,12 @@ class OrderHistoryResource extends JsonResource
         $status = $this->status;
         $deliveredAt = $this->delivered_at;
 
+        $hasPendingReview = $this->details->contains(function ($detail) {
+            return !$detail->is_gift && !$detail->review;
+        });
+
         // Xác định display_status
-        if ($status === 'delivered' && !$this->review) {
+        if ($status === 'delivered' && $hasPendingReview) {
             $displayStatus = 'Cần đánh giá';
         } elseif ($status === 'return_sales') {
             $mapReturn = [
@@ -47,7 +51,7 @@ class OrderHistoryResource extends JsonResource
             'can_pay' => $this->status === 'ordered'
                 && in_array($this->payment_method, ['MOMO', 'VNPAY'], true)
                 && $this->payment_status === 'unpaid',
-            'can_review' => $status === 'delivered',
+            'can_review'      => $status === 'delivered' && $hasPendingReview,
             'can_request_return' => $status === 'delivered'
                 && is_null($this->return_status)
                 && $deliveredAt
