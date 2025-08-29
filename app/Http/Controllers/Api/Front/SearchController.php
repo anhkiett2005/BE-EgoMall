@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Response\ApiResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class SearchController extends Controller
 {
@@ -18,50 +19,33 @@ class SearchController extends Controller
         try {
             $request = request();
 
-            $dataSearch = Product::with(['variants' => function($query) {
-                                    $query->where('is_active', '!=', 0)
-                                          ->with(['orderDetails.review']);
-                                }])
-                                ->where('is_active', '!=', 0)
-                                ->where('name', 'like', '%' . $request->search . '%')
-                                ->get();
+            // Lấy product kèm variants
+            $products = DB::table('products as p')
+                        ->join('product_variants as pv', 'pv.product_id', '=', 'p.id')
+                        ->leftJoin('order_details as od', 'od.product_variant_id', '=', 'pv.id')
+                        ->leftJoin('orders as o', function($join) {
+                            $join->on('o.id', '=', 'od.order_id')
+                                ->where('o.status', 'delivered');
+                        })
+                        ->leftJoin('reviews as r', 'r.order_detail_id', '=', 'od.id')
+                        ->select(
+                            'p.id',
+                            'p.name',
+                            'p.slug',
+                            'p.image',
+                            DB::raw('MIN(pv.price) as min_price'), // variant giá thấp nhất
+                            DB::raw('MIN(pv.sale_price) as min_sale_price'),
+                            DB::raw('COALESCE(SUM(od.quantity), 0) as sold_count'),
+                            DB::raw('COALESCE(ROUND(AVG(r.rating), 1), 0) as avg_rating')
+                        )
+                        ->where('p.is_active', '!=', 0)
+                        ->where('p.name', 'like', "%{$request->search}%")
+                        ->groupBy('p.id', 'p.name', 'p.slug', 'p.image')
+                        ->get();
 
-            // Xử lý dữ liệu trả về fe
-            $listProduct = collect();
-
-            foreach ($dataSearch as $product) {
-                $firstVariant = $product->variants->sortBy('price')->first(); // Lấy variant đầu tiên
-
-                $avgRating = 0;
-                $soldCount = 0;
-                $totalReviews = 0;
-
-                foreach ($product->variants as $variant) {
-                    foreach ($variant->orderDetails as $orderDetail) {
-                        if ($orderDetail->review) {
-                            $avgRating += $orderDetail->review->rating;
-                            $totalReviews++;
-                        }
-                        $soldCount += $orderDetail->quantity;
-                    }
-                }
-
-                $avgRating = $totalReviews > 0 ? $avgRating / $totalReviews : 0;
-
-                $listProduct->push([
-                    'name' => $product->name,
-                    'slug' => $product->slug,
-                    'image' => $product->image,
-                    'avg_rating' => $avgRating ?? 0,
-                    'sold_count' => $soldCount ?? 0,
-                    'price' => $firstVariant?->price ?? 0,
-                    'sale_price' => $firstVariant?->sale_price ?? 0,
-                ]);
-            }
-
-            return ApiResponse::success('Tìm kiếm sản phẩm thành công!!',data: $listProduct);
-        }catch (\Exception $e) {
-            logger('Log bug search product in front',[
+            return ApiResponse::success('Tìm kiếm sản phẩm thành công!!', data: $products);
+        } catch (\Exception $e) {
+            logger('Log bug search product in front', [
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
                 'error_line' => $e->getLine(),
