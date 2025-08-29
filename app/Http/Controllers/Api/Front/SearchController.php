@@ -97,6 +97,7 @@ class SearchController extends Controller
                     $row->brand = [
                         'name' => $row->brand_name,
                     ];
+                    unset($row->brand_name);
                     return $row;
                 });
 
