@@ -101,16 +101,18 @@ class ProductController extends Controller
             }
 
             // Lọc theo brand (nếu có từ fe)
-            if ($request->has('brand')) {
-                $brandSlug = $request->brand;
+            if ($request->filled('brand')) {
+                // nhận cả array hoặc chuỗi slug cách nhau dấu phẩy
+                $brandSlugs = is_array($request->brand)
+                    ? $request->brand
+                    : array_map('trim', explode(',', $request->brand));
 
-                $brand = Brand::where('slug', $brandSlug)->first();
+                $brandIds = Brand::whereIn('slug', $brandSlugs)->pluck('id');
 
-                if ($brand) {
-                    $query->where('brand_id', $brand->id);
+                if ($brandIds->isNotEmpty()) {
+                    $query->whereIn('brand_id', $brandIds);
                 } else {
-                    // fallback nếu không tìm thấy brand
-                    $query->whereRaw('1=0');
+                    $query->whereRaw('1=0'); // fallback nếu không tìm thấy brand nào
                 }
             }
 
@@ -148,7 +150,8 @@ class ProductController extends Controller
 
             // Lọc theo loại da
             if ($request->has('type_skin')) {
-                $query->where('type_skin', '=', $request->type_skin);
+                $type_skin = array_map('trim', explode(',', $request->type_skin));
+                $query->whereIn('type_skin', $type_skin);
             }
 
             // Lọc theo loại sản phẩm
