@@ -44,8 +44,8 @@ class BlogResource extends JsonResource
                         'id'            => $product->id,
                         'name'          => $product->name,
                         'slug'          => $product->slug,
-                        'category'      => $product->category->id ?? null,   // (có thể đổi sang name/slug như luồng product nếu cần)
-                        'brand'         => $product->brand->id ?? null,       // idem
+                        'category'      => $product->category->id ?? null,
+                        'brand'         => $product->brand->name ?? null,
                         'type_skin'     => $product->type_skin ?? null,
                         'description'   => $product->description ?? null,
                         'image'         => $product->image ?? null,
