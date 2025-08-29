@@ -72,7 +72,7 @@ class DashboardService
             // push dữ liệu trả về
             $revenueStatistics->push([
                 'revenue' => (int) $thisMonthRevenue,
-                'growth' => $growth,
+                'growth' => round($growth, 2),
                 'trend' => $trend
             ]);
 
