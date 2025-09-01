@@ -219,6 +219,7 @@ class PromotionServices
                     $q1->where('p.start_date', '<=', $end)
                         ->where('p.end_date', '>=', $start);
                 })
+                ->whereNull('p.deleted_at')
                 ->exists();
 
             if ($isExist) {
@@ -358,6 +359,7 @@ class PromotionServices
                     $q1->where('p.start_date', '<=', $end)
                         ->where('p.end_date', '>=', $start);
                 })
+                ->whereNull('p.deleted_at')
                 ->exists();
 
             if ($isExist) {
