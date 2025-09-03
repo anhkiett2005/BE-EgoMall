@@ -29,6 +29,8 @@ class ProductVariant extends Model
         'is_active' => 'boolean'
     ];
 
+    protected $appends = ['variant_name'];
+
     public function product()
     {
         return $this->belongsTo(Product::class);
@@ -42,9 +44,11 @@ class ProductVariant extends Model
 
     public function getVariantNameAttribute()
     {
-        return $this->values->map(function ($v) {
+        $values = $this->values->map(function ($v) {
             return ($v->option->name ?? '') . ': ' . $v->value;
         })->implode(' | ');
+
+        return "Sản phẩm {$this->product->name} ({$values})";
     }
 
     public function giftPromotions()
