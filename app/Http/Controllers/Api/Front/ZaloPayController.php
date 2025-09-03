@@ -111,7 +111,7 @@ class ZaloPayController extends Controller
             // dd($mac);
 
             $data['mac'] = hash_hmac('sha256', $mac, $config['key1']);
-            dd($data);
+            // dd($data);
 
             // Lưu lại thời gian tạo thanh toán
             $order->payment_created_at = Carbon::now();
