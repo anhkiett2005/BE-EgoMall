@@ -12,7 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Symfony\Component\HttpFoundation\Response;
 
-class VnpayController extends Controller
+class VnPayController extends Controller
 {
     protected $vnp_TmnCode;
     protected $vnp_HashSecret;

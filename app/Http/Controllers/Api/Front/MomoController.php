@@ -11,7 +11,7 @@ use App\Response\ApiResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-class MomoController extends Controller
+class MoMoController extends Controller
 {
 
     public function processPayment($order)
