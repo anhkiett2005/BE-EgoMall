@@ -25,14 +25,43 @@ class ProductController extends Controller
         try {
             // lấy product and các vairant và đánh giá trung bình review về sản phẩm này and filter
             $request = request();
-            $sub = DB::table('product_variants')
-                ->selectRaw('MAX(COALESCE(sale_price, price))')
-                ->whereColumn('product_variants.product_id', 'products.id');
+
             $now = now();
+
+            $sub = DB::table('product_variants')
+                    ->selectRaw("
+                        MIN(
+                            COALESCE(
+                                sale_price,
+                                price - (
+                                    COALESCE((
+                                        SELECT CASE
+                                            WHEN p.promotion_type = 'percentage'
+                                                THEN price * (p.discount_value / 100)
+                                            WHEN p.promotion_type = 'fixed_amount'
+                                                THEN p.discount_value
+                                            ELSE 0
+                                        END
+                                        FROM promotions p
+                                        JOIN promotion_product pp
+                                            ON p.id = pp.promotion_id
+                                        WHERE pp.product_variant_id = product_variants.id
+                                        AND p.status = 'active'
+                                        AND p.start_date <= ?
+                                        AND p.end_date >= ?
+                                        ORDER BY p.discount_value DESC
+                                        LIMIT 1
+                                    ), 0)
+                                )
+                            )
+                        )
+                    ", [$now, $now])
+                    ->whereColumn('product_variants.product_id', 'products.id');
+
 
             $query = Product::query()
                 ->select('*')
-                ->selectSub($sub, 'max_price')
+                ->selectSub($sub, 'final_price')
                 ->with([
                     'category',
                     'brand',
@@ -72,16 +101,18 @@ class ProductController extends Controller
             }
 
             // Lọc theo brand (nếu có từ fe)
-            if ($request->has('brand')) {
-                $brandSlug = $request->brand;
+            if ($request->filled('brand')) {
+                // nhận cả array hoặc chuỗi slug cách nhau dấu phẩy
+                $brandSlugs = is_array($request->brand)
+                    ? $request->brand
+                    : array_map('trim', explode(',', $request->brand));
 
-                $brand = Brand::where('slug', $brandSlug)->first();
+                $brandIds = Brand::whereIn('slug', $brandSlugs)->pluck('id');
 
-                if ($brand) {
-                    $query->where('brand_id', $brand->id);
+                if ($brandIds->isNotEmpty()) {
+                    $query->whereIn('brand_id', $brandIds);
                 } else {
-                    // fallback nếu không tìm thấy brand
-                    $query->whereRaw('1=0');
+                    $query->whereRaw('1=0'); // fallback nếu không tìm thấy brand nào
                 }
             }
 
@@ -102,10 +133,25 @@ class ProductController extends Controller
                 });
             }
 
+            // Lọc sản phẩm nổi bật
+            if($request->filled('is_featured') && $request->is_featured == 1){
+                $query->whereIn('products.id', function($q) {
+                    $q->select('pv.product_id')
+                      ->from('product_variants as pv')
+                      ->join('order_details as od', 'pv.id', '=', 'od.product_variant_id')
+                      ->join('orders as o', 'o.id', '=', 'od.order_id')
+                      ->where('o.status', 'delivered')
+                      ->where('od.is_gift', 0)
+                      ->groupBy('pv.product_id')
+                      ->havingRaw('SUM(od.quantity) >= 10');
+                });
+            }
+
 
             // Lọc theo loại da
             if ($request->has('type_skin')) {
-                $query->where('type_skin', '=', $request->type_skin);
+                $type_skin = array_map('trim', explode(',', $request->type_skin));
+                $query->whereIn('type_skin', $type_skin);
             }
 
             // Lọc theo loại sản phẩm
@@ -142,36 +188,37 @@ class ProductController extends Controller
                 // });
                 // });
 
-                $query->whereHas('variants', function ($q) use ($min, $max) {
-                    $q->whereRaw("
-                        COALESCE(
-                            sale_price,
-                            price - (
-                                COALESCE(
-                                    (
-                                        SELECT
-                                            CASE
-                                                WHEN p.promotion_type = 'percentage'
-                                                    THEN price * (p.discount_value / 100)
-                                                WHEN p.promotion_type = 'fixed_amount'
-                                                    THEN p.discount_value
-                                                ELSE 0
-                                            END
-                                        FROM promotions p
-                                        JOIN promotion_product pp
-                                            ON p.id = pp.promotion_id
-                                        WHERE pp.product_variant_id = product_variants.id
-                                            AND p.status = 'active'
-                                            AND p.start_date <= ?
-                                            AND p.end_date >= ?
-                                        ORDER BY p.discount_value DESC
-                                        LIMIT 1
-                                    ), 0
-                                )
-                            )
-                        ) BETWEEN ? AND ?
-                    ", [now(), now(), $min, $max]);
-                });
+                // $query->whereHas('variants', function ($q) use ($min, $max) {
+                //     $q->whereRaw("
+                //         COALESCE(
+                //             sale_price,
+                //             price - (
+                //                 COALESCE(
+                //                     (
+                //                         SELECT
+                //                             CASE
+                //                                 WHEN p.promotion_type = 'percentage'
+                //                                     THEN price * (p.discount_value / 100)
+                //                                 WHEN p.promotion_type = 'fixed_amount'
+                //                                     THEN p.discount_value
+                //                                 ELSE 0
+                //                             END
+                //                         FROM promotions p
+                //                         JOIN promotion_product pp
+                //                             ON p.id = pp.promotion_id
+                //                         WHERE pp.product_variant_id = product_variants.id
+                //                             AND p.status = 'active'
+                //                             AND p.start_date <= ?
+                //                             AND p.end_date >= ?
+                //                         ORDER BY p.discount_value DESC
+                //                         LIMIT 1
+                //                     ), 0
+                //                 )
+                //             )
+                //         ) BETWEEN ? AND ?
+                //     ", [now(), now(), $min, $max]);
+                // });
+                $query->havingBetween('final_price', [$min, $max]);
             }
 
             // Sort theo các tiêu chí
@@ -226,6 +273,7 @@ class ProductController extends Controller
 
                 $aggSold   = $soldAgg->get($product->id);
                 $soldCount = $aggSold ? (int)$aggSold->sold_qty : 0;
+                $isFeatured = $soldCount >= 10;
 
                 return [
                     'id' => $product->id,
@@ -244,6 +292,7 @@ class ProductController extends Controller
                     'image' => $product->image ?? null,
                     'average_rating' => $averageRating,
                     'review_count'   => $reviewCount,
+                    'is_featured'    => $isFeatured,
                     'sold_count'     => $soldCount,
                     'options' => $product->variants
                         ->flatMap(function ($variant) {
@@ -511,6 +560,7 @@ class ProductController extends Controller
                 'slug' => $product->slug,
                 'brand' => $product->brand->name ?? null,
                 'image' => $product->image,
+                'description' => $product->description,
                 'status' => $status,
                 'average_rating' => $averageRating,
                 'review_count' => $reviewCount,
@@ -521,7 +571,7 @@ class ProductController extends Controller
                 'related' => $related
             ]);
 
-            return ApiResponse::success('Data fetched successfully', data: $listDetails);
+            return ApiResponse::success('Lấy chi tiết sản phẩm thành công!!', data: $listDetails);
         } catch (\Exception $e) {
             logger('Log bug', [
                 'error_message' => $e->getMessage(),
@@ -544,10 +594,10 @@ class ProductController extends Controller
                 $query->orderBy('name', 'desc');
                 break;
             case 'price_asc':
-                $query->orderBy('max_price', 'asc'); // Đã có sẵn từ selectSub
+                $query->orderBy('final_price', 'asc'); // Đã có sẵn từ selectSub
                 break;
             case 'price_desc':
-                $query->orderBy('max_price', 'desc'); // Đã có sẵn từ selectSub
+                $query->orderBy('final_price', 'desc'); // Đã có sẵn từ selectSub
                 break;
             case 'new':
                 $query->where('created_at', '>=', now()->subDays(7)) // lọc hàng mới 7 ngày gần đây

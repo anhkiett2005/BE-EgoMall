@@ -29,6 +29,21 @@ class Product extends Model
         'is_active' => 'boolean'
     ];
 
+    // protected $appends = ['is_featured'];
+
+    // public function getIsFeaturedAttribute()
+    // {
+    //     $totalSold = OrderDetail::from('order_details as od')
+    //                             ->join('product_variants as pv', 'od.product_variant_id', '=', 'pv.id')
+    //                             ->join('orders as o', 'o.id', '=', 'od.order_id')
+    //                             ->where('pv.product_id', $this->id)
+    //                             ->where('o.status', 'delivered')
+    //                             ->where('od.is_gift', 0)
+    //                             ->sum('od.quantity');
+
+    //     return $totalSold >= 10;
+    // }
+
     public function category()
     {
         return $this->belongsTo(Category::class);

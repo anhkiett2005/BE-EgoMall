@@ -168,6 +168,11 @@ Route::prefix('v1/front')
             Route::get('/payment/momo/redirect', 'handleRedirect')->name('payment.momo.redirect');
             Route::post('/payment/momo/ipn', 'handleIpn')->name('payment.momo.ipn');
         });
+
+        // Routes API ZaloPay
+        Route::controller('ZaloPayController')->group(function () {
+            Route::post('/payment/zalopay/callback','paymentSuccess');
+        });
     });
 
 Route::prefix('v1/admin')

@@ -25,7 +25,8 @@ class DashboardService
             $startOfLastMonth = $now->copy()->subMonth()->startOfMonth();
             $endOfLastMonth = $startOfThisMonth->copy()->subSecond();
 
-            $startOf30Days = $now->copy()->subDays(30);
+            $startOf30Days = $now->copy()->subDays(29)->startOfDay(); // FIX: 30 ngày gần nhất (bao gồm hôm nay), chốt mốc đầu ngày
+            $endOfToday = $now->copy()->endOfDay();
 
 
             $revenueStatistics = collect();
@@ -178,8 +179,9 @@ class DashboardService
             // === Thống kê trạng thái đơn hàng trong 30 ngày gần nhất ===
             $orderStatusRaw = DB::table('orders')
                 ->select('status', DB::raw('COUNT(*) as total'))
-                ->where('created_at', '>=', $startOf30Days->copy()->startOfDay())
-                ->where('created_at', '<=', $now->copy()->endOfDay())
+                // ->where('created_at', '>=', $startOf30Days->copy()->startOfDay())
+                // ->where('created_at', '<=', $now->copy()->endOfDay())
+                ->whereBetween('created_at', [$startOf30Days, $endOfToday])
                 ->groupBy('status')
                 ->pluck('total', 'status')
                 ->toArray();
