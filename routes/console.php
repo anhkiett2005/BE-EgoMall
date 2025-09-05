@@ -14,3 +14,5 @@ Schedule::command('promotions:expire')
     ->after(function () {
         Artisan::call('promotions:activate');
     });
+
+Schedule::call(function () { \Log::info('Schedule chạy lúc: ' . now()); })->everyMinute();
