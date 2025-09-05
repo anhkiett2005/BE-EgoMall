@@ -15,3 +15,6 @@ Schedule::command('promotions:expire')
         Artisan::call('promotions:activate');
     });
 
+// schedule check pending orders
+Schedule::command('check:pending-orders')
+        ->dailyAt('00:00');
