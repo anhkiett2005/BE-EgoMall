@@ -213,7 +213,6 @@ class OrderController extends Controller
         DB::beginTransaction();
         try {
             $user = auth('api')->user();
-            $reason = $request->input('cancel_reason');
 
             $order = Order::where('unique_id', $uniqueId)->lockForUpdate()->first();
 
@@ -249,7 +248,7 @@ class OrderController extends Controller
                     'status'         => 'cancelled',
                     'payment_status' => 'cancelled',
                     'payment_date'   => now(),
-                    'reason'  => $reason,
+                    'reason'  => $request->reason,
                 ]);
 
                 Common::restoreOrderStock($order);
