@@ -166,10 +166,8 @@ class OrderController extends Controller
                 $totalDiscountVoucher = $voucherDiscount;
                 $totalDiscount += $voucherDiscount;
 
-                // Ghi lại voucher mà user đã sử dụng nếu có set discount_limit
-                if(!is_null($voucher->discount_limit)) {
-                    $this->updateVoucherUsage($user->id, $voucher->id);
-                }
+                // Tính toán số lượng voucher (hoặc ghi số lần sủ dụng voucher nếu có giới discount_limit)
+                $this->updateVoucherUsage($user->id, $voucher->id);
             }
 
             $total = $subtotal - $totalDiscount;
@@ -490,10 +488,12 @@ class OrderController extends Controller
             $voucher->decrement('usage_limit');
         }
 
-        // Tạo mới 1 bản ghi usage
-        $voucher->usages()->create([
-            'user_id' => $userId,
-        ]);
+        // Tạo mới 1 bản ghi usage nếu có set giới hạn discount_limit
+        if (!is_null($voucher->discount_limit)) {
+            $voucher->usages()->create([
+                'user_id' => $userId,
+            ]);
+        }
 
         return true;
     }
