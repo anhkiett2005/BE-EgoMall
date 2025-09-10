@@ -4,8 +4,12 @@ namespace App\Services;
 
 use App\Classes\Common;
 use App\Exceptions\ApiException;
+use App\Jobs\QueryZaloPayRefundJob;
 use App\Models\Order;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 
@@ -309,121 +313,135 @@ class OrderService
             if ($order->payment_status !== 'paid') {
                 // Nếu hệ thống của bạn cho phép return COD (chưa thu tiền online) vẫn “completed” không cần refund:
                 // pass; (ở đây vẫn cho completed, nhưng payment_status không đổi)
+                throw new ApiException('Đơn chưa thanh toán không thể hoàn trả!', Response::HTTP_BAD_REQUEST);
             }
 
-            // 1) Cộng kho (đã nhận hàng trả về)
-            Common::restoreOrderStock($order);
+
 
             // 2) Refund (MVP: full total_price).
             //    - COD: không gọi API cổng thanh toán → coi là hoàn offline.
-            //    - MOMO/VNPAY: gọi API hoàn tiền.
-            $refundTransId = $order->transaction_id; // fallback giữ cũ nếu là COD
+            //    - MOMO/VNPAY/ZALOPAY: gọi API hoàn tiền.
 
             if ($order->payment_status === 'paid') {
                 $amount = (int) round($order->total_price);
+                $update['return_status'] = 'completed';
 
                 if ($order->payment_method === 'MOMO') {
+
                     if (empty($order->transaction_id)) {
                         throw new ApiException('Thiếu mã giao dịch để hoàn tiền MoMo!', Response::HTTP_CONFLICT);
                     }
-                    $res = \App\Classes\Common::refundMomoTransaction($order->transaction_id, $amount);
+
+                    $res = Common::refundMomoTransaction($order->transaction_id, $amount);
+
                     if ((int)($res['resultCode'] ?? -1) !== 0) {
+                        logger('Log data refund', [
+                            'response' => $res
+                        ]);
                         throw new ApiException('Refund MoMo thất bại, vui lòng thử lại!', 502);
                     }
-                    $refundTransId = $res['transId'] ?? $order->transaction_id;
+
+                    $refundTransId = $res['transId'];
+
+                    $update['payment_status'] = 'refunded';
+                    $update['payment_date']   = now(); // thời điểm refund thành công
+                    $update['transaction_id'] = $refundTransId;
+
+
                 } elseif ($order->payment_method === 'VNPAY') {
+
                     if (empty($order->transaction_id) || empty($order->payment_created_at)) {
                         throw new ApiException('Thiếu dữ liệu giao dịch để hoàn tiền VNPAY!', Response::HTTP_CONFLICT);
                     }
+
                     $params = [
                         'transaction_type' => '02', // full refund
                         'txn_ref'          => $order->unique_id,
                         'transaction_no'   => $order->transaction_id,
                         'amount'           => $amount,
-                        'order_info'       => 'Hoàn tiền (return) đơn: ' . $order->unique_id,
+                        'order_info'       => 'Hoàn tiền cho đơn trả hàng #' . $order->unique_id,
                         'create_by'        => auth('api')->user()->name ?? 'system',
                         'transaction_date' => optional($order->payment_created_at)->format('YmdHis'),
                     ];
-                    $resp = \App\Classes\Common::refundVnPayTransaction($params);
-                    if (($resp['vnp_ResponseCode'] ?? '') !== '00') {
+
+                    $res = Common::refundVnPayTransaction($params);
+
+                    if (!Common::validateSignatureFromJson($res)) {
+                        throw new ApiException('Chữ ký không hợp lệ!', Response::HTTP_INTERNAL_SERVER_ERROR);
+                    }
+
+                    if (($res['vnp_ResponseCode'] ?? '') !== '00') {
+                        logger('Log data refund', [
+                            'response' => $res
+                        ]);
                         throw new ApiException('Refund VNPAY thất bại, vui lòng thử lại!', 502);
                     }
-                    $refundTransId = $resp['vnp_TransactionNo'] ?? $order->transaction_id;
-                } else {
+
+                    $refundTransId = $res['vnp_TransactionNo'];
+
+                    $update['payment_status'] = 'refunded';
+                    $update['payment_date']   = now(); // thời điểm refund thành công
+                    $update['transaction_id'] = $refundTransId;
+                }elseif($order->payment_method === 'ZALOPAY'){
+
+                    if (empty($order->transaction_id)) {
+                        throw new ApiException('Thiếu mã giao dịch để hoàn tiền ZaloPay!', Response::HTTP_CONFLICT);
+                    }
+
+                    $params = [
+                        'zp_key1' => env('ZALO_PAY_KEY_1'),
+                        'm_refund_id' => Carbon::now(config('app.timezone'))->format('ymd') .  '_'  . env('ZALO_PAY_APP_ID') . '_' . Str::random(10),
+                        'app_id' => env('ZALO_PAY_APP_ID'),
+                        'zp_trans_id' => $order->transaction_id,
+                        'amount' => $order->total_price,
+                        'timestamp' => Carbon::now(config('app.timezone'))->getTimestampMs(),
+                        'description' => "Hoàn tiền cho đơn trả hàng #" . $order->unique_id,
+                    ];
+
+                    $res = Common::refundZaloPayTransaction($params);
+
+                    $refundTransId = $res['refund_id'];
+
+                    $update['payment_status'] = 'refund_processing';
+                    $update['transaction_id'] = $refundTransId;
+
+                    if($res['return_code'] == 3) {
+                        // gọi queue query refund
+                        $arrQueryParams = Arr::only($params, ['app_id', 'm_refund_id', 'timestamp','zp_key1']);
+
+                        QueryZaloPayRefundJob::dispatch($order->id, $arrQueryParams)->delay(Carbon::now()->addSeconds(2));
+                    }else if($res['return_code'] == 2) {
+                        logger('Log data refund', [
+                            'response' => $res
+                        ]);
+
+                        throw new ApiException('Refund ZALOPAY thất bại, vui lòng thử lại!', Response::HTTP_INTERNAL_SERVER_ERROR);
+                    }
+
+
+                }else {
                     // COD: không gọi API cổng thanh toán; bạn có thể xử lý hoàn offline ở nghiệp vụ kế toán
+                    $refundTransId = Common::generateCodRefundTransactionId();
+
+                    $update['payment_status'] = 'refunded';
+                    $update['payment_date']   = now(); // thời điểm refund thành công
+                    $update['transaction_id'] = $refundTransId;
                 }
             }
+
+            // 1) Cộng kho (đã nhận hàng trả về)
+            Common::restoreOrderStock($order);
 
             // 3) Revert voucher (nếu muốn cho dùng lại)
             //    Tái dùng helper inline mà bạn đã viết trong Front\OrderController
-            if (method_exists($this, 'revertVoucherUsageInline')) {
-                // nếu bạn muốn tái sử dụng chung, cân nhắc đưa hàm này sang một Trait hoặc Common
-                $this->revertVoucherUsageInline($order);
-            } else {
-                // Nếu chưa share được, tạm lặp code revert (khuyến nghị refactor sau):
-                $coupon = \App\Models\Coupon::where('id', $order->coupon_id)->lockForUpdate()->first();
-                if ($coupon) {
-                    if (!is_null($coupon->usage_limit)) {
-                        $coupon->increment('usage_limit');
-                    }
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('coupon_usages', 'order_id')) {
-                        \App\Models\CouponUsage::where('coupon_id', $coupon->id)
-                            ->where('user_id', $order->user_id)
-                            ->where('order_id', $order->id)
-                            ->delete();
-                    } else {
-                        $usage = \App\Models\CouponUsage::where('coupon_id', $coupon->id)
-                            ->where('user_id', $order->user_id)
-                            ->latest('id')->first();
-                        if ($usage) $usage->delete();
-                    }
-                }
-            }
+            Common::revertVoucherUsageInline($order);
 
             // 4) Cập nhật đơn
-            $update = [
-                'return_status' => 'completed',
-                'status'        => 'return_sales',
-            ];
-
-            if ($order->payment_status === 'paid') {
-                $update['payment_status'] = 'refunded';
-                $update['payment_date']   = now(); // thời điểm refund thành công
-                $update['transaction_id'] = $refundTransId; // lưu mã refund (theo cách bạn đang dùng)
-            }
-
             $order->update($update);
 
             // (optional) gửi mail thông báo hoàn tất hoàn trả
 
             return $order;
         });
-    }
-
-    private function revertVoucherUsageInline(Order $order): void
-    {
-        if (!$order->coupon_id) return;
-
-        // +1 lại usage_limit nếu có giới hạn
-        $coupon = \App\Models\Coupon::where('id', $order->coupon_id)->lockForUpdate()->first();
-        if ($coupon) {
-            if (!is_null($coupon->usage_limit)) {
-                $coupon->increment('usage_limit');
-            }
-
-            // Nếu bảng coupon_usages có order_id thì xóa đúng bản ghi của đơn này
-            if (\Illuminate\Support\Facades\Schema::hasColumn('coupon_usages', 'order_id')) {
-                \App\Models\CouponUsage::where('coupon_id', $coupon->id)
-                    ->where('user_id', $order->user_id)
-                    ->where('order_id', $order->id)
-                    ->delete();
-            } else {
-                // Fallback: xóa 1 usage gần nhất của user+coupon (kém chính xác hơn)
-                $usage = \App\Models\CouponUsage::where('coupon_id', $coupon->id)
-                    ->where('user_id', $order->user_id)
-                    ->latest('id')->first();
-                if ($usage) $usage->delete();
-            }
-        }
     }
 }

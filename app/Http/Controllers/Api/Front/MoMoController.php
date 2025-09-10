@@ -29,26 +29,36 @@ class MoMoController extends Controller
         );
     }
 
-    public function processRefundPayment($transId, $amount)
+    public function processRefundCancelOrderPayment($transId, $amount, $request)
     {
         try {
             $isRefund = Common::refundMomoTransaction($transId, $amount);
 
             $order = Order::where('transaction_id', $transId)->first();
             if ($isRefund['resultCode'] == 0) {
-                // Hoàn lại số lượng từ đơn đã mua
-                Common::restoreOrderStock($order);
-
                 // Cập nhật lại trạng thái đơn hàng
                 $order->update([
                     'status' => 'cancelled',
                     'payment_status' => 'refunded',
                     'payment_date' => now(),
-                    'transaction_id' => $isRefund['transId']
+                    'transaction_id' => $isRefund['transId'],
+                    'reason'  => $request->reason,
                 ]);
+
+                // Hoàn lại số lượng từ đơn đã mua
+                Common::restoreOrderStock($order);
+
+                // Hoàn lại voucher
+                Common::revertVoucherUsageInline($order);
+
+                // Gửi mail hủy đơn hàng
+                Common::sendOrderStatusMail($order, 'cancelled');
             }
 
-            return ApiResponse::success('Hủy đơn hàng thành công!!');
+            return ApiResponse::success('Hủy đơn hàng thành công!', data: [
+                'order_id'       => $order->unique_id,
+                'status'         => $order->status,
+            ]);
         } catch (ApiException) {
             return ApiResponse::error('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
         } catch (\Exception $e) {
