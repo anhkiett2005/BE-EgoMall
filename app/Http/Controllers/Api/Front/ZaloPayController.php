@@ -48,7 +48,7 @@ class ZaloPayController extends Controller
 
             // dd($config);
 
-            $appTransId = Carbon::now(config('app.timezone'))->format('ymd') . '_' . Str::uuid();
+            $appTransId = Carbon::now(config('app.timezone'))->format('ymd') . '_' . Str::random(10);
             $appTime = Carbon::now(config('app.timezone'))->getTimestampMs();
 
             $embed_data =  [
