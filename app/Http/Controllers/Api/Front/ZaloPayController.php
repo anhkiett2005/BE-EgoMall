@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api\Front;
 
-use App\Actions\ZaloPay\QueryRefundAction;
 use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
