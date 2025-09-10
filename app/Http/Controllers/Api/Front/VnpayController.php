@@ -152,7 +152,7 @@ class VnPayController extends Controller
         }
     }
 
-    public function processRefundPayment(Order $order)
+    public function processRefundCancelOrderPayment(Order $order, $request)
     {
         try {
             $user = auth('api')->user();
@@ -161,7 +161,7 @@ class VnPayController extends Controller
                 'txn_ref' => $order->unique_id,
                 'transaction_no' => $order->transaction_id,
                 'amount' => $order->total_price,
-                'order_info' => "Hoàn tiền đơn hàng: " . $order->unique_id,
+                'order_info' => "Hoàn tiền đơn hàng #" . $order->unique_id,
                 'create_by' => $user->name,
                 'transaction_date' => Carbon::parse($order->payment_created_at)->format('YmdHis')
             ];
@@ -172,7 +172,7 @@ class VnPayController extends Controller
             // ]);
             // check sinature từ vnpay trả về
             // logger('valid signature', [$this->validateSignatureFromJson($response)]);
-            if (!$this->validateSignatureFromJson($response)) {
+            if (!Common::validateSignatureFromJson($response)) {
                 throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
             }
 
@@ -180,11 +180,23 @@ class VnPayController extends Controller
                 $order->update([
                     'payment_status' => 'refunded',
                     'payment_date' => now(),
-                    'transaction_id' => $response['vnp_TransactionNo']
+                    'transaction_id' => $response['vnp_TransactionNo'],
+                    'reason'  => $request->reason,
                 ]);
             }
 
-            return ApiResponse::success('Hủy đơn hàng thành công!!');
+            // Hoàn lại số lượng sản phẩm
+            Common::restoreOrderStock($order);
+
+            // Hoàn lại voucher
+            Common::revertVoucherUsageInline($order);
+
+            Common::sendOrderStatusMail($order, 'cancelled');
+
+            return ApiResponse::success('Hủy đơn hàng thành công!', data: [
+                'order_id'       => $order->unique_id,
+                'status'         => $order->status,
+            ]);
         } catch (\Exception $e) {
             logger('Log bug refund payment', [
                 'error_message' => $e->getMessage(),

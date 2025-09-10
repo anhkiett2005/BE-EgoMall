@@ -7,6 +7,8 @@ use App\Jobs\SendOrderStatusMailJob;
 use App\Jobs\SendPromotionMailJob;
 use App\Jobs\SendReturnApprovedMailJob;
 use App\Jobs\SendSetPasswordMailJob;
+use App\Models\Coupon;
+use App\Models\CouponUsage;
 use App\Models\Order;
 use App\Models\ProductVariant;
 use App\Models\Promotion;
@@ -17,6 +19,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -201,6 +204,11 @@ class Common
         return 'COD-' . strtoupper(Str::random(10));
     }
 
+    public static function generateCodRefundTransactionId()
+    {
+        return 'REFUND-COD-' . strtoupper(Str::random(10));
+    }
+
     public static function restoreOrderStock(Order $order)
     {
         $orderDetails = $order->details;
@@ -302,7 +310,7 @@ class Common
             $orderId = 'REFUND_' . Str::uuid(); // Tạo orderId riêng cho refund
             $requestId = (string) Str::uuid();  // requestId là duy nhất
             $lang = 'vi';
-            $description = "";
+            $description = "Hoàn tiền đơn hàng #" . $orderId;
 
             // Tạo chuỗi để ký
             $rawHash = "accessKey=$accessKey&amount=$amount&description=$description"
@@ -411,6 +419,54 @@ class Common
                 'stack_trace' => $e->getTraceAsString()
             ]);
             throw new ApiException("Lỗi hoàn tiền VNPAY: " . $e->getMessage());
+        }
+    }
+
+    public static function refundZaloPayTransaction($params = [])
+    {
+        try {
+            $zp_Url = "https://sb-openapi.zalopay.vn/v2/refund";
+            $zp_MRefundId = $params['m_refund_id'];
+            $zp_AppId = (int) $params['app_id'];
+            $zp_TransId = $params['zp_trans_id'];
+            $zp_Amount = $params['amount'];
+            $zp_TimeStamp = $params['timestamp'];
+            $zp_Description = $params['description'];
+
+            // Tạo mac
+            $hashData = implode('|', [
+                $zp_AppId,
+                $zp_TransId,
+                $zp_Amount,
+                $zp_Description,
+                $zp_TimeStamp
+            ]);
+
+            $zp_Mac = hash_hmac('sha256', $hashData, $params['zp_key1']);
+
+            $body = [
+                'm_refund_id' => $zp_MRefundId,
+                'app_id' => $zp_AppId,
+                'zp_trans_id' => $zp_TransId,
+                'amount' => $zp_Amount,
+                'timestamp' => $zp_TimeStamp,
+                'mac' => $zp_Mac,
+                'description' => $zp_Description
+            ];
+
+            // dd($body);
+
+            $response = Http::asJson()->post($zp_Url, $body);
+
+            return $response->json();
+        } catch (\Exception $e) {
+            logger('Log refund ZaloPay', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException("Lỗi hoàn tiền ZaloPay: " . $e->getMessage());
         }
     }
 
@@ -642,6 +698,70 @@ class Common
         } catch (\Throwable $e) {
             logger()->error("Gửi mail hoàn trả thất bại (Order ID: {$order->id}) - Lỗi: {$e->getMessage()}");
         }
+    }
+
+    public static function revertVoucherUsageInline(Order $order): void
+    {
+        if (!$order->coupon_id) return;
+
+        // +1 lại usage_limit nếu có giới hạn
+        $coupon = Coupon::where('id', $order->coupon_id)->lockForUpdate()->first();
+        if ($coupon) {
+            if (!is_null($coupon->usage_limit)) {
+                $coupon->increment('usage_limit');
+            }
+
+            // Nếu bảng coupon_usages có order_id thì xóa đúng bản ghi của đơn này
+            if(!is_null($coupon->discount_limit)) {
+                if (Schema::hasColumn('coupon_usages', 'order_id')) {
+                    CouponUsage::where('coupon_id', $coupon->id)
+                        ->where('user_id', $order->user_id)
+                        ->where('order_id', $order->id)
+                        ->delete();
+                } else {
+                    // Fallback: xóa 1 usage gần nhất của user+coupon (kém chính xác hơn)
+                    $usage = CouponUsage::where('coupon_id', $coupon->id)
+                        ->where('user_id', $order->user_id)
+                        ->latest('id')->first();
+                    if ($usage) $usage->delete();
+                }
+            }
+        }
+    }
+
+
+    public static function validateSignatureFromJson(array $response)
+    {
+        $vnp_HashSecret = env('VNP_HASH_SECRECT_KEY');
+        $vnp_SecureHash = $response['vnp_SecureHash'] ?? '';
+
+        // Đảm bảo thứ tự đúng như VNPAY yêu cầu
+        $fields = [
+            'vnp_ResponseId',
+            'vnp_Command',
+            'vnp_ResponseCode',
+            'vnp_Message',
+            'vnp_TmnCode',
+            'vnp_TxnRef',
+            'vnp_Amount',
+            'vnp_BankCode',
+            'vnp_PayDate',
+            'vnp_TransactionNo',
+            'vnp_TransactionType',
+            'vnp_TransactionStatus',
+            'vnp_OrderInfo'
+        ];
+
+        $data = [];
+        foreach ($fields as $field) {
+            $data[] = $response[$field] ?? '';
+        }
+
+        $hashData = implode('|', $data);
+        // logger('hashData', [$hashData]);
+        $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
+
+        return $secureHash === $vnp_SecureHash;
     }
 
 

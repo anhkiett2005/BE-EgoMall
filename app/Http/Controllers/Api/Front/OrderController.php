@@ -6,6 +6,7 @@ use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OrderRequest;
+use App\Http\Requests\RepayRequest;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Order;
@@ -165,8 +166,10 @@ class OrderController extends Controller
                 $totalDiscountVoucher = $voucherDiscount;
                 $totalDiscount += $voucherDiscount;
 
-                // Ghi lại voucher mà user đã sử dụng
-                $this->updateVoucherUsage($user->id, $voucher->id);
+                // Ghi lại voucher mà user đã sử dụng nếu có set discount_limit
+                if(!is_null($voucher->discount_limit)) {
+                    $this->updateVoucherUsage($user->id, $voucher->id);
+                }
             }
 
             $total = $subtotal - $totalDiscount;
@@ -207,130 +210,78 @@ class OrderController extends Controller
 
     public function cancelOrders(Request $request, $uniqueId)
     {
+        DB::beginTransaction();
         try {
             $user = auth('api')->user();
             $reason = $request->input('cancel_reason');
 
-            return DB::transaction(function () use ($uniqueId, $reason, $user) {
-                // 1) Lock order
-                $order = Order::where('unique_id', $uniqueId)->lockForUpdate()->first();
+            $order = Order::where('unique_id', $uniqueId)->lockForUpdate()->first();
 
-                if (!$order) {
-                    throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
-                }
-                if ((int)$order->user_id !== (int)$user->id) {
-                    throw new ApiException('Bạn không có quyền hủy đơn này!', Response::HTTP_FORBIDDEN);
-                }
+            if (!$order) {
+                throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
+            }
+            if ((int)$order->user_id !== (int)$user->id) {
+                throw new ApiException('Bạn không có quyền hủy đơn này!', Response::HTTP_FORBIDDEN);
+            }
 
-                // Idempotent
-                if ($order->status === 'cancelled') {
-                    return ApiResponse::success('Hủy đơn hàng thành công!', data: [
-                        'order_id'       => $order->unique_id,
-                        'status'         => $order->status,
-                        'payment_status' => $order->payment_status,
-                    ]);
-                }
-
-                if ($order->status !== 'ordered') {
-                    throw new ApiException('Chỉ có thể hủy đơn hàng khi đang chờ xác nhận!', Response::HTTP_BAD_REQUEST);
-                }
-
-                $gateway = $order->payment_method; // COD | MOMO | VNPAY
-                $isPaid  = $order->payment_status === 'paid';
-                $amount  = (int) round($order->total_price);
-
-                // 2) Xử lý theo phương thức
-                if ($gateway === 'COD') {
-                    // COD: hủy ngay, không refund
-                    Common::restoreOrderStock($order);
-                    $this->revertVoucherUsageInline($order);
-
-                    $order->update([
-                        'status'         => 'cancelled',
-                        'payment_status' => 'cancelled',
-                        'payment_date'   => now(),
-                        'cancel_reason'  => $reason,
-                    ]);
-
-                    Common::sendOrderStatusMail($order, 'cancelled');
-
-                    return ApiResponse::success('Hủy đơn hàng thành công!', data: [
-                        'order_id'       => $order->unique_id,
-                        'status'         => $order->status,
-                        'payment_status' => $order->payment_status,
-                    ]);
-                }
-
-                // 3) Ví điện tử (MoMo/VNPay)
-                if (!$isPaid) {
-                    // Unpaid: hủy ngay, không refund
-                    Common::restoreOrderStock($order);
-                    $this->revertVoucherUsageInline($order);
-
-                    $order->update([
-                        'status'         => 'cancelled',
-                        'payment_status' => 'cancelled',
-                        'payment_date'   => now(),
-                        'cancel_reason'  => $reason,
-                    ]);
-
-                    Common::sendOrderStatusMail($order, 'cancelled');
-
-                    return ApiResponse::success('Hủy đơn hàng thành công!', data: [
-                        'order_id'       => $order->unique_id,
-                        'status'         => $order->status,
-                        'payment_status' => $order->payment_status,
-                    ]);
-                }
-
-                // 4) Ví điện tử đã PAID -> refund ĐỒNG BỘ
-                if (empty($order->transaction_id)) {
-                    throw new ApiException('Thiếu mã giao dịch, không thể hoàn tiền!', Response::HTTP_CONFLICT);
-                }
-
-                if ($gateway === 'MOMO') {
-                    $res = \App\Classes\Common::refundMomoTransaction($order->transaction_id, $amount);
-                    if ((int)($res['resultCode'] ?? -1) !== 0) {
-                        throw new ApiException('Hoàn tiền MoMo thất bại, vui lòng liên hệ CSKH!', 502);
-                    }
-                } elseif ($gateway === 'VNPAY') {
-                    $params = [
-                        'transaction_type' => '02', // full refund
-                        'txn_ref'          => $order->unique_id,
-                        'transaction_no'   => $order->transaction_id,
-                        'amount'           => $amount,
-                        'order_info'       => 'Hoàn tiền đơn hàng: ' . $order->unique_id,
-                        'create_by'        => 'system',
-                        'transaction_date' => optional($order->payment_created_at)->format('YmdHis'),
-                    ];
-                    $resp = \App\Classes\Common::refundVnPayTransaction($params);
-                    if (($resp['vnp_ResponseCode'] ?? '') !== '00') {
-                        throw new ApiException('Hoàn tiền VNPAY thất bại, vui lòng liên hệ CSKH!', 502);
-                    }
-                }
-
-                // Refund OK -> hoàn kho + revert voucher + cập nhật đơn
-                Common::restoreOrderStock($order);
-                $this->revertVoucherUsageInline($order);
-
-                $order->update([
-                    'status'         => 'cancelled',
-                    'payment_status' => 'refunded',
-                    'payment_date'   => now(),
-                    'reason'  => $reason,
-                ]);
-
-                Common::sendOrderStatusMail($order, 'cancelled');
-
+            // Idempotent
+            if ($order->status === 'cancelled') {
                 return ApiResponse::success('Hủy đơn hàng thành công!', data: [
                     'order_id'       => $order->unique_id,
                     'status'         => $order->status,
                     'payment_status' => $order->payment_status,
                 ]);
-            });
+            }
+
+            if ($order->status !== 'ordered') {
+                throw new ApiException('Chỉ có thể hủy đơn hàng khi đang chờ xác nhận!', Response::HTTP_BAD_REQUEST);
+            }
+
+            // $gateway = $order->payment_method; // COD | MOMO | VNPAY
+            $isPaid  = $order->payment_status === 'paid';
+            // $amount  = (int) round($order->total_price);
+
+            // 3) Ví điện tử (MoMo/VNPay)
+            if (!$isPaid) {
+                // Unpaid: hủy ngay, không refund
+
+                $order->update([
+                    'status'         => 'cancelled',
+                    'payment_status' => 'cancelled',
+                    'payment_date'   => now(),
+                    'reason'  => $reason,
+                ]);
+
+                Common::restoreOrderStock($order);
+
+                Common::revertVoucherUsageInline($order);
+
+                Common::sendOrderStatusMail($order, 'cancelled');
+
+                DB::commit();
+
+                return ApiResponse::success('Hủy đơn hàng thành công!', data: [
+                    'order_id'       => $order->unique_id,
+                    'status'         => $order->status,
+                ]);
+            }
+
+            // 4) Ví điện tử đã PAID -> refund ĐỒNG BỘ
+            if (empty($order->transaction_id)) {
+                throw new ApiException('Thiếu mã giao dịch, không thể hoàn tiền!', Response::HTTP_CONFLICT);
+            }
+
+            $response = $this->processRefundCancelledOrderByMethod($order, $request);
+
+            DB::commit();
+
+            return $response;
         } catch (ApiException $e) {
-            return ApiResponse::error($e->getMessage(), $e->getCode());
+            DB::rollBack();
+            // return ApiResponse::error($e->getMessage(), $e->getCode());
+            throw $e;
         } catch (\Throwable $e) {
+            DB::rollBack();
             logger('Log bug cancel orders', [
                 'error_message' => $e->getMessage(),
                 'error_file'    => $e->getFile(),
@@ -341,38 +292,13 @@ class OrderController extends Controller
         }
     }
 
-    private function revertVoucherUsageInline(Order $order): void
+
+
+    public function repay(RepayRequest $request, $uniqueId)
     {
-        if (!$order->coupon_id) return;
-
-        // +1 lại usage_limit nếu có giới hạn
-        $coupon = \App\Models\Coupon::where('id', $order->coupon_id)->lockForUpdate()->first();
-        if ($coupon) {
-            if (!is_null($coupon->usage_limit)) {
-                $coupon->increment('usage_limit');
-            }
-
-            // Nếu bảng coupon_usages có order_id thì xóa đúng bản ghi của đơn này
-            if (\Illuminate\Support\Facades\Schema::hasColumn('coupon_usages', 'order_id')) {
-                \App\Models\CouponUsage::where('coupon_id', $coupon->id)
-                    ->where('user_id', $order->user_id)
-                    ->where('order_id', $order->id)
-                    ->delete();
-            } else {
-                // Fallback: xóa 1 usage gần nhất của user+coupon (kém chính xác hơn)
-                $usage = \App\Models\CouponUsage::where('coupon_id', $coupon->id)
-                    ->where('user_id', $order->user_id)
-                    ->latest('id')->first();
-                if ($usage) $usage->delete();
-            }
-        }
-    }
-
-    public function repay(Request $request, $uniqueId)
-    {
-        $request->validate([
-            'payment_method' => 'required|in:COD,MOMO,VNPAY',
-        ]);
+        // $request->validate([
+        //     'payment_method' => 'required|in:COD,MOMO,VNPAY',
+        // ]);
 
         $user = auth('api')->user();
 
@@ -438,7 +364,7 @@ class OrderController extends Controller
 
                 // Idempotent: đã có trạng thái hoàn trả thì trả về luôn
                 if (!is_null($order->return_status)) {
-                    return ApiResponse::success('Yêu cầu hoàn trả đã tồn tại', [
+                    return ApiResponse::success('Yêu cầu hoàn trả đã tồn tại', Response::HTTP_CONFLICT, data: [
                         'order_id'      => $order->unique_id,
                         'return_status' => $order->return_status,
                     ]);
@@ -486,13 +412,17 @@ class OrderController extends Controller
         }
     }
 
-    private function processRefundPaymentByMethod($order)
+    private function processRefundCancelledOrderByMethod($order, $request)
     {
         switch ($order->payment_method) {
+            case 'COD':
+                return app(CodController::class)->processRefundCancelOrderPayment($order, $request);
             case 'VNPAY':
-                return app(VnpayController::class)->processRefundPayment($order);
+                return app(VnPayController::class)->processRefundCancelOrderPayment($order,$request);
             case 'MOMO':
-                return app(MomoController::class)->processRefundPayment($order->transaction_id, $order->total_price);
+                return app(MoMoController::class)->processRefundCancelOrderPayment($order->transaction_id, $order->total_price,$request);
+            case 'ZALOPAY':
+                return app(ZaloPayController::class)->processRefundCancelOrderPayment($order, $request);
         }
     }
 

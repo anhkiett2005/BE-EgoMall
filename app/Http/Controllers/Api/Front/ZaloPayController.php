@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers\Api\Front;
 
+use App\Actions\ZaloPay\QueryRefundAction;
 use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Jobs\QueryZaloPayRefundJob;
 use App\Models\Coupon;
 use App\Models\Order;
 use App\Response\ApiResponse;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class ZaloPayController extends Controller
@@ -223,6 +227,64 @@ class ZaloPayController extends Controller
                 'return_code'    => 0,
                 'return_message' => $e->getMessage()
             ]);
+        }
+    }
+
+    public function processRefundCancelOrderPayment(Order $order, $request)
+    {
+        try {
+            $params = [
+                'zp_key1' => env('ZALO_PAY_KEY_1'),
+                'm_refund_id' => Carbon::now(config('app.timezone'))->format('ymd') .  '_'  . env('ZALO_PAY_APP_ID') . '_' . Str::random(10),
+                'app_id' => env('ZALO_PAY_APP_ID'),
+                'zp_trans_id' => $order->transaction_id,
+                'amount' => $order->total_price,
+                'timestamp' => Carbon::now(config('app.timezone'))->getTimestampMs(),
+                'description' => "Hoàn tiền đơn hàng #" . $order->unique_id,
+            ];
+
+            $response = Common::refundZaloPayTransaction($params);
+
+            // logger('Log data refund', [
+            //     'response' => $response
+            // ]);
+
+            $order->update([
+                'status' => 'cancelled',
+                'payment_status' => 'refund_processing',
+                'transaction_id' => $response['refund_id'],
+                'reason'  => $request->reason,
+            ]);
+
+            if($response['return_code'] == 3) {
+                // gọi API query refund của ZaloPay
+                $arrQueryParams = Arr::only($params, ['app_id', 'm_refund_id', 'timestamp','zp_key1']);
+
+                // gọi queue query refund
+                QueryZaloPayRefundJob::dispatch($order->id,$arrQueryParams)->delay(now()->addSeconds(2));
+            }
+
+            // Hoàn lại số lượng sản phẩm
+            Common::restoreOrderStock($order);
+
+            // Hoàn lại voucher
+            Common::revertVoucherUsageInline($order);
+
+            // Gửi mail hủy đơn hàng
+            Common::sendOrderStatusMail($order, 'cancelled');
+
+            return ApiResponse::success('Hủy đơn hàng thành công!', data: [
+                'order_id'       => $order->unique_id,
+                'status'         => $order->status,
+            ]);
+        } catch (\Exception $e) {
+            logger('Log bug refund payment', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
         }
     }
 }
