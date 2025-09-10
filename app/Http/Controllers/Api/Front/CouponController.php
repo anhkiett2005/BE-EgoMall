@@ -23,8 +23,8 @@ class CouponController extends Controller
                                                 SELECT COUNT(*) FROM `orders` WHERE `orders`.`coupon_id` = `coupons`.`id`
                                         ) < `usage_limit`');
                                 })
-                                ->whereDate('start_date', '<=', now())
-                                ->whereDate('end_date', '>=', now())
+                                ->where('start_date', '<=', now())
+                                ->where('end_date', '>=', now())
                                 ->where('status', '!=', 0)
                                 ->get();
 
