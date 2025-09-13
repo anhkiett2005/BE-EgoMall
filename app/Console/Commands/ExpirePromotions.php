@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Promotion;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class ExpirePromotions extends Command
 {
@@ -39,6 +40,7 @@ class ExpirePromotions extends Command
             $promotion->update(['status' => false]);
         }
 
-        $this->info("Đã cập nhật $count chương trình khuyến mãi hết hạn.");
+        // $this->info("Đã cập nhật $count chương trình khuyến mãi hết hạn.");
+        Log::channel('promotion')->info("Đã cập nhật $count chương trình khuyến mãi hết hạn.");
     }
 }

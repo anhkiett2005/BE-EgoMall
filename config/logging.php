@@ -127,6 +127,20 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'check_pending_order' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/check_pending_order.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'replace_placeholders' => true,
+        ],
+
+        'promotion' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/promotion.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'replace_placeholders' => true,
+        ]
+
     ],
 
 ];

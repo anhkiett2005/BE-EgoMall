@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Order;
 use App\Models\OrderDetail;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class CheckPendingOrders extends Command
 {
@@ -41,19 +42,28 @@ class CheckPendingOrders extends Command
                 // Xóa order
                 $order->delete();
 
-                $this->info("Đã xóa đơn hàng #{$order->id}");
+                // $this->info("Đã xóa đơn hàng #{$order->id}");
             }
 
-            $this->info('Check pending orders and delete successfully');
+            Log::channel('check_pending_order')->info('Đã xóa đơn hàng #' . implode(',', $orders->pluck('id')->toArray()));
+
+            // $this->info('Check pending orders and delete successfully');
 
         }catch (\Exception $e) {
-            logger()->error('Error check pending orders', [
+            // logger()->error('Error check pending orders', [
+            //             'order_id' => $orders->pluck('id')->toArray(),
+            //             'error_message' => $e->getMessage(),
+            //             'stack_trace' => $e->getTraceAsString(),
+            //             'error_file' => $e->getFile(),
+            // ]);
+            // $this->error('Error check pending orders');
+            Log::channel('check_pending_order')->error('Error check pending orders', [
                         'order_id' => $orders->pluck('id')->toArray(),
                         'error_message' => $e->getMessage(),
                         'stack_trace' => $e->getTraceAsString(),
+                        'error_line' => $e->getLine(),
                         'error_file' => $e->getFile(),
             ]);
-            $this->error('Error check pending orders');
         }
     }
 }

@@ -8,6 +8,7 @@ use App\Models\Promotion;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 
 class ActivatePromotions extends Command
 {
@@ -33,7 +34,8 @@ class ActivatePromotions extends Command
         $today = Carbon::today();
 
         if (Promotion::where('status', 1)->exists()) {
-            $this->info("Đã có chương trình đang hoạt động. Không thể kích hoạt thêm.");
+            // $this->info("Đã có chương trình đang hoạt động. Không thể kích hoạt thêm.");
+            Log::channel('promotion')->info('Đã có chương trình đang hoạt động. Không thể kích hoạt thêm.');
             return;
         }
 
@@ -64,22 +66,31 @@ class ActivatePromotions extends Command
 
                 try {
                     Common::sendPromotionEmails($promotion);
-                } catch (\Throwable $e) {
-                    logger()->error('Gửi mail thất bại khi kích hoạt promotion', [
+                } catch (\Exception $e) {
+                    // logger()->error('Gửi mail thất bại khi kích hoạt promotion', [
+                    //     'promotion_id' => $promotion->id,
+                    //     'error_message' => $e->getMessage(),
+                    //     'stack_trace' => $e->getTraceAsString(),
+                    // ]);
+
+                    // $this->error("Lỗi khi gửi mail: " . $e->getMessage());
+                    Log::channel('promotion')->error("Gửi mail thất bại khi kích hoạt promotion",[
                         'promotion_id' => $promotion->id,
                         'error_message' => $e->getMessage(),
                         'stack_trace' => $e->getTraceAsString(),
+                        'error_line' => $e->getLine(),
+                        'error_file' => $e->getFile(),
                     ]);
-
-                    $this->error("Lỗi khi gửi mail: " . $e->getMessage());
                 }
 
 
-                $this->info("Đã kích hoạt và gửi mail chương trình khuyến mãi: {$promotion->name}");
+                // $this->info("Đã kích hoạt và gửi mail chương trình khuyến mãi: {$promotion->name}");
+                Log::channel('promotion')->info("Đã kích hoạt và gửi mail chương trình khuyến mãi: {$promotion->name}");
                 return;
             }
         }
 
-        $this->info("Không có chương trình khuyến mãi nào được kích hoạt.");
+        // $this->info("Không có chương trình khuyến mãi nào được kích hoạt.");
+        Log::channel('promotion')->info("Không có chương trình khuyến mãi nào được kích hoạt.");
     }
 }
