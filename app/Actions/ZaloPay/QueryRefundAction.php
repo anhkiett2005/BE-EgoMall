@@ -26,7 +26,7 @@ class QueryRefundAction {
             ];
 
             // gọi api query refund của ZaloPay
-            $response = Http::asJson()->post('https://sb-openapi.zalopay.vn/v2/query_refund', $body);
+            $response = Http::asJson()->post(env('ZALO_PAY_REFUND_URL'), $body);
 
             return $response->json();
         }catch (\Exception $e) {
