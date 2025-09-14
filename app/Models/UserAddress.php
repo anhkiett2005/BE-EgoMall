@@ -28,6 +28,8 @@ class UserAddress extends Model
         'is_default' => 'boolean',
     ];
 
+    protected $appends = ['full_address'];
+
     // ==== QUAN HỆ ====
     public function user()
     {
@@ -36,17 +38,17 @@ class UserAddress extends Model
 
     public function province()
     {
-        return $this->belongsTo(\App\Models\Location\Province::class, 'province_code', 'code');
+        return $this->belongsTo(Province::class, 'province_code', 'code');
     }
 
     public function district()
     {
-        return $this->belongsTo(\App\Models\Location\District::class, 'district_code', 'code');
+        return $this->belongsTo(District::class, 'district_code', 'code');
     }
 
     public function ward()
     {
-        return $this->belongsTo(\App\Models\Location\Ward::class, 'ward_code', 'code');
+        return $this->belongsTo(Ward::class, 'ward_code', 'code');
     }
 
     // ==== ACCESSOR: full_address ====
