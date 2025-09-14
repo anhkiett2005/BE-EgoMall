@@ -28,6 +28,8 @@ class UserAddress extends Model
         'is_default' => 'boolean',
     ];
 
+    protected $appends = ['full_address'];
+
     // ==== QUAN HỆ ====
     public function user()
     {
