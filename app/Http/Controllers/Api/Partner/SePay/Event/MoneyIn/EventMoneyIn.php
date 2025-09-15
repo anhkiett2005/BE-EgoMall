@@ -66,7 +66,7 @@ class EventMoneyIn extends Controller
 
         $order = Order::where('unique_id', $uniqueId)->first();
 
-        if(isset($order)) {
+        if(!is_null($order)) {
             $order->update([
                 'payment_status' => 'paid',
                 'payment_date'   => now(),
