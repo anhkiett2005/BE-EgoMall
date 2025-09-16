@@ -36,8 +36,8 @@ class CheckPendingOrders extends Command
                             ->get();
 
             foreach ($orders as $order) {
-                // Xóa order details trước để tránh lỗi khóa ngoại
-                OrderDetail::where('order_id', $order->id)->delete();
+                // // Xóa order details trước để tránh lỗi khóa ngoại
+                // OrderDetail::where('order_id', $order->id)->delete();
 
                 // Xóa order
                 $order->delete();
