@@ -380,9 +380,10 @@ Route::prefix('v1/admin')
 
         Route::prefix('system-settings')
             ->middleware(['role:super-admin'])
-            ->controller(SystemSettingController::class)
+            ->controller('SystemSettingController')
             ->group(function () {
                 Route::get('/', 'index');
+                Route::post('/create', 'store');
                 Route::put('/', 'update');
                 Route::post('/email-test', 'sendTestEmail');
             });
