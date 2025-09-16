@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\SystemSettingStoreRequest;
 use App\Http\Requests\SystemSettingUpdateRequest;
 use App\Http\Resources\Admin\SystemSettingResource;
 use App\Models\SystemSetting;
@@ -36,6 +37,31 @@ class SystemSettingController extends Controller
             200,
             SystemSettingResource::collection($models)->toArray($request)
         );
+    }
+
+    public function store(SystemSettingStoreRequest $request)
+    {
+        try {
+            $stored = $this->service->create($request);
+
+            if($stored) {
+                return ApiResponse::success('Thêm cấu hình hệ thống thành công!', Response::HTTP_CREATED);
+            }
+        }catch (ApiException $e) {
+            throw $e;
+        }catch (\Exception $e) {
+            logger('Log bug SystemSettingController@store', [
+                'error_message' => $e->getMessage(),
+                'error_file'   => $e->getFile(),
+                'error_line'   => $e->getLine(),
+                'stack_trace'  => $e->getTraceAsString(),
+            ]);
+
+            throw new ApiException(
+                'Không thể thêm cấu hình hệ thống!',
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
     }
 
     public function update(SystemSettingUpdateRequest $request)

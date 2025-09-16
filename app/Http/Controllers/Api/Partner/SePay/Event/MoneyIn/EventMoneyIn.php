@@ -61,8 +61,13 @@ class EventMoneyIn extends Controller
 
             // 5. Extract order_id từ content
             $uniqueId = null;
-            if ($request->content && preg_match('/#(\w+)/', $request->content, $matches)) {
+            if ($request->content && preg_match('/don hang\s+(\w+)/i', $request->content, $matches)) {
                 $uniqueId = $matches[1];
+
+                // Thêm dấu "-" sau "ORD"
+                if (str_starts_with($uniqueId, 'ORD') && !str_contains($uniqueId, '-')) {
+                    $uniqueId = substr($uniqueId, 0, 3) . '-' . substr($uniqueId, 3);
+                }
             }
 
             $order = Order::where('unique_id', $uniqueId)->first();

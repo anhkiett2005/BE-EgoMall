@@ -406,6 +406,8 @@ class OrderController extends Controller
                 return app(MomoController::class)->processPayment($order);
             case 'ZALOPAY':
                 return app(ZaloPayController::class)->processPayment($order);
+            case 'SEPAY':
+                return app(SePayController::class)->processPayment($order);
         }
     }
 

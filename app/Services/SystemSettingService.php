@@ -87,6 +87,95 @@ class SystemSettingService
     }
 
     /**
+     * Thêm setting cho hệ thống
+     */
+    public function create($request)
+    {
+        DB::beginTransaction();
+
+        try {
+            $data = $request->all();
+
+            // Nếu request là 1 object đơn, ép thành mảng 1 phần tử
+            if (isset($data['setting_key'])) {
+                $data = [$data];
+            }
+
+            // Lấy tất cả key từ request
+            $keys = array_column($data, 'setting_key');
+
+            // Query 1 lần để lấy các key đã tồn tại
+            $existingKeys = SystemSetting::whereIn('setting_key', $keys)->pluck('setting_key')->toArray();
+
+            if (!empty($existingKeys)) {
+                throw new ApiException(
+                    "Khoá cấu hình đã tồn tại: " . implode(', ', $existingKeys),
+                    Response::HTTP_CONFLICT
+                );
+            }
+
+            $now = now();
+            $toInsert = [];
+
+            foreach ($data as $item) {
+                $type  = $item['setting_type'] ?? 'string';
+                $value = $item['setting_value'] ?? null;
+
+                $this->validateByType($type, $value, $item['setting_label'] ?? $item['setting_key']);
+                $toSave = $this->castForStore($type, $value, $item['setting_key']);
+
+                $toInsert[] = [
+                    'setting_key'   => $item['setting_key'],
+                    'setting_value' => $toSave,
+                    'setting_type'  => $type,
+                    'setting_group' => $item['setting_group'] ?? null,
+                    'setting_label' => $item['setting_label'] ?? null,
+                    'description'   => $item['description'] ?? null,
+                    'created_at'    => $now,
+                    'updated_at'    => $now,
+                ];
+            }
+
+            // Insert tất cả trong 1 query
+            SystemSetting::insert($toInsert);
+
+            // Clear cache 1 lần duy nhất
+            Cache::forget(self::CACHE_ALL);
+            Cache::forget('settings:public');
+            foreach (array_unique(array_column($toInsert, 'setting_group')) as $group) {
+                if ($group) {
+                    Cache::forget(self::CACHE_GROUP . $group);
+                }
+            }
+
+            // Nếu có key email → apply mail config runtime
+            $keys = array_column($toInsert, 'setting_key');
+            if ($this->containsEmailKeys($keys)) {
+                $mail = $this->getEmailConfig(true);
+                $this->applyMailConfig($mail);
+            }
+
+            DB::commit();
+            return $toInsert; // trả về data vừa insert
+
+        }catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        }catch (\Exception $e) {
+            DB::rollBack();
+            logger('Log bug settings.create', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+
+            throw new ApiException('Có lỗi xảy ra, vui lòng thử lại!!', Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
+    /**
      * Update nhiều keys một lần.
      * - Chỉ update keys tồn tại trong DB
      * - Validate theo setting_type
