@@ -11,16 +11,22 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CodController extends Controller
 {
-    public function processConfirmPayment(Order $order) {
+    public function processConfirmPayment(string $uniqueId) {
         try {
+            $order = Order::where('unique_id', $uniqueId)->first();
+
+            if(is_null($order)) {
+                throw new ApiException("Không tìm thấy đơn hàng trong hệ thống với mã: {$uniqueId}.");
+            }
+
             // check nếu payment_method khác COD thì throw exception
             if($order->payment_method != 'COD') {
-                return ApiResponse::error('Không thể xác nhận thanh toán!!', Response::HTTP_BAD_REQUEST);
+                throw new ApiException("Không thể xác nhận thanh toán. Đơn hàng {$uniqueId} không sử dụng phương thức COD.");
             }
 
             // check nếu order dc xác nhận rồi thì throw exception
             if($order->payment_status == 'paid') {
-                return ApiResponse::error('Không thể xác nhận thanh toán do đơn hàng đã được xử lý!!', Response::HTTP_BAD_REQUEST);
+                throw new ApiException("Đơn hàng {$uniqueId} đã được thanh toán trước đó.");
             }
 
             $order->update([

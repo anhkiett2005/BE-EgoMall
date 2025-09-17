@@ -42,6 +42,7 @@ class CodController extends Controller
                     'status'         => 'cancelled',
                     'payment_status' => 'cancelled',
                     'payment_date'   => now(),
+                    'transaction_id' => Common::generateCodRefundTransactionId(),
                     'reason'  => $request->reason,
             ]);
 
