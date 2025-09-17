@@ -229,9 +229,9 @@ class Common
     {
 
         try {
-            $baseOrderId = $order->unique_id;
             // orderId phải UNIQUE cho mỗi request
-            $orderId = $baseOrderId . '-' . now()->timestamp;
+            $orderId = $order->unique_id;
+
             $amount = $order->total_price;
 
 
@@ -247,7 +247,7 @@ class Common
             $ipnUrl =  route('payment.momo.ipn');  //'https://18667f599642.ngrok-free.app/api/v1/front/payment/momo/ipn';       // ví dụ: route nhận callback IPN
             $requestId = now()->timestamp . '';
             $requestType = 'captureWallet';
-            $extraData = $baseOrderId;
+            $extraData = '';
 
             // Build raw signature string
             $rawHash = "accessKey=$accessKey&amount=$amount&extraData=$extraData&ipnUrl=$ipnUrl&orderId=$orderId&orderInfo=$orderInfo&partnerCode=$partnerCode&redirectUrl=$redirectUrl&requestId=$requestId&requestType=$requestType";

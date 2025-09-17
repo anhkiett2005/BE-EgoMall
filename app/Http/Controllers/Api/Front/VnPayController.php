@@ -6,6 +6,7 @@ use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendOrderStatusMailJob;
+use App\Models\FinancialTransaction;
 use App\Models\Order;
 use App\Response\ApiResponse;
 use Illuminate\Http\Request;
@@ -104,10 +105,27 @@ class VnPayController extends Controller
         try {
             if (!$this->validateSignature($request->all())) {
                 // return redirect()->away(env('FRONTEND_URL') . '/payment-result?status=failed');
-                return ApiResponse::error('Xác thực thất bại', Response::HTTP_BAD_REQUEST);
+                // return ApiResponse::error('Xác thực thất bại', Response::HTTP_BAD_REQUEST);
+                throw new ApiException('Xác thực thất bại');
             }
 
-            //  // Lấy đơn hàng
+            // lưu dữ liệu VnPay vào database
+            $dataVnPay = [
+                'vnp_Amount' => $request->vnp_Amount,
+                'vnp_BankCode' => $request->vnp_BankCode,
+                'vnp_BankTranNo' => $request->vnp_BankTranNo,
+                'vnp_CardType' => $request->vnp_CardType,
+                'vnp_OrderInfo' => $request->vnp_OrderInfo,
+                'vnp_PayDate' => $request->vnp_PayDate,
+                'vnp_ResponseCode' => $request->vnp_ResponseCode,
+                'vnp_TmnCode' => $request->vnp_TmnCode,
+                'vnp_TransactionNo' => $request->vnp_TransactionNo,
+                'vnp_TransactionStatus' => $request->vnp_TransactionStatus,
+                'vnp_TxnRef' => $request->vnp_TxnRef,
+                'vnp_SecureHash' => $request->vnp_SecureHash
+            ];
+
+            // Lấy đơn hàng
             $order = Order::where('unique_id', $request->vnp_TxnRef)->first();
             if (!$order) {
                 return redirect()->away(env('FRONTEND_URL') . '/payment-result?status=failed');
@@ -126,6 +144,13 @@ class VnPayController extends Controller
                     'payment_date'   => now(),
                     'transaction_id' => $request->vnp_TransactionNo,
                 ]);
+
+                // Lưu lịch sử giao dịch VnPay
+                $financialTransaction = new FinancialTransaction();
+                $financialTransaction->order_id = $order->id;
+                $financialTransaction->amount = $request->vnp_Amount / 100;
+                $financialTransaction->vnpay_data = $dataVnPay;
+                $financialTransaction->save();
 
                 Common::sendOrderStatusMail($order, 'ordered');
 
