@@ -6,6 +6,7 @@ use App\Classes\Common;
 use App\Http\Controllers\Controller;
 use App\Models\FinancialTransaction;
 use App\Models\Order;
+use App\Response\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
@@ -37,10 +38,7 @@ class EventMoneyIn extends Controller
             // 3. Check duplicate transaction (chống retry trùng lặp)
             $existingTx = FinancialTransaction::where('sepay_data->id', $request->id)->first();
             if ($existingTx) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Transaction already processed',
-                ], Response::HTTP_OK);
+                return ApiResponse::success('Transaction already processed');
             }
 
             // 4. Parse SePay data
@@ -94,10 +92,7 @@ class EventMoneyIn extends Controller
 
 
             // 9. Always return success để thông báo cho SePay
-            return response()->json([
-                'success' => true,
-                'message' => 'Webhook processed successfully',
-            ], Response::HTTP_OK);
+            return ApiResponse::success('Webhook processed successfully');
     }
 }
 
