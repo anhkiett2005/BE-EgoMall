@@ -304,7 +304,7 @@ Route::prefix('v1/admin')
 
         // Routes API Cod
         Route::controller('CodController')->group(function () {
-            Route::post('/payment/cod/confirm-payment/{order}', 'processConfirmPayment');
+            Route::post('/payment/cod/confirm-payment/{uniqueId}', 'processConfirmPayment');
         });
 
 
