@@ -21,18 +21,12 @@ class EventMoneyIn extends Controller
             $apiKey = env('SEPAY_API_KEY');
 
             if ($apiKeyFromHeader !== $apiKey) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid API key',
-                ], Response::HTTP_UNAUTHORIZED);
+                return ApiResponse::error('Invalid API key', Response::HTTP_UNAUTHORIZED);
             }
 
             // 2. Validate data
             if (empty($request->all())) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid or empty data',
-                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                return ApiResponse::error('Invalid or empty data', Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
             // 3. Check duplicate transaction (chống retry trùng lặp)
