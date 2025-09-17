@@ -6,6 +6,7 @@ use App\Classes\Common;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendOrderStatusMailJob;
+use App\Models\FinancialTransaction;
 use App\Models\Order;
 use App\Response\ApiResponse;
 use Illuminate\Http\Request;
@@ -24,7 +25,6 @@ class MoMoController extends Controller
         }
 
         return ApiResponse::success(
-            message: 'success',
             data: ['redirect_url' => $payUrl]
         );
     }
@@ -119,19 +119,36 @@ class MoMoController extends Controller
 
         $signature = hash_hmac("sha256", $rawHash, $secretKey);
 
+        // Lưu giao dịch vào database
+        $dataMomo = [
+            'partnerCode' => $data['partnerCode'],
+            'orderId' => $data['orderId'],
+            'requestId' => $data['requestId'],
+            'amount' => $data['amount'],
+            'orderInfo' => $data['orderInfo'],
+            'orderType' => $data['orderType'],
+            'transId' => $data['transId'],
+            'resultCode' => $data['resultCode'],
+            'message' => $data['message'],
+            'payType' => $data['payType'],
+            'responseTime' => $data['responseTime'],
+            'extraData' => $data['extraData'],
+            'signature' => $data['signature'],
+        ];
+
         if ($signature !== $data['signature']) {
             logger("MoMo signature mismatch", ['expected' => $signature, 'received' => $data['signature']]);
             throw new ApiException('Chữ ký không hợp lệ!', Response::HTTP_BAD_REQUEST);
         }
 
-        $baseOrderId = $data['extraData'] ?? null;
-        if (!$baseOrderId) {
-            // fallback nếu thiếu extraData: tách trước dấu '-'
-            $baseOrderId = explode('-', (string)$data['orderId'])[0] ?? '';
-        }
+        // $baseOrderId = $data['extraData'] ?? null;
+        // if (!$baseOrderId) {
+        //     // fallback nếu thiếu extraData: tách trước dấu '-'
+        //     $baseOrderId = explode('-', (string)$data['orderId'])[0] ?? '';
+        // }
 
         // Tìm đơn hàng và cập nhật trạng thái
-        $order = Order::where('unique_id', $baseOrderId)->first();
+        $order = Order::where('unique_id', $data['orderId'])->first();
 
         if (!$order) {
             throw new ApiException('Không tìm thấy đơn hàng!', Response::HTTP_NOT_FOUND);
@@ -164,6 +181,13 @@ class MoMoController extends Controller
                 'payment_date'   => now(),
                 'transaction_id' => $data['transId'],
             ]);
+
+            // Lưu lịch sử giao dịch MoMo
+            $financialTransaction = new FinancialTransaction();
+            $financialTransaction->order_id = $order->id;
+            $financialTransaction->amount = $data['amount'];
+            $financialTransaction->momo_data = $dataMomo;
+            $financialTransaction->save();
 
 
             Common::sendOrderStatusMail($order, 'ordered');
