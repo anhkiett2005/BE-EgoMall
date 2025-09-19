@@ -192,7 +192,7 @@ class OrderController extends Controller
             return $this->processPaymentByMethod($order);
         } catch (ApiException $e) {
             DB::rollBack();
-            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+            throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
             logger('Log bug check out orders', [
