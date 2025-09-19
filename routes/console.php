@@ -10,7 +10,8 @@ Artisan::command('inspire', function () {
 
 // schedule handle promotions expire and activate
 Schedule::command('promotions:expire')
-    ->dailyAt('00:00')
+    // ->dailyAt('00:00')
+    ->everyMinute()
     ->after(function () {
         Artisan::call('promotions:activate');
     });

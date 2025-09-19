@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Classes\Common;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Cache;
 
 class ProductVariant extends Model
 {
@@ -29,7 +31,7 @@ class ProductVariant extends Model
         'is_active' => 'boolean'
     ];
 
-    protected $appends = ['variant_name'];
+    protected $appends = ['variant_name', 'final_price_discount'];
 
     public function product()
     {
@@ -49,6 +51,15 @@ class ProductVariant extends Model
         })->implode(' | ');
 
         return "Sản phẩm {$this->product->name} ({$values})";
+    }
+
+    public function getFinalPriceDiscountAttribute()
+    {
+            // Lấy promotion đang active
+            $promotion = Cache::get('active_promotions') ?? Common::getActivePromotion();
+
+            // Tính toán giảm giá
+            Common::checkPromotion($this, $promotion);
     }
 
     public function giftPromotions()

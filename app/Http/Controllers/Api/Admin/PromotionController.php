@@ -9,6 +9,7 @@ use App\Http\Requests\UpdatePromotionRequest;
 use App\Response\ApiResponse;
 use App\Services\PromotionServices;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class PromotionController extends Controller
 {
@@ -44,7 +45,7 @@ class PromotionController extends Controller
             $promotion = $this->promotionServices->store($request);
 
             if($promotion) {
-                return ApiResponse::success('Tạo chương trình khuyến mãi thành công và chương trình đã được lên lịch!!');
+                return ApiResponse::success('Tạo chương trình khuyến mãi thành công và chương trình đã được lên lịch!!',Response::HTTP_CREATED);
             }
         } catch (ApiException $e) {
                 return ApiResponse::error($e->getMessage(),$e->getCode(),$e->getErrors());

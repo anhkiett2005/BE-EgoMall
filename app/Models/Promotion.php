@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PromotionStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -24,6 +25,12 @@ class Promotion extends Model
         'get_quantity',
         'gift_product_id',
         'gift_product_variant_id'
+    ];
+
+    protected $casts = [
+        'status' => PromotionStatus::class,
+        'start_date' => 'datetime',
+        'end_date' => 'datetime',
     ];
 
     public function giftProduct()

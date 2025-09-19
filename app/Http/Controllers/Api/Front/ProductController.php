@@ -226,9 +226,6 @@ class ProductController extends Controller
                 $this->sortProduct($request, $query);
             }
 
-
-            $promotions = self::getActivePromotions();
-
             // xử lý dữ liệu và trả về
             $products = $query->get();
 
@@ -264,7 +261,7 @@ class ProductController extends Controller
 
 
 
-            $productLists = $products->map(function ($product) use ($promotions, $ratingAgg, $soldAgg): array {
+            $productLists = $products->map(function ($product) use ($ratingAgg, $soldAgg): array {
 
                 // >>> LẤY SỐ LIỆU ĐÃ TỔNG HỢP
                 $agg = $ratingAgg->get($product->id);
@@ -318,13 +315,13 @@ class ProductController extends Controller
                                 })->unique()->flatten()->toArray(),
                             ];
                         })->values(), // bỏ key
-                    'variants' => $product->variants->map(function ($variant) use ($promotions) {
+                    'variants' => $product->variants->map(function ($variant)  {
                         return [
                             'id' => $variant->id,
                             'sku' => $variant->sku,
                             'price' => $variant->price,
                             'sale_price' => $variant->sale_price,
-                            'final_price_discount' => self::checkPromotion($variant, $promotions),
+                            'final_price_discount' => $variant->final_price_discount,
                             'quantity' => $variant->quantity,
                             'is_active' => $variant->is_active,
                             'option_value_ids' => $variant->values->pluck('id')->toArray(),
@@ -394,9 +391,6 @@ class ProductController extends Controller
 
             $soldCount = (int) ($soldRow->sold_qty ?? 0);
 
-
-            $promotions = self::getActivePromotions();
-
             $listDetails = collect();
 
             // Tính rating trung bình và số lượng đánh giá và lấy ra đánh giá của sản phẩm đó
@@ -451,13 +445,13 @@ class ProductController extends Controller
 
 
             // trả về các list variants của sản phẩm
-            $variantLists = $product->variants->map(function ($variant) use ($promotions) {
+            $variantLists = $product->variants->map(function ($variant)  {
                 return [
                     'id' => $variant->id,
                     'sku' => $variant->sku,
                     'price' => $variant->price,
                     'sale_price' => $variant->sale_price,
-                    'final_price_discount' => self::checkPromotion($variant, $promotions),
+                    'final_price_discount' => $variant->final_price_discount,
                     'quantity' => $variant->quantity,
                     'is_active' => $variant->is_active,
                     'option_value_ids' => $variant->values->pluck('id')->toArray(),
@@ -526,7 +520,7 @@ class ProductController extends Controller
                 ->keyBy('product_id');
 
             // Build danh sách related với rating đúng cho từng item
-            $related = $relatedProducts->map(function ($rp) use ($promotions, $relatedAgg , $relatedSoldAgg) {
+            $related = $relatedProducts->map(function ($rp) use ($relatedAgg , $relatedSoldAgg) {
                 $agg = $relatedAgg->get($rp->id);
                 $avg = $agg ? round((float)$agg->avg_rating, 1) : 0.0;
                 $cnt = $agg ? (int)$agg->review_count : 0;
@@ -543,7 +537,7 @@ class ProductController extends Controller
                     'slug'                 => $rp->slug,
                     'price'                => $firstVariant?->price,
                     'sale_price'           => $firstVariant?->sale_price,
-                    'final_price_discount' => $firstVariant ? self::checkPromotion($firstVariant, $promotions) : null,
+                    'final_price_discount' => $firstVariant?->final_price_discount,
                     'brand'                => $rp->brand->name ?? null,
                     'image'                => $rp->image,
                     'average_rating'       => $avg,
@@ -607,61 +601,5 @@ class ProductController extends Controller
                 $query->orderBy('created_at', 'desc');
                 break;
         }
-    }
-
-    // Lấy danh sách promotion trong hệ thống đang hoat động
-    private function getActivePromotions()
-    {
-        $now = now();
-        return Promotion::with(['products', 'productVariants'])
-            ->where('status', '!=', 0)
-            ->where('start_date', '<=', $now)
-            ->where('end_date', '>=', $now)
-            ->get();
-    }
-
-    public static function checkPromotion($variant, $promotions)
-    {
-        if ($variant->sale_price !== null) return null;
-
-        // Ưu tiên promotion theo variant
-        $variantPromotion = $promotions->first(function ($promo) use ($variant) {
-            return $promo->productVariants->contains('id', $variant->id);
-        });
-
-        if ($variantPromotion) {
-            return self::calculateDiscount($variant, $variantPromotion);
-        }
-
-        // Nếu không, lấy promotion theo product
-        $productPromotion = $promotions->first(function ($promo) use ($variant) {
-            return $promo->products->contains('id', $variant->product_id);
-        });
-
-        if ($productPromotion) {
-            return self::calculateDiscount($variant, $productPromotion);
-        }
-
-        return null;
-    }
-
-    // Hàm xử lý tính toán giảm giá
-    protected static function calculateDiscount($variant, $promotion)
-    {
-        // dd($promotion);
-        if ($variant->sale_price !== null) {
-            return null;
-        }
-
-        $price = $variant->price;
-        $discount = 0;
-
-        if ($promotion->promotion_type === 'percentage') {
-            $discount = $price * ($promotion->discount_value / 100);
-        } elseif ($promotion->promotion_type === 'fixed_amount') {
-            $discount = $promotion->discount_value;
-        }
-
-        return max(0, $price - $discount);
     }
 }

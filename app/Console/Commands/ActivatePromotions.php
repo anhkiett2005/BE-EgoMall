@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Classes\Common;
+use App\Enums\PromotionStatus;
 use App\Jobs\SendPromotionMailJob;
 use App\Models\Promotion;
 use App\Models\User;
@@ -31,7 +32,7 @@ class ActivatePromotions extends Command
      */
     public function handle()
     {
-        $today = Carbon::today();
+        $now = Carbon::now();
 
         if (Promotion::where('status', 1)->exists()) {
             // $this->info("Đã có chương trình đang hoạt động. Không thể kích hoạt thêm.");
@@ -40,54 +41,16 @@ class ActivatePromotions extends Command
         }
 
         $pendingPromotions = Promotion::where('status', 0)
-            ->whereDate('start_date', '<=', $today)
-            ->whereDate('end_date', '>=', $today) // chặn mấy cái đã hết hạn
-            ->orderBy('start_date')
-            ->get();
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now) // chặn mấy cái đã hết hạn
+            ->first();
 
-        foreach ($pendingPromotions as $promotion) {
-            $start = Carbon::parse($promotion->start_date);
-            $end = Carbon::parse($promotion->end_date);
+        if(!is_null($pendingPromotions)) {
+            $pendingPromotions->status = PromotionStatus::ACTIVE;
+            $pendingPromotions->save();
 
-            // Kiểm tra trùng thời gian với chương trình đang hoạt động
-            $hasConflict = Promotion::where('status', 1)
-                ->where(function ($q) use ($start, $end) {
-                    $q->whereBetween('start_date', [$start, $end])
-                        ->orWhereBetween('end_date', [$start, $end])
-                        ->orWhere(function ($q1) use ($start, $end) {
-                            $q1->where('start_date', '<', $start)
-                                ->where('end_date', '>', $end);
-                        });
-                })
-                ->exists();
-
-            if (!$hasConflict) {
-                $promotion->update(['status' => 1]);
-
-                try {
-                    Common::sendPromotionEmails($promotion);
-                } catch (\Exception $e) {
-                    // logger()->error('Gửi mail thất bại khi kích hoạt promotion', [
-                    //     'promotion_id' => $promotion->id,
-                    //     'error_message' => $e->getMessage(),
-                    //     'stack_trace' => $e->getTraceAsString(),
-                    // ]);
-
-                    // $this->error("Lỗi khi gửi mail: " . $e->getMessage());
-                    Log::channel('promotion')->error("Gửi mail thất bại khi kích hoạt promotion",[
-                        'promotion_id' => $promotion->id,
-                        'error_message' => $e->getMessage(),
-                        'stack_trace' => $e->getTraceAsString(),
-                        'error_line' => $e->getLine(),
-                        'error_file' => $e->getFile(),
-                    ]);
-                }
-
-
-                // $this->info("Đã kích hoạt và gửi mail chương trình khuyến mãi: {$promotion->name}");
-                Log::channel('promotion')->info("Đã kích hoạt và gửi mail chương trình khuyến mãi: {$promotion->name}");
-                return;
-            }
+            // send mail
+            // Common::sendPromotionEmails($pendingPromotions);
         }
 
         // $this->info("Không có chương trình khuyến mãi nào được kích hoạt.");
