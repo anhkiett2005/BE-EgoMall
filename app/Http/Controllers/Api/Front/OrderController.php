@@ -185,11 +185,15 @@ class OrderController extends Controller
 
             Common::calculateOrderStock($order);
 
-            DB::commit();
-            // return ApiResponse::success('Đơn hàng đã được tạo thành công!!', Response::HTTP_CREATED);
 
             // Xử lý thanh toán theo phương thức được chọn
-            return $this->processPaymentByMethod($order);
+            $paymentResponse = $this->processPaymentByMethod($order);
+
+            // Lưu đơn hàng vào database nếu thành công
+            DB::commit();
+
+            return $paymentResponse;
+
         } catch (ApiException $e) {
             DB::rollBack();
             throw $e;
