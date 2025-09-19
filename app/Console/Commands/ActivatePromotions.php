@@ -50,7 +50,7 @@ class ActivatePromotions extends Command
             $pendingPromotions->save();
 
             // send mail
-            // Common::sendPromotionEmails($pendingPromotions);
+            Common::sendPromotionEmails($pendingPromotions);
         }
 
         // $this->info("Không có chương trình khuyến mãi nào được kích hoạt.");
