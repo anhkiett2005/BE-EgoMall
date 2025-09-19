@@ -17,8 +17,10 @@ use App\Response\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
@@ -596,21 +598,6 @@ class Common
         }
     }
 
-    public static function normalizePromotionFields(array $data): array
-    {
-        if (($data['promotion_type'] ?? null) === 'buy_get') {
-            $data['discount_type'] = null;
-            $data['discount_value'] = null;
-        } else {
-            $data['buy_quantity'] = null;
-            $data['get_quantity'] = null;
-            $data['gift_product_id'] = null;
-            $data['gift_product_variant_id'] = null;
-        }
-
-        return $data;
-    }
-
 
 
     public static function syncApplicableProducts(Promotion $promotion, array $items): void
@@ -676,19 +663,24 @@ class Common
 
     public static function sendPromotionEmails(Promotion $promotion): void
     {
-        $query = User::where('role_id', 4)
-            ->where('is_active', true)
-            ->whereNotNull('email_verified_at');
-
-        if (!$query->exists()) {
-            return;
+        try {
+            User::where('role_id', 4)
+                ->where('is_active', true)
+                ->whereNotNull('email_verified_at')
+                ->chunk(100, function ($customers) use ($promotion) {
+                    foreach ($customers as $customer) {
+                        dispatch(new SendPromotionMailJob($customer, $promotion));
+                    }
+                });
+        }catch (\Exception $e) {
+            Log::channel('promotion')->error("Gửi mail thất bại khi kích hoạt promotion",[
+                'promotion_id' => $promotion->id,
+                'error_message' => $e->getMessage(),
+                'stack_trace' => $e->getTraceAsString(),
+                'error_line' => $e->getLine(),
+                'error_file' => $e->getFile(),
+            ]);
         }
-
-        $query->chunk(100, function ($customers) use ($promotion) {
-            foreach ($customers as $customer) {
-                dispatch(new SendPromotionMailJob($customer, $promotion));
-            }
-        });
     }
 
     public static function sendReturnApprovedMail(Order $order, bool $afterCommit = false): void
@@ -766,6 +758,53 @@ class Common
         $secureHash = hash_hmac('sha512', $hashData, $vnp_HashSecret);
 
         return $secureHash === $vnp_SecureHash;
+    }
+
+    public static function getActivePromotion()
+    {
+        $now = now();
+
+        // Cache lại kết quả để optimize perfomance
+        return Cache::remember('active_promotions', 60, function () use ($now) {
+            return Promotion::with(['products', 'productVariants'])
+            ->where('status', '!=', 0)
+            ->where('start_date', '<=', $now)
+            ->where('end_date', '>=', $now)
+            ->first();
+        });
+    }
+
+    public static function checkPromotion($variant, $promotion)
+    {
+        if (!$promotion) return null;
+
+        if ($promotion->productVariants->contains('id', $variant->id)
+            || $promotion->products->contains('id', $variant->product_id)) {
+            return self::calculateDiscountAfterPromotion($variant, $promotion);
+        }
+
+        return null;
+    }
+
+    // Hàm xử lý tính toán giảm giá khi áp dụng khuyên mãi
+    public static function calculateDiscountAfterPromotion($variant, $promotion)
+    {
+
+       // Nếu đã có sale_price hoặc là buy_get → không tính
+        if ($variant->sale_price !== null || $promotion->promotion_type === 'buy_get') {
+            return null;
+        }
+
+        $price = $variant->price;
+        $discount = 0;
+
+        if ($promotion->promotion_type === 'percentage') {
+            $discount = $price * ($promotion->discount_value / 100);
+        } elseif ($promotion->promotion_type === 'fixed_amount') {
+            $discount = $promotion->discount_value;
+        }
+
+        return max(0, $price - $discount);
     }
 
 

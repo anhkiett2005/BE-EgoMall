@@ -91,7 +91,7 @@ class PromotionController extends Controller
                 }
             }
 
-            return ApiResponse::success('Data fetched successfully',data: $promotionMap);
+            return ApiResponse::success('Lấy danh sách khuyến mãi thành công!!',data: $promotionMap);
         }catch(\Exception $e) {
             logger('Log bug',[
                 'error_message' => $e->getMessage(),

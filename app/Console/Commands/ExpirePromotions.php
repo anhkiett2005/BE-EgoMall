@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Promotion;
+use App\Enums\PromotionStatus;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -28,7 +29,7 @@ class ExpirePromotions extends Command
      */
     public function handle()
     {
-        $now = Carbon::now()->startOfDay();
+        $now = Carbon::now();
 
         // $expiredPromotions = Promotion::where('status', true)
         //     ->where('end_date', '<', $now)
@@ -42,7 +43,7 @@ class ExpirePromotions extends Command
 
         $count = Promotion::where('status', true)
                           ->where('end_date', '<=', $now)
-                          ->update(['status' => false]);
+                          ->update(['status' => PromotionStatus::INACTIVE]);
 
         // $this->info("Đã cập nhật $count chương trình khuyến mãi hết hạn.");
         Log::channel('promotion')->info("Đã cập nhật $count chương trình khuyến mãi hết hạn.");

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Classes\Common;
+use App\Enums\PromotionStatus;
 use App\Exceptions\ApiException;
 use App\Models\Promotion;
 use App\Models\PromotionProduct;
@@ -31,11 +32,14 @@ class PromotionServices
                     'id' => $promotion->id,
                     'name' => $promotion->name,
                     'promotion_type' => $promotion->promotion_type,
-                    'start_date' => $promotion->start_date,
-                    'end_date' => $promotion->end_date,
-                    'status' => $promotion->status ? 'active' : 'inactive',
-                    'created_at' => $promotion->created_at,
-                    'updated_at' => $promotion->updated_at
+                    'start_date' => $promotion->start_date->format('Y-m-d H:i:s'),
+                    'end_date' => $promotion->end_date->format('Y-m-d H:i:s'),
+                    'status' => [
+                        'value' => $promotion->status->value,
+                        'label' => $promotion->status->label()
+                    ],
+                    'created_at' => $promotion->created_at->format('Y-m-d H:i:s'),
+                    'updated_at' => $promotion->updated_at->format('Y-m-d H:i:s')
                 ];
 
                 // Gán gift chỉ khi là chương trình mua tặng
@@ -260,7 +264,7 @@ class PromotionServices
                 'discount_value' => $data['discount_value'],
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
-                'status' => $hasActivePromotion ? 0 : 1,
+                'status' => $hasActivePromotion ? PromotionStatus::PENDING : PromotionStatus::ACTIVE,
                 'buy_quantity' => $data['buy_quantity'],
                 'get_quantity' => $data['get_quantity'],
                 'gift_product_id' => $data['gift_product_id'] ?? null,
@@ -280,15 +284,7 @@ class PromotionServices
 
             // Nếu promotion active → gửi mail cho tất cả user đã xác thực
             if ($promotion->status === 1) {
-                try {
-                    Common::sendPromotionEmails($promotion);
-                } catch (\Throwable $e) {
-                    logger()->error('Gửi mail thất bại sau khi tạo promotion', [
-                        'promotion_id' => $promotion->id,
-                        'error_message' => $e->getMessage(),
-                        'stack_trace' => $e->getTraceAsString(),
-                    ]);
-                }
+                Common::sendPromotionEmails($promotion);
             }
 
 
@@ -319,8 +315,6 @@ class PromotionServices
         try {
             // Lấy data từ request
             $data = $request->all();
-
-            $data = Common::normalizePromotionFields($data);
 
             $start = Carbon::parse($data['start_date']);
             $end = Carbon::parse($data['end_date']);
@@ -370,6 +364,13 @@ class PromotionServices
             if ($data['promotion_type'] === 'buy_get') {
                 $data['discount_type'] = null;
                 $data['discount_value'] = null;
+
+                // check gift
+                if (!isset($data['gift_product_id'])) {
+                    $data['gift_product_id'] = null;
+                }else if(!isset($data['gift_product_variant_id'])) {
+                    $data['gift_product_variant_id'] = null;
+                }
             } else {
                 $data['buy_quantity'] = null;
                 $data['get_quantity'] = null;
@@ -388,15 +389,15 @@ class PromotionServices
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
                 'promotion_type' => $data['promotion_type'],
-                'discount_type' => $data['discount_type'] ?? null,
-                'discount_value' => $data['discount_value'] ?? null,
+                'discount_type' => $data['discount_type'],
+                'discount_value' => $data['discount_value'],
                 'start_date' => $start,
                 'end_date' => $end,
-                'status' => $data['status'] ?? true,
-                'buy_quantity' => $data['buy_quantity'] ?? null,
-                'get_quantity' => $data['get_quantity'] ?? null,
-                'gift_product_id' => $data['gift_product_id'] ?? null,
-                'gift_product_variant_id' => $data['gift_product_variant_id'] ?? null,
+                'status' => $data['status'],
+                'buy_quantity' => $data['buy_quantity'],
+                'get_quantity' => $data['get_quantity'],
+                'gift_product_id' => $data['gift_product_id'],
+                'gift_product_variant_id' => $data['gift_product_variant_id'],
             ]);
 
             // Sync sản phẩm áp dụng

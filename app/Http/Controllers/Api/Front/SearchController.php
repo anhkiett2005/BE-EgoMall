@@ -102,22 +102,19 @@ class SearchController extends Controller
                 }
             ])->whereIn('id', $productIds)->get()->keyBy('id');
 
-            // CHỈNH: Lấy danh sách promotions đang hoạt động để tính giảm giá
-            $promotions = $this->getActivePromotions();
-
             // CHỈNH: Gộp dữ liệu SQL (tổng hợp) + Eloquent (variants)
-            $products = $rows->map(function ($row) use ($eloquentProducts, $promotions) {
+            $products = $rows->map(function ($row) use ($eloquentProducts) {
                 $p = $eloquentProducts->get($row->id);
 
                 $variants = $p
-                    ? $p->variants->map(function ($variant) use ($promotions) {
+                    ? $p->variants->map(function ($variant)  {
                         return [
                             'id'                   => $variant->id,
                             'sku'                  => $variant->sku,
                             'price'                => (float) $variant->price,
                             'sale_price'           => $variant->sale_price !== null ? (float) $variant->sale_price : null,
                             // CHỈNH: giống ProductController — trả về GIÁ SAU GIẢM nếu đang có promotion (và sale_price = null)
-                            'final_price_discount' => $this->checkPromotion($variant, $promotions),
+                            'final_price_discount' => $variant->final_price_discount,
                         ];
                     })->values()
                     : collect();
@@ -154,59 +151,4 @@ class SearchController extends Controller
         }
     }
 
-    // CHỈNH: y hệt ProductController để đồng bộ logic
-    private function getActivePromotions()
-    {
-        $now = now();
-        return Promotion::with(['products', 'productVariants'])
-            ->where('status', '!=', 0)
-            ->where('start_date', '<=', $now)
-            ->where('end_date', '>=', $now)
-            ->get();
-    }
-
-    // CHỈNH: kiểm tra promotion — trả về GIÁ SAU GIẢM (float) nếu có KM và sale_price = null; ngược lại trả null
-    private function checkPromotion($variant, $promotions)
-    {
-        if ($variant->sale_price !== null) return null;
-
-        // Ưu tiên promotion theo variant
-        $variantPromotion = $promotions->first(function ($promo) use ($variant) {
-            return $promo->productVariants->contains('id', $variant->id);
-        });
-
-        if ($variantPromotion) {
-            return $this->calculateDiscount($variant, $variantPromotion);
-        }
-
-        // Nếu không, lấy promotion theo product
-        $productPromotion = $promotions->first(function ($promo) use ($variant) {
-            return $promo->products->contains('id', $variant->product_id);
-        });
-
-        if ($productPromotion) {
-            return $this->calculateDiscount($variant, $productPromotion);
-        }
-
-        return null;
-    }
-
-    // CHỈNH: tính giá sau giảm theo loại promotion
-    private function calculateDiscount($variant, $promotion)
-    {
-        if ($variant->sale_price !== null) {
-            return null;
-        }
-
-        $price = (float) $variant->price;
-        $discount = 0;
-
-        if ($promotion->promotion_type === 'percentage') {
-            $discount = $price * ($promotion->discount_value / 100);
-        } elseif ($promotion->promotion_type === 'fixed_amount') {
-            $discount = $promotion->discount_value;
-        }
-
-        return max(0, $price - $discount);
-    }
 }
