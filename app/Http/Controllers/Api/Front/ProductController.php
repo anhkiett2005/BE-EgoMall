@@ -82,7 +82,7 @@ class ProductController extends Controller
             if ($request->has('category')) {
                 $categorySlug = $request->category;
 
-                $category = Category::with('children.children')
+                $category = Category::with('children')
                     ->where('slug', $categorySlug)
                     ->first();
 
