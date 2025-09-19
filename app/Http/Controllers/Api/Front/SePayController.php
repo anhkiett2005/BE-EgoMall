@@ -34,7 +34,7 @@ class SePayController extends Controller
                 'download' => 0,
             ]);
 
-            return ApiResponse::success('Tạo qr code thanh toán thành công!', data: [
+            return ApiResponse::success('Tạo qr code thanh toán thành công.', data: [
                 'qr_code' => $qrCode
             ]);
         }catch (ApiException $e) {
