@@ -62,7 +62,7 @@ class PayOsController extends Controller
                 'buyerPhone' => $order->shipping_phone,
                 'items' => $items,
                 'cancelUrl' => config('services.frontend_url') . "/profile/orders",
-                'returnUrl' => config('services.frontend_url') . "/profile/orders",
+                'returnUrl' => config('services.frontend_url') . "/thank-you",
                 'invoice' => $invoice,
                 'expiredAt' => now()->addMinutes(15)->timestamp
             ];
