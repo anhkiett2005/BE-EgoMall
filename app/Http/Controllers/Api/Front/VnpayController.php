@@ -86,7 +86,7 @@ class VnPayController extends Controller
             $order->payment_created_at = Carbon::now();
             $order->save();
 
-            return ApiResponse::success(data: [
+            return ApiResponse::success('Link thanh toán được tạo thành công.',data: [
                 'redirect_url' => $vnp_Url
             ]);
         } catch (\Exception $e) {

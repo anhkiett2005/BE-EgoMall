@@ -14,12 +14,14 @@ class FinancialTransaction extends Model
         'vnpay_data',
         'momo_data',
         'sepay_data',
+        'payos_data',
     ];
 
     protected $casts = [
         'vnpay_data' => 'array',
         'momo_data' => 'array',
         'sepay_data' => 'array',
+        'payos_data' => 'array',
     ];
 
     public function order()

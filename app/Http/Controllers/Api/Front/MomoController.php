@@ -25,6 +25,7 @@ class MoMoController extends Controller
         }
 
         return ApiResponse::success(
+            'Link thanh toán được tạo thành công.',
             data: ['redirect_url' => $payUrl]
         );
     }

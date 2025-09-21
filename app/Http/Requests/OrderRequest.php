@@ -33,7 +33,7 @@ class OrderRequest extends FormRequest
             'shipping_phone' => 'required|numeric|regex:/^0[0-9]{9}$/',
             'shipping_email' => 'required|email',
             'shipping_address' => 'required|string',
-            'payment_method' => 'required|in:COD,VNPAY,MOMO,ZALOPAY,SEPAY',
+            'payment_method' => 'required|in:COD,VNPAY,MOMO,ZALOPAY,SEPAY,PAYOS',
             'voucher_id' => 'nullable|exists:coupons,id',
             'shipping_method_id' => 'required|integer|exists:shipping_methods,id',
             'province_code' => 'required|integer|exists:provinces,code',

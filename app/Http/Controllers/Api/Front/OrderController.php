@@ -412,6 +412,8 @@ class OrderController extends Controller
                 return app(ZaloPayController::class)->processPayment($order);
             case 'SEPAY':
                 return app(SePayController::class)->processPayment($order);
+            case 'PAYOS':
+                return app(PayOsController::class)->processPayment($order);
         }
     }
 

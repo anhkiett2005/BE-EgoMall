@@ -53,5 +53,11 @@ return [
         'api_key' => env('CLOUDINARY_API_KEY'),
     ],
 
+    'payos' => [
+        'client_id' => env('PAYOS_CLIENT_ID'),
+        'api_key' => env('PAYOS_API_KEY'),
+        'check_sum_key' => env('PAYOS_CHECK_SUM_KEY')
+    ],
+
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
 ];
