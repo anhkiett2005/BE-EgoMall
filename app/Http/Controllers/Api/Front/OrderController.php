@@ -36,14 +36,14 @@ class OrderController extends Controller
             $totalDiscountVoucher = 0;
             $totalFlashSale = 0;
 
-            $shippingMethod = ShippingMethod::find($data['shipping_method_id'] ?? null);
+            $shippingMethod = ShippingMethod::find($data['shipping_method_id']);
 
             if (!$shippingMethod) {
                 throw new ApiException('Phương thức vận chuyển không hợp lệ!', Response::HTTP_NOT_FOUND);
             }
 
             $shippingZone = ShippingZone::where('shipping_method_id', $shippingMethod->id)
-                ->where('province_code', $data['province_code'] ?? null)
+                ->where('province_code', $data['province_code'])
                 ->where('is_available', true)
                 ->first();
 
