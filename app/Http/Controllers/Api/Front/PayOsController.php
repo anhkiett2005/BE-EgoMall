@@ -7,10 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\SystemSetting;
 use App\Response\ApiResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use PayOS\PayOS;
-use PayOS\Utils\PayOSSignatureUtils;
 use Symfony\Component\HttpFoundation\Response;
 
 class PayOsController extends Controller
