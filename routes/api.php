@@ -160,7 +160,7 @@ Route::prefix('v1/front')
 
         // Routes API VnPay
         Route::controller('VnPayController')->group(function () {
-            Route::get('/payment/vnpay/callback', 'paymentSuccess');
+            Route::get('/payment/vnpay/redirect', 'handleRedirect')->name('payment.vnpay.redirect');
         });
 
         // Routes API Momo

@@ -4,6 +4,18 @@ use Illuminate\Support\Facades\Route;
 // Webhook routes
 
 Route::prefix('webhook')->group(function() {
+
+    // === VnPay === //
+    Route::prefix('vnpay')->group(function () {
+        Route::namespace('App\Http\Controllers\Api\Partner\VnPay')->group(function () {
+            Route::namespace('Event\MoneyIn')->group(function() {
+                Route::get('event-money-in', 'EventMoneyIn@eventMoneyIn')->name('partner.vnpay.event.money-in');
+            });
+        });
+    });
+
+
+
     // === SePay === //
     Route::prefix('sepay')->group(function() {
         Route::namespace('App\Http\Controllers\Api\Partner\SePay')->group(function() {

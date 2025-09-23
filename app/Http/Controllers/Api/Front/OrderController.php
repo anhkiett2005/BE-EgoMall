@@ -301,37 +301,54 @@ class OrderController extends Controller
         //     'payment_method' => 'required|in:COD,MOMO,VNPAY',
         // ]);
 
-        $user = auth('api')->user();
+        DB::beginTransaction();
 
-        $order = Order::where('unique_id', $uniqueId)->lockForUpdate()->first();
-        if (!$order) {
-            throw new ApiException('Không tìm thấy đơn hàng!', 404);
-        }
-        if ((int)$order->user_id !== (int)$user->id) {
-            throw new ApiException('Bạn không có quyền thao tác đơn này!', 403);
-        }
-        if ($order->status !== 'ordered') {
-            throw new ApiException('Chỉ hỗ trợ thanh toán lại khi đơn đang chờ xác nhận!', 400);
-        }
-        if ($order->payment_status !== 'unpaid') {
-            throw new ApiException('Đơn hàng không ở trạng thái chưa thanh toán!', 400);
-        }
+        try {
+            $user = auth('api')->user();
 
-        $order->update([
-            'payment_method'    => $request->payment_method,
-            'transaction_id'    => null,
-            'payment_created_at' => null,
-            'payment_date'      => null,
-        ]);
+            $order = Order::where('unique_id', $uniqueId)->lockForUpdate()->first();
+            if (!$order) {
+                throw new ApiException('Không tìm thấy đơn hàng!', 404);
+            }
+            if ((int)$order->user_id !== (int)$user->id) {
+                throw new ApiException('Bạn không có quyền thao tác đơn này!', 403);
+            }
+            if ($order->status !== 'ordered') {
+                throw new ApiException('Chỉ hỗ trợ thanh toán lại khi đơn đang chờ xác nhận!', 400);
+            }
+            if ($order->payment_status !== 'unpaid') {
+                throw new ApiException('Đơn hàng không ở trạng thái chưa thanh toán!', 400);
+            }
 
-        // logger('Order repay', [
-        //     'order_id'       => $order->unique_id,
-        //     'method'         => $order->payment_method,
-        //     'user_id'        => $user->id,
-        // ]);
+            $order->update([
+                'payment_method'    => $request->payment_method,
+                'transaction_id'    => null,
+                'payment_created_at' => null,
+                'payment_date'      => null,
+            ]);
 
-        // Gọi lại flow tạo link theo phương thức mới
-        return $this->processPaymentByMethod($order);
+            // logger('Order repay', [
+            //     'order_id'       => $order->unique_id,
+            //     'method'         => $order->payment_method,
+            //     'user_id'        => $user->id,
+            // ]);
+
+            DB::commit();
+
+            // Gọi lại flow tạo link theo phương thức mới
+            return $this->processPaymentByMethod($order);
+        }catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        }catch (\Exception $e) {
+            logger('Log bug repay', [
+                'error_message' => $e->getMessage(),
+                'error_file'    => $e->getFile(),
+                'error_line'    => $e->getLine(),
+                'stack_trace'   => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra, vui lòng liên hệ administrator!!');
+        }
     }
 
     public function requestReturn(Request $request, string $uniqueId)
@@ -387,7 +404,8 @@ class OrderController extends Controller
                 ]);
             });
         } catch (ApiException $e) {
-            return ApiResponse::error($e->getMessage(), $e->getCode());
+            // return ApiResponse::error($e->getMessage(), $e->getCode());
+            throw $e;
         } catch (\Throwable $e) {
             logger('Return request error', [
                 'error_message' => $e->getMessage(),

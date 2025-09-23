@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Front;
 
 use App\Classes\Common;
+use App\Enums\VnPayStatus;
 use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Jobs\SendOrderStatusMailJob;
@@ -18,7 +19,7 @@ class VnPayController extends Controller
     protected $vnp_TmnCode;
     protected $vnp_HashSecret;
     protected $vnp_Url;
-    protected $vnp_Returnurl;
+    protected $vnp_ReturnUrl;
 
     protected $vnp_apiUrl;
     protected $apiUrl;
@@ -28,7 +29,7 @@ class VnPayController extends Controller
         $this->vnp_TmnCode = env('VNP_TMN_CODE'); // Mã định danh merchant
         $this->vnp_HashSecret = env('VNP_HASH_SECRECT_KEY'); // Secret key (Sửa lỗi sai: SECRECT -> SECRET)
         $this->vnp_Url = env('VNP_URL');
-        $this->vnp_Returnurl = env('VNP_RETURN_URL'); // Đổi sang route để dễ quản lý
+        $this->vnp_ReturnUrl = route('payment.vnpay.redirect'); // Đổi sang route để dễ quản lý
         $this->vnp_apiUrl = env('VNP_API_URL');
         $this->apiUrl = env('API_URL');
     }
@@ -57,7 +58,7 @@ class VnPayController extends Controller
                 "vnp_Locale" => $vnp_Locale,
                 "vnp_OrderInfo" => "Thanh toán GD:" . $vnp_TxnRef,
                 "vnp_OrderType" => "other",
-                "vnp_ReturnUrl" => $this->vnp_Returnurl,
+                "vnp_ReturnUrl" => $this->vnp_ReturnUrl,
                 "vnp_TxnRef" => $vnp_TxnRef,
                 "vnp_ExpireDate" => $expire,
             ];
@@ -100,69 +101,37 @@ class VnPayController extends Controller
         }
     }
 
-    public function paymentSuccess(Request $request)
+    public function handleRedirect(Request $request)
     {
         try {
-            if (!$this->validateSignature($request->all())) {
+
+            $statusEnum = VnPayStatus::tryFrom($request->vnp_ResponseCode);
+
+            $code = $statusEnum?->value ?? $request->vnp_ResponseCode;
+            $message = VnPayStatus::description($code);
+
+
+            if (!Common::validateSignature($request->all(), $this->vnp_HashSecret)) {
                 // return redirect()->away(env('FRONTEND_URL') . '/payment-result?status=failed');
                 // return ApiResponse::error('Xác thực thất bại', Response::HTTP_BAD_REQUEST);
-                throw new ApiException('Xác thực thất bại');
-            }
-
-            // lưu dữ liệu VnPay vào database
-            $dataVnPay = [
-                'vnp_Amount' => $request->vnp_Amount,
-                'vnp_BankCode' => $request->vnp_BankCode,
-                'vnp_BankTranNo' => $request->vnp_BankTranNo,
-                'vnp_CardType' => $request->vnp_CardType,
-                'vnp_OrderInfo' => $request->vnp_OrderInfo,
-                'vnp_PayDate' => $request->vnp_PayDate,
-                'vnp_ResponseCode' => $request->vnp_ResponseCode,
-                'vnp_TmnCode' => $request->vnp_TmnCode,
-                'vnp_TransactionNo' => $request->vnp_TransactionNo,
-                'vnp_TransactionStatus' => $request->vnp_TransactionStatus,
-                'vnp_TxnRef' => $request->vnp_TxnRef,
-                'vnp_SecureHash' => $request->vnp_SecureHash
-            ];
-
-            // Lấy đơn hàng
-            $order = Order::where('unique_id', $request->vnp_TxnRef)->first();
-            if (!$order) {
-                return redirect()->away(env('FRONTEND_URL') . '/payment-result?status=failed');
-                // return response()->json(['success' => false, 'message' => 'Không tìm thấy đơn hàng'], 400);
+                return redirect()->away(env('FRONTEND_URL') . "/profile/orders?" . http_build_query([
+                    'code' => $code,
+                    'message' => $message
+                ]));
             }
 
             if ($request->vnp_ResponseCode == "00") { // Thành công
-                // Chặn nếu đơn đã hủy
-                if ($order->status === 'cancelled') {
-                    logger('VNPAY callback ignored - order cancelled', ['order_id' => $order->unique_id]);
-                    return redirect()->away(env('FRONTEND_URL') . "/payment-result?status=ignored");
-                }
-
-                $order->update([
-                    'payment_status' => 'paid',
-                    'payment_date'   => now(),
-                    'transaction_id' => $request->vnp_TransactionNo,
-                ]);
-
-                // Lưu lịch sử giao dịch VnPay
-                $financialTransaction = new FinancialTransaction();
-                $financialTransaction->order_id = $order->id;
-                $financialTransaction->amount = $request->vnp_Amount / 100;
-                $financialTransaction->vnpay_data = $dataVnPay;
-                $financialTransaction->save();
-
-                Common::sendOrderStatusMail($order, 'ordered');
-
-                // gửi email cảm ơn
-                // Mail::to($order->user->email)->queue(new OrderSuccessMail($order,'success'));
-
-
-                return redirect()->away(env('FRONTEND_URL') . "/thank-you?status=success&order_id=" . $order->unique_id);
-                // return response()->json(['success' => true, 'message' => 'Thanh toán thành công',]);
+                return redirect()->away(env('FRONTEND_URL') . "/thank-you?" . http_build_query([
+                    'code' => $code,
+                    'message' => $message,
+                    'order_id' => $request->vnp_TxnRef
+                ]));
 
             } else {
-                return redirect()->away(env('FRONTEND_URL') . "/profile/orders");
+                return redirect()->away(env('FRONTEND_URL') . "/profile/orders?" . http_build_query([
+                    'code' => $code,
+                    'message' => $message
+                ]));
                 // return response()->json(['success' => false, 'message' => 'Thanh toán thất bại']);
             }
         } catch (\Exception $e) {
