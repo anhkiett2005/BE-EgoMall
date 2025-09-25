@@ -86,26 +86,28 @@ class OrderController extends Controller
 
             $voucher = isset($data['voucher_id']) ? $this->checkVoucher($user->id, $data['voucher_id']) : null;
 
+            // cbi order details
+            $orderDetails = [];
+
             foreach ($data['orders'] as $orderItem) {
                 foreach ($orderItem['products'] as $productItem) {
                     $variant = $variants[$productItem['id']] ?? null;
                     if (!$variant) continue;
 
                     if ($variant->quantity == 0 || $productItem['quantity'] > $variant->quantity) {
-                        $variantValue = $variant->values->map(
-                            fn($v) => ($v->option->name ?? 'Thuộc tính') . ": " . $v->value
-                        )->implode(' | ');
-                        throw new ApiException("Sản phẩm {$variant->product->name} ({$variantValue}) không đủ hàng!!");
+                        throw new ApiException("Sản phẩm {$variant->variant_name} không đủ hàng!!");
                     }
 
                     $promotions = $this->getApplicablePromotions($variant, $allPromotions);
                     $flashSale = $promotions['flash_sale'];
+                    // logger(['flashSale' => $flashSale]);
 
                     $priceOriginal = $variant->sale_price ?: $variant->price;
                     $lineItemTotal = $priceOriginal * $productItem['quantity'];
                     $subtotal += $lineItemTotal;
 
                     $discountFlashSale = 0;
+                    $finalUnitPrice = 0;
                     if ($flashSale) {
                         $discountFlashSale = $flashSale->promotion_type === 'percentage'
                             ? $lineItemTotal * ($flashSale->discount_value / 100)
@@ -113,17 +115,29 @@ class OrderController extends Controller
 
                         $totalFlashSale += $discountFlashSale;
                         $totalDiscount += $discountFlashSale;
+
+                        // tính giá cuối cùng 1 item để insert vào order detail
+                        $discountPerItem = $discountFlashSale / $productItem['quantity'];
+                        $finalUnitPrice = $priceOriginal - $discountPerItem;
                     }
 
                     // Voucher discount chỉ tính trên tổng đơn
-                    OrderDetail::create([
-                        'order_id' => $order->id,
+                    // OrderDetail::create([
+                    //     'order_id' => $order->id,
+                    //     'product_variant_id' => $variant->id,
+                    //     'quantity' => $productItem['quantity'],
+                    //     'price' => $priceOriginal,
+                    //     'sale_price' => $discountFlashSale,
+                    //     'is_gift' => false
+                    // ]);
+
+                    $orderDetails[] = [
                         'product_variant_id' => $variant->id,
                         'quantity' => $productItem['quantity'],
                         'price' => $priceOriginal,
-                        'sale_price' => $discountFlashSale,
+                        'sale_price' => $finalUnitPrice,
                         'is_gift' => false
-                    ]);
+                    ];
                 }
 
                 // Xử lý quà tặng
@@ -133,19 +147,30 @@ class OrderController extends Controller
 
                     $giftPromotions = $this->getApplicablePromotions($giftVariant, $allPromotions);
                     if (!$giftPromotions['gift']) {
-                        throw new ApiException("Quà tặng không thuộc chương trình này!!", 400);
+                        throw new ApiException("Quà tặng không thuộc chương trình này!!", Response::HTTP_BAD_REQUEST);
                     }
 
-                    OrderDetail::create([
-                        'order_id' => $order->id,
+                    // OrderDetail::create([
+                    //     'order_id' => $order->id,
+                    //     'product_variant_id' => $giftVariant->id,
+                    //     'quantity' => $gift['quantity'],
+                    //     'price' => 0,
+                    //     'sale_price' => 0,
+                    //     'is_gift' => true
+                    // ]);
+
+                    $orderDetails[] = [
                         'product_variant_id' => $giftVariant->id,
                         'quantity' => $gift['quantity'],
                         'price' => 0,
                         'sale_price' => 0,
                         'is_gift' => true
-                    ]);
+                    ];
                 }
             }
+
+            // insert vào order details
+            $order->details()->createMany($orderDetails);
 
             // Tính tổng giảm giá từ voucher sau khi trừ flash sale
             if ($voucher) {
@@ -227,11 +252,7 @@ class OrderController extends Controller
 
             // Idempotent
             if ($order->status === 'cancelled') {
-                return ApiResponse::success('Hủy đơn hàng thành công!', data: [
-                    'order_id'       => $order->unique_id,
-                    'status'         => $order->status,
-                    'payment_status' => $order->payment_status,
-                ]);
+                throw new ApiException('Đơn hàng đã được hủy!', Response::HTTP_CONFLICT);
             }
 
             if ($order->status !== 'ordered') {
@@ -353,9 +374,10 @@ class OrderController extends Controller
 
     public function requestReturn(Request $request, string $uniqueId)
     {
-        $reason = (string) $request->input('reason', '');
 
         try {
+            $reason = (string) $request->input('reason', '');
+
             $user = auth('api')->user();
 
             return DB::transaction(function () use ($uniqueId, $reason, $user) {
@@ -376,16 +398,13 @@ class OrderController extends Controller
                 if ($order->payment_status !== 'paid') {
                     throw new ApiException('Đơn chưa thanh toán không thể hoàn trả!', Response::HTTP_BAD_REQUEST);
                 }
-                if (!$order->delivered_at || now()->diffInDays($order->delivered_at) > 7) {
+                if (!is_null($order->delivered_at) && now()->diffInDays($order->delivered_at) > 7) {
                     throw new ApiException('Đã quá thời hạn 7 ngày kể từ khi giao hàng!', Response::HTTP_BAD_REQUEST);
                 }
 
                 // Idempotent: đã có trạng thái hoàn trả thì trả về luôn
                 if (!is_null($order->return_status)) {
-                    return ApiResponse::success('Yêu cầu hoàn trả đã tồn tại', Response::HTTP_CONFLICT, data: [
-                        'order_id'      => $order->unique_id,
-                        'return_status' => $order->return_status,
-                    ]);
+                    throw new ApiException('Yêu cầu hoàn trả đã tồn tại', Response::HTTP_CONFLICT);
                 }
 
                 // Cập nhật yêu cầu

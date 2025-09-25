@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\ApiException;
 use App\Response\ApiResponse;
 use Closure;
 use Illuminate\Http\Request; // Thêm Request nếu cần
@@ -15,7 +16,7 @@ class JwtCookieAuth
     public function handle($request, Closure $next)
     {
         if (!$request->hasHeader('Authorization')) {
-            return ApiResponse::error('Không thể xác thực!!', Response::HTTP_UNAUTHORIZED);
+            throw new ApiException('Không thể xác thực!!', Response::HTTP_UNAUTHORIZED);
         }
 
         return $next($request);

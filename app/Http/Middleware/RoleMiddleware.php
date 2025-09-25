@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\ApiException;
 use App\Response\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ class RoleMiddleware
         $user = auth('api')->user();
 
         if (!$user || !in_array($user->role->name, $roleNames)) {
-            return ApiResponse::error('Cấm: Vai trò không có quyền truy cập!!', Response::HTTP_FORBIDDEN);
+            throw new ApiException('Cấm: Vai trò không có quyền truy cập!!', Response::HTTP_FORBIDDEN);
         }
 
         return $next($request);

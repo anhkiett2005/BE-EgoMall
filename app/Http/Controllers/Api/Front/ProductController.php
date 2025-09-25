@@ -13,6 +13,7 @@ use App\Models\Promotion;
 use App\Response\ApiResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpFoundation\Response;
 
 class ProductController extends Controller
 {
@@ -325,9 +326,7 @@ class ProductController extends Controller
                             'quantity' => $variant->quantity,
                             'is_active' => $variant->is_active,
                             'option_value_ids' => $variant->values->pluck('id')->toArray(),
-                            'option_labels' => $variant->values->map(function ($label) {
-                                return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
-                            })->implode(' | '),
+                            'option_labels' => $variant->option_labels,
                             'image' => $variant->images->pluck('image_url')->first(),
                         ];
                     })->values(),
@@ -374,7 +373,8 @@ class ProductController extends Controller
                 ->first();
 
             if (!$product) {
-                return ApiResponse::error('Product not found', 404);
+                // return ApiResponse::error('Product not found', 404);
+                throw new ApiException('Không tìm thấy sản phẩm!', Response::HTTP_NOT_FOUND);
             }
 
             // Tổng số lượng đã bán của sản phẩm hiện tại (đơn delivered, bỏ quà tặng)
@@ -455,9 +455,7 @@ class ProductController extends Controller
                     'quantity' => $variant->quantity,
                     'is_active' => $variant->is_active,
                     'option_value_ids' => $variant->values->pluck('id')->toArray(),
-                    'option_labels' => $variant->values->map(function ($label) {
-                        return ($label->option->name ?? 'Thuộc tính') . ": " . $label->value;
-                    })->implode(' | '),
+                    'option_labels' => $variant->option_labels,
                     'image' => $variant->images->pluck('image_url')->first(),
                     // 'options' => $variant->values->map(function ($value) {
                     //     return [

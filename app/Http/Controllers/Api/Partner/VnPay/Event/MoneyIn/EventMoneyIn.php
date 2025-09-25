@@ -8,21 +8,31 @@ use App\Exceptions\ApiException;
 use App\Http\Controllers\Controller;
 use App\Models\FinancialTransaction;
 use App\Models\Order;
+use App\Services\VnPayService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class EventMoneyIn extends Controller
 {
+
+    protected $vnPayService;
+
+    public function __construct(VnPayService $vnPayService)
+    {
+        $this->vnPayService = $vnPayService;
+    }
+
     public function eventMoneyIn(Request $request)
     {
         try {
-            $vnp_HashSecret = env('VNP_HASH_SECRECT_KEY');
 
             // logger([
             //     'request' => $request->all()
             // ]);
 
-            if (!Common::validateSignature($request->all(), $vnp_HashSecret)) {
+            $requestData = $request->all();
+
+            if (!Common::validateSignature($requestData, $this->vnPayService->getConfig('vnp_HashSecret'))) {
                     return response()->json([
                         'RspCode' => VnPayStatus::CODE_97->value,
                         'Message' => VnPayStatus::description(VnPayStatus::CODE_97->value)
@@ -62,7 +72,11 @@ class EventMoneyIn extends Controller
 
             if($request->vnp_ResponseCode == "00") {
                 if(!is_null($order)) {
-                    if($order->total_price == $request->vnp_Amount) {
+
+                    // check amount từ VnPay trả về
+                    $amount = (int) ($request->vnp_Amount / 100);
+
+                    if($order->total_price == $amount) {
                         $order->update([
                             'payment_status' => 'paid',
                             'payment_date'   => now(),
@@ -72,7 +86,7 @@ class EventMoneyIn extends Controller
                         // Lưu lịch sử giao dịch VnPay
                         $financialTransaction = new FinancialTransaction();
                         $financialTransaction->order_id = $order->id;
-                        $financialTransaction->amount = $request->vnp_Amount / 100;
+                        $financialTransaction->amount = $amount;
                         $financialTransaction->vnpay_data = $dataVnPay;
                         $financialTransaction->save();
 

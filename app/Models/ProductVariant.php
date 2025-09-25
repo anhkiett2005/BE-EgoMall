@@ -31,7 +31,7 @@ class ProductVariant extends Model
         'is_active' => 'boolean'
     ];
 
-    protected $appends = ['variant_name', 'final_price_discount'];
+    protected $appends = ['variant_name', 'final_price_discount', 'option_labels'];
 
     public function product()
     {
@@ -53,13 +53,22 @@ class ProductVariant extends Model
         return "Sản phẩm {$this->product->name} ({$values})";
     }
 
+    public function getOptionLabelsAttribute()
+    {
+        return $this->values
+            ->map(function ($value) {
+                return ($value->option->name ?? 'Thuộc tính') . ": " . $value->value;
+            })
+            ->implode(' | ');
+    }
+
     public function getFinalPriceDiscountAttribute()
     {
             // Lấy promotion đang active
             $promotion = Cache::get('active_promotions') ?? Common::getActivePromotion();
 
             // Tính toán giảm giá
-            Common::checkPromotion($this, $promotion);
+            return Common::checkPromotion($this, $promotion);
     }
 
     public function giftPromotions()

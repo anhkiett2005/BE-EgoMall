@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Exceptions\ApiException;
 use App\Response\ApiResponse;
 use Closure;
 use Illuminate\Http\Request;
@@ -35,7 +36,7 @@ class PermissionMiddleware
         }
 
         if (!$hasPermission) {
-            return ApiResponse::error('Cấm: Quyền truy cập bị từ chối!!', Response::HTTP_FORBIDDEN);
+            throw new ApiException('Cấm: Quyền truy cập bị từ chối!!', Response::HTTP_FORBIDDEN);
         }
 
         return $next($request);

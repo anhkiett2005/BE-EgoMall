@@ -7,7 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\SystemSetting;
 use App\Response\ApiResponse;
-use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Symfony\Component\HttpFoundation\Response;
 
 class SePayController extends Controller
@@ -25,7 +25,7 @@ class SePayController extends Controller
             }
 
             // Tạo qr code thanh toán với SePay
-            $qrCode = "https://qr.sepay.vn/img?" . http_build_query([
+            $qrCode = "https://qr.sepay.vn/img?" . Arr::query([
                 'acc'      => $settings['bank_account'],
                 'bank'     => $settings['bank_name'],
                 'amount'   => $order->total_price,

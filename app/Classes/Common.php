@@ -791,7 +791,7 @@ class Common
         // Cache lại kết quả để optimize perfomance
         return Cache::remember('active_promotions', 60, function () use ($now) {
             return Promotion::with(['products', 'productVariants'])
-            ->where('status', '!=', 0)
+            ->where('status', 1)
             ->where('start_date', '<=', $now)
             ->where('end_date', '>=', $now)
             ->first();

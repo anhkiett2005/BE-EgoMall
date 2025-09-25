@@ -177,7 +177,7 @@ class OrderService
             $order = Order::where('unique_id', $uniqueId)->lockForUpdate()->first();
 
             if (!$order) {
-                throw new ApiException('Không tìm thấy đơn hàng!!', \Symfony\Component\HttpFoundation\Response::HTTP_NOT_FOUND);
+                throw new ApiException('Không tìm thấy đơn hàng!!', Response::HTTP_NOT_FOUND);
             }
 
             // Cập nhật trạng thái
@@ -189,15 +189,15 @@ class OrderService
                 $order->delivered_at = now();
             }
 
-            // COD: giao thành công => coi như đã thu tiền
-            if (
-                $newStatus === 'delivered'
-                && $order->payment_method === 'COD'
-                && $order->payment_status !== 'paid'
-            ) {
-                $order->payment_status = 'paid';
-                $order->payment_date   = now();
-            }
+            // // COD: giao thành công => coi như đã thu tiền
+            // if (
+            //     $newStatus === 'delivered'
+            //     && $order->payment_method === 'COD'
+            //     && $order->payment_status !== 'paid'
+            // ) {
+            //     $order->payment_status = 'paid';
+            //     $order->payment_date   = now();
+            // }
 
             // KHÔNG reset delivered_at nếu admin lỡ đổi ngược trạng thái
             // (cần giữ mốc giao hàng để tính SLA 7 ngày hoàn trả)
