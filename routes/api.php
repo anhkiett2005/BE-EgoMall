@@ -158,6 +158,11 @@ Route::prefix('v1/front')
                 Route::get('/', 'index');
             });
 
+        // Routes API List Ranks
+        Route::controller('RankController')->group(function () {
+            Route::get('/list-ranks', 'index');
+        });
+
         // Routes API VnPay
         Route::controller('VnPayController')->group(function () {
             Route::get('/payment/vnpay/redirect', 'handleRedirect')->name('payment.vnpay.redirect');
@@ -378,6 +383,7 @@ Route::prefix('v1/admin')
                     ->name('admin.users.update-status');
             });
 
+        // Routes API System Settings
         Route::prefix('system-settings')
             ->middleware(['role:super-admin'])
             ->controller('SystemSettingController')
@@ -387,6 +393,14 @@ Route::prefix('v1/admin')
                 Route::put('/', 'update');
                 Route::post('/email-test', 'sendTestEmail');
             });
+
+        // Routes API Ranks
+        Route::prefix('ranks')
+             ->controller('RankController')
+             ->group(function() {
+                 Route::get('/','index')->name('admin.ranks.index');
+                 Route::post('/create','store')->name('admin.ranks.store');
+             });
     });
 
 Route::prefix('v1/auth')->group(function () {

@@ -108,4 +108,9 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(CouponUsage::class);
     }
+
+    public function ranks()
+    {
+        return $this->belongsToMany(Rank::class, 'user_members')->withTimestamps();
+    }
 }
