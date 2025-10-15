@@ -35,6 +35,7 @@ class OrderRequest extends FormRequest
             'shipping_address' => 'required|string',
             'payment_method' => 'required|in:COD,VNPAY,MOMO,ZALOPAY,SEPAY,PAYOS',
             'voucher_id' => 'nullable|exists:coupons,id',
+            'point' => 'nullable|numeric|gt:0',
             // 'shipping_method_id' => 'required|integer|exists:shipping_methods,id',
             // 'province_code' => 'required|integer|exists:provinces,code',
             'shipping_method_id' => 'required|integer',
@@ -78,6 +79,9 @@ class OrderRequest extends FormRequest
             'payment_method.required' => 'Vui lòng chọn phương thức thanh toán.',
             'payment_method.in' => 'Phương thức thanh toán không hợp lệ. Chỉ hỗ trợ: COD, VNPAY, MOMO, ZaloPay.',
             'voucher_id.exists' => 'Voucher không hợp lệ.',
+
+            'point.numeric' => 'Số điểm dùng phải là số.',
+            'point.gt' => 'Số điểm dùng phải lớn hơn 0.',
 
             'shipping_method_id.required' => 'Phương thức giao hàng là bắt buộc.',
             'shipping_method_id.integer' => 'Phương thức giao hàng phải là số.',

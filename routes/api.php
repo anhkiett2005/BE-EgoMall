@@ -400,6 +400,8 @@ Route::prefix('v1/admin')
              ->group(function() {
                  Route::get('/','index')->name('admin.ranks.index');
                  Route::post('/create','store')->name('admin.ranks.store');
+                 Route::put('/{id}', 'update')->name('admin.ranks.update');
+                 Route::delete('/{id}', 'destroy')->name('admin.ranks.destroy');
              });
     });
 

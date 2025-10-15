@@ -10,9 +10,13 @@ use App\Jobs\SendSetPasswordMailJob;
 use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Order;
+use App\Models\PointHistory;
 use App\Models\ProductVariant;
 use App\Models\Promotion;
+use App\Models\Rank;
+use App\Models\SystemSetting;
 use App\Models\User;
+use App\Models\UserMember;
 use App\Response\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -830,6 +834,339 @@ class Common
 
         return max(0, $price - $discount);
     }
+
+    public static function savePointHistory($userId, $points = 0, $type, $data = null)
+    {
+        DB::beginTransaction();
+
+        try {
+            $user = User::find($userId);
+
+            if (!$user || !$data) {
+                return; // Exit if user or data is not found
+            }
+
+            // Tổng chi tiêu của user
+            $totalRevenue = Order::where('user_id', $user->id)->sum('total_price');
+
+            // Lấy rank mode từ cấu hình hệ thống
+            $rankMode = SystemSetting::where('setting_key', 'rank_mode')
+                                 ->where('setting_group', 'rank_setting')
+                                 ->value('setting_value');
+
+            if (is_null($rankMode)) {
+                throw new ApiException('Có lỗi xảy ra!', Response::HTTP_BAD_REQUEST);
+            }
+
+            // Lấy tất cả ranks check dk dang set
+            $ranks = Rank::when($rankMode === 'amount', fn($q) => $q->whereNotNull('min_spent_amount'))
+                ->when($rankMode === 'point', fn($q) => $q->whereNotNull('minimum_point'))
+                ->orderBy($rankMode === 'amount' ? 'min_spent_amount' : 'minimum_point')
+                ->get();
+
+            $currentRank = null;
+
+             foreach ($ranks as $rank) {
+                if ($rankMode === 'amount' && !is_null($rank->min_spent_amount)) {
+                    if ($totalRevenue >= $rank->min_spent_amount) {
+                        $currentRank = $rank;
+                    }
+                } elseif ($rankMode === 'point' && !is_null($rank->minimum_point)) {
+                    if ($user->rank_point >= $rank->minimum_point) {
+                        $currentRank = $rank;
+                    }
+                }
+            }
+
+            // check if current rank not null
+            if(!is_null($currentRank)) {
+                self::handleSavePoint($user, $points, $type, $data,$rankMode);
+            }
+
+            DB::commit();
+        }catch (ApiException $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    private static function handleSavePoint($user, $points, $type, $data, $rankMode)
+    {
+
+        $order = Order::where('id', $data->id)->first();
+
+        $newPointHistory = new PointHistory();
+
+        $checkPoint = PointHistory::where('user_id', $user->id)->orderBy('id','desc')->first();
+
+        list($totalAmount, $totalAmountCurrent) = self::calculateTotals($user->id, $data, $type);
+
+        $rank = self::getUserRank($user, $totalAmount, $rankMode);
+
+        // check rank trong hệ thống tùy vào lên hạng theo chi tiêu hay điểm
+        if($rankMode && $rankMode === 'amount') {
+            $pointFactor = $rank->amount_to_point;
+        }else {
+            $pointFactor = 1;
+        }
+
+        if ($rankMode === 'amount') {
+            $prevCustomerPoint = $checkPoint->customer_point ?? ($totalAmount / $pointFactor);
+        } else {
+            $prevCustomerPoint = $checkPoint->customer_point ?? ($user->rank_point ?? 0);
+        }
+
+
+
+        $prevConsumptionPoints = $checkPoint && is_object($checkPoint) ? $checkPoint->consumption_points : 0;
+
+        $pointsToApply = self::handleRawPoint($type,$pointFactor, $totalAmountCurrent, $points,$rankMode);
+
+        // logger('point to apply', [
+        //     $pointsToApply
+        // ]);
+
+        // Lưu lịch sử dùng điểm vào log sử dụng
+        $newPointHistory->point = $pointsToApply;
+        $newPointHistory->customer_point = $prevCustomerPoint;
+        $newPointHistory->consumption_points = $prevConsumptionPoints;
+        $newPointHistory->user_id = $user->id;
+        $newPointHistory->point_type = in_array($type, ['order']) ? 'plus' : 'minus';
+
+        // Cộng lại điểm user sử dụng vào log sử dụng
+        self::addPointHistory($type, $newPointHistory, $pointsToApply);
+
+        if($type == 'order' || $type == 'use-point') {
+            $newPointHistory->order_id = $data?->id;
+        }
+
+        $newPointHistory->transaction_type = $type;
+        $newPointHistory->save();
+
+        // Tính toán tổng chi tiêu ròng
+        $orderSalesTotal = Order::where('user_id', $user->id)
+                                ->where('payment_status', 'paid')
+                                ->where('status', '!=', 'cancelled')
+                                ->sum('total_price');
+
+        $returnOrderTotal = Order::where('user_id', $user->id)
+                                ->where('payment_status', 'refunded')
+                                ->where('id', '<', $data->id)
+                                ->sum('total_price');
+
+        $orderSalesTotal = $orderSalesTotal ?? 0;
+        $returnOrderTotal = $returnOrderTotal ?? 0;
+
+        $orderTotal = $orderSalesTotal - $returnOrderTotal;
+
+        // Get current rank and achieved rank
+        list($currentRank, $achievedRank) = self::getCurrentAndAchievedRank($user, $orderTotal, $rankMode);
+
+        $totalPaidAmount = $totalAmountCurrent - $order->shipping_fee;
+
+
+        // Tính toán upgrade rank cho user
+        self::handleLoyalty($achievedRank, $currentRank,$rankMode, $totalPaidAmount, $order);
+    }
+
+    private static function calculateTotals($userId, $data, $type)
+    {
+        $totalAmount = 0;
+        $totalAmountCurrent = 0;
+
+        // cbi query Order
+        $query = Order::where('user_id', $userId);
+
+        if($type == 'order'){
+            $totalAmountPaid = (clone $query)
+                ->where('payment_status', 'paid')
+                ->where('id', '<', $data->id)
+                ->sum('total_price');
+
+            $totalAmountRefund = (clone $query)
+                ->where('payment_status', 'refunded')
+                ->where('id', '<', $data->id)
+                ->sum('total_price');
+        } else {
+            $totalAmountPaid = (clone $query)->where('payment_status', 'paid')->sum('total_price');
+            $totalAmountRefund = (clone $query)->where('payment_status', 'refunded')->sum('total_price');
+        }
+
+        $totalAmount = $totalAmountPaid - $totalAmountRefund;
+        $totalAmountCurrent = (clone $query)->where('id', $data->id)->sum('total_price');
+
+        return [$totalAmount, $totalAmountCurrent];
+    }
+
+    private static function getUserRank($user, $totalAmount, $rankMode)
+    {
+        // Nếu user đã có rank
+        $userMember = UserMember::where('user_id', $user->id)->first();
+        if ($userMember) {
+            return Rank::find($userMember->rank_id);
+        }
+
+        // Nếu chưa có rank → tính rank mặc định dựa trên rank_mode
+        $defaultRank = null;
+
+        if ($rankMode === 'amount') {
+            $defaultRank = Rank::where('min_spent_amount', '<=', $totalAmount)
+                            ->orderBy('min_spent_amount', 'desc')
+                            ->first();
+        } elseif ($rankMode === 'point') {
+            $defaultRank = Rank::where('minimum_point', '<=', $user->rank_point ?? 0)
+                            ->orderBy('minimum_point', 'desc')
+                            ->first();
+        }
+
+        // Nếu chưa có rank nào phù hợp thì lấy rank thấp nhất
+        if (!$defaultRank) {
+            $defaultRank = Rank::orderBy('min_spent_amount', 'asc')
+                            ->orderBy('minimum_point', 'asc')
+                            ->first();
+        }
+
+        return $defaultRank;
+    }
+
+
+    private static function handleRawPoint($type,$pointFactor, $totalAmountCurrent, $points,$rankMode)
+    {
+        switch($type) {
+            case 'order':
+                 $pointsToApply = ($rankMode === 'amount')
+                    ? $totalAmountCurrent / $pointFactor
+                    : $points; // hoặc 0 nếu chỉ cộng điểm theo event khác
+                break;
+            case 'use-point':
+                $pointsToApply = $points;
+                break;
+            default:
+                $pointsToApply = 0;
+        }
+
+        return floor($pointsToApply);
+    }
+
+    private static function addPointHistory($type, $pointHistory, $pointsToApply)
+    {
+        switch($type) {
+            case 'order':
+                $pointHistory->customer_point += $pointsToApply;
+                $pointHistory->consumption_points += $pointsToApply;
+                break;
+            case 'use-point':
+                $pointHistory->customer_point -= $pointsToApply;
+                $pointHistory->consumption_points -= $pointsToApply;
+                break;
+        }
+
+        // save vào log sử dụng
+        $pointHistory->save();
+    }
+
+    private static function getCurrentAndAchievedRank($user, $total, $rankMode)
+    {
+        // Lấy current rank của user trên hệ thống
+        $currentRank = $user->ranks()->orderByDesc('rank_id')->first();
+
+
+        // Lấy next rank trên hệ thống dựa vào $rankMode
+        if($rankMode === 'amount') {
+            $achievedRank = Rank::where('min_spent_amount', '<=', $total)
+                            ->orderBy('min_spent_amount', 'desc')
+                            ->first();
+        }else if($rankMode === 'point') {
+            $achievedRank = Rank::where('minimum_point', '<=', $user->rank_point)
+                            ->orderBy('minimum_point', 'desc')
+                            ->first();
+        }
+
+        return [$currentRank, $achievedRank];
+
+    }
+
+    private static function handleLoyalty($achievedRank, $currentRank, $rankMode, $totalPaidAmount, $order)
+    {
+        try {
+            // logger([
+            //     'achievedRank' => $achievedRank,
+            //     'currentRank' => $currentRank
+            // ]);
+            // Tìm user trên đơn hàng hiện tại
+            $user = User::find($order->user_id);
+
+            // tăng điểm hạng thành viên
+            $userMember = UserMember::where('user_id', $user->id)->first();
+            // logger([
+            //     'userMember' => $userMember
+            // ]);
+
+            // Nếu user đã có rank trên he thong
+            if($userMember) {
+                // Nếu hệ thống set theo lên rank theo chi tiêu
+                if($achievedRank->amount_to_point > 0 && $achievedRank->min_spent_amount > 0) {
+                    $user->update([
+                        'rank_point' => floor(
+                            $user->rank_point
+                            + ($totalPaidAmount / $achievedRank->amount_to_point)
+                        ),
+                    ]);
+                }
+                // Nếu hệ thống set lên rank theo điểm
+                else if($achievedRank->minimum_point > 0) {
+                    $user->update([
+                        'rank_point' => floor(
+                            $user->rank_point
+                            + $achievedRank->minimum_point
+                        ),
+                    ]);
+                }
+            }
+            // Nếu user chưa có rank trên he thong
+            else {
+                // check lấy rank mặc định theo cấu hình chế độ rank
+                if($rankMode === 'amount') {
+                    $defaultRank = Rank::where('min_spent_amount', '<=', $totalPaidAmount)
+                                    ->orderBy('min_spent_amount', 'desc')
+                                    ->first();
+
+                    $user->update([
+                        'rank_point' => floor(
+                            $user->rank_point
+                            + ($totalPaidAmount / $defaultRank->amount_to_point)
+                        ),
+                    ]);
+                }else if($rankMode === 'point') {
+                    $defaultRank = Rank::where('minimum_point', '<=', $achievedRank->minimum_point)
+                                    ->orderBy('minimum_point', 'desc')
+                                    ->first();
+
+                    $user->update([
+                        'rank_point' => floor(
+                            $user->rank_point
+                            + $defaultRank->minimum_point
+                        ),
+                    ]);
+                }
+
+            }
+
+            // Cập nhật rank cho user vào hệ thống nếu thõa dk
+            if($achievedRank && (!$currentRank || $achievedRank->id !== $currentRank->id)) {
+                $user->ranks()->syncWithoutDetaching([$achievedRank->id]);
+            }
+        } catch (\Exception $e) {
+            logger('Log bug loyalty', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString()
+            ]);
+            throw new ApiException('Có lỗi xảy ra!!');
+        }
+    }
+
 
 
     public static function respondWithToken($token)

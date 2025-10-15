@@ -23,6 +23,7 @@ class Order extends Model
         'shipping_address',
         'shipping_fee',
         'shipping_method_snapshot',
+        'use_point',
         'payment_method',
         'payment_created_at',
         'payment_status',
@@ -45,6 +46,7 @@ class Order extends Model
         'payment_created_at'  => 'datetime',
         'payment_date'        => 'datetime',
         'return_requested_at' => 'datetime',
+        'use_point' => 'decimal:2',
     ];
 
     public function user()

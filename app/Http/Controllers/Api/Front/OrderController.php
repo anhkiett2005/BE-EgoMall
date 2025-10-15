@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\OrderDetail;
 use App\Models\ProductVariant;
 use App\Models\Promotion;
+use App\Models\Rank;
 use App\Models\ShippingMethod;
 use App\Models\ShippingZone;
 use App\Response\ApiResponse;
@@ -35,6 +36,9 @@ class OrderController extends Controller
             $totalDiscount = 0;
             $totalDiscountVoucher = 0;
             $totalFlashSale = 0;
+
+            // Lấy số điểm reedem của user
+            $point_user = $data['point'] ?? 0;
 
             $shippingMethod = ShippingMethod::find($data['shipping_method_id']);
 
@@ -195,8 +199,39 @@ class OrderController extends Controller
                 $this->updateVoucherUsage($user->id, $voucher->id);
             }
 
-            $total = $subtotal - $totalDiscount;
-            $total += $shippingZone->fee;
+            // Tính toán giảm giá hạng thành viên
+            $subtotalForDiscountRank = $subtotal - $totalDiscountVoucher - $totalFlashSale;
+            $checkSubtotalForDiscountRank = $subtotalForDiscountRank < 0 ? 0 : $subtotalForDiscountRank;
+            $totalDiscountRank = $this->calculateRankDiscount($user, $checkSubtotalForDiscountRank);
+            $totalDiscount += $totalDiscountRank;
+
+            $total = ($subtotal - $totalDiscount) + $shippingZone->fee;
+            // $total += $shippingZone->fee;
+
+
+            $converted_amount = 0;
+            // Tính giảm giá từ số điểm reedem của user
+            if($point_user > 0 && $user->rank_point >= $point_user) {
+
+                $rankOfUser = $user->ranks()->orderByDesc('rank_id')->first();
+
+                $converted_amount = $rankOfUser->converted_amount;
+
+                $user->update([
+                    'rank_point' => $user->rank_point - $point_user
+                ]);
+
+                $order->update([
+                    'use_point' => $point_user
+                ]);
+
+                // Gọi hàm Common lưu log point
+                Common::savePointHistory($user->id, $point_user, 'use-point', $order);
+
+                $total = $total - ($converted_amount * $point_user);
+            }else if($point_user && $user->rank_point < $point_user) {
+                throw new ApiException('Bạn không có đủ điểm để sử dụng!',Response::HTTP_BAD_REQUEST);
+            }
 
             $order->update([
                 'total_discount' => $totalDiscount,
@@ -204,6 +239,7 @@ class OrderController extends Controller
                 'coupon_id' => $voucher->id ?? null,
                 'discount_details' => [
                     'totalDiscountVoucher' => $totalDiscountVoucher,
+                    'totalDiscountRank' => $totalDiscountRank,
                     'totalFlashSale' => $totalFlashSale
                 ],
             ]);
@@ -213,6 +249,9 @@ class OrderController extends Controller
 
             // Xử lý thanh toán theo phương thức được chọn
             $paymentResponse = $this->processPaymentByMethod($order);
+
+            // Lưu điểm khi mua hàng (nếu có tích điểm)
+            Common::savePointHistory($user->id, 0, 'order', $order);
 
             // Lưu đơn hàng vào database nếu thành công
             DB::commit();
@@ -600,5 +639,43 @@ class OrderController extends Controller
         }
 
         return $matched;
+    }
+
+    private function calculateRankDiscount($user, $subtotal)
+    {
+        $defaultRank = Rank::where('min_spent_amount', 0)
+                           ->orWhere('minimum_point', 0)
+                           ->first();
+
+        // logger(['user rank' => $user->ranks()->first()]);
+
+        $rankOfUser = $user->ranks()->first();
+
+        // check if default rank or rank of user is empty
+        if (!$rankOfUser && !$defaultRank) {
+            return 0;
+        }
+
+        if($subtotal == 0) {
+            return 0;
+        }
+
+        $discountPercent = 0;
+        $maxDiscount = 0;
+
+        if($rankOfUser) {
+            $discountPercent = $rankOfUser->discount;
+            $maxDiscount = $rankOfUser->maximum_discount_order;
+        }else {
+            $discountPercent = $defaultRank->discount;
+            $maxDiscount = $defaultRank->maximum_discount_order;
+        }
+
+        if(!is_null($maxDiscount)) {
+            return $subtotal * $discountPercent / 100 > $maxDiscount ? $maxDiscount : $subtotal * $discountPercent / 100;
+        }
+        else{
+            return $subtotal * $discountPercent / 100;
+        }
     }
 }

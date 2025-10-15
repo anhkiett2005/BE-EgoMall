@@ -31,6 +31,8 @@ class User extends Authenticatable implements JWTSubject
         'expires_at',
         'otp_sent_count',
         'otp_sent_at',
+        'otp_verified',
+        'rank_point'
     ];
 
     /**
@@ -50,6 +52,8 @@ class User extends Authenticatable implements JWTSubject
         'is_active'         => 'boolean',
         'otp_expires_at' => 'datetime',
         'otp_sent_at'    => 'datetime',
+        'otp_verified'   => 'boolean',
+        'rank_point'     => 'integer',
     ];
 
     public function setIsActiveAttribute($value)

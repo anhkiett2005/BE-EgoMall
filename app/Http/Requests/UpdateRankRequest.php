@@ -7,7 +7,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Symfony\Component\HttpFoundation\Response;
 
-class StoreRankRequest extends FormRequest
+class UpdateRankRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,10 +25,10 @@ class StoreRankRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'rankDetails' => 'required|array',
+            'rankDetails' => 'required|array|min:1',
             'rankDetails.*.name' => 'required|string|max:255|unique:ranks,name',
             'rankDetails.*.image' => ['nullable','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
-            'rankDetails.*.amount_to_point' => 'nullable|numeric|required_without:rankDetails.*.minimum_point|prohibits:rankDetails.*.minimum_point',
+            'rankDetails.*.amount_to_point' => 'required|numeric',
             'rankDetails.*.min_spent_amount' => 'nullable|numeric|required_without:rankDetails.*.minimum_point|prohibits:rankDetails.*.minimum_point',
             'rankDetails.*.converted_amount' => 'required|numeric',
             'rankDetails.*.discount' => 'nullable|numeric',
@@ -47,6 +47,7 @@ class StoreRankRequest extends FormRequest
         return [
             'rankDetails.required' => 'Vui lòng gửi lên danh sách rank.',
             'rankDetails.array' => 'Danh sách rank phải là mảng.',
+            'rankDetails.min' => 'Danh sách rank phải có ít nhất 1 rank.',
 
             'rankDetails.*.name.required' => 'Tên rank là bắt buộc.',
             'rankDetails.*.name.string' => 'Tên rank phải là chuỗi.',
@@ -58,8 +59,6 @@ class StoreRankRequest extends FormRequest
 
             'rankDetails.*.amount_to_point.required' => 'Vui lòng thiết lập số tiền đổi điểm.',
             'rankDetails.*.amount_to_point.numeric' => 'Số tiền đổi điểm phải là số.',
-            'rankDetails.*.amount_to_point.required_without' => 'Vui nhập số tiền đổi điểm nếu không thiết lập điểm tích lũy.',
-            'rankDetails.*.amount_to_point.prohibits' => 'Không thể nhập số tiền đổi điểm khi được thiết lập điểm tích lũy.',
 
             'rankDetails.*.min_spent_amount.numeric' => 'Điều kiện tổng chi tiêu rank phải là số.',
             'rankDetails.*.min_spent_amount.required_without' => 'Vui lòng nhập tổng chi tiêu nếu không thiết lập điểm tích lũy.',
@@ -88,11 +87,10 @@ class StoreRankRequest extends FormRequest
             'rankDetails.*.point_limit_transaction.numeric' => 'Số điểm giao dịch tối đa phải là số.',
 
             'rankDetails.*.status_payment_point.boolean' => 'Trạng thái thanh toán điểm phải là true hoặc false.',
-
         ];
     }
 
-    protected function failedValidation(Validator $validator)
+     protected function failedValidation(Validator $validator)
     {
         throw new HttpResponseException(response()->json([
             'message' => 'Validation errors',
