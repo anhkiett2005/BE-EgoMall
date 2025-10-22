@@ -846,42 +846,19 @@ class Common
                 return; // Exit if user or data is not found
             }
 
-            // Tổng chi tiêu của user
-            $totalRevenue = Order::where('user_id', $user->id)->sum('total_price');
-
-            // Lấy rank mode từ cấu hình hệ thống
-            $rankMode = SystemSetting::where('setting_key', 'rank_mode')
-                                 ->where('setting_group', 'rank_setting')
-                                 ->value('setting_value');
+            // Lấy chế độ xếp hạng (amount hoặc point)
+            $rankMode = cache()->remember('system.rank_mode', 3600, function () {
+                return SystemSetting::where('setting_key', 'rank_mode')
+                    ->where('setting_group', 'rank_setting')
+                    ->value('setting_value');
+            });
 
             if (is_null($rankMode)) {
-                throw new ApiException('Có lỗi xảy ra!', Response::HTTP_BAD_REQUEST);
+                throw new ApiException('Không tìm thấy cấu hình chế độ rank!', Response::HTTP_BAD_REQUEST);
             }
 
-            // Lấy tất cả ranks check dk dang set
-            $ranks = Rank::when($rankMode === 'amount', fn($q) => $q->whereNotNull('min_spent_amount'))
-                ->when($rankMode === 'point', fn($q) => $q->whereNotNull('minimum_point'))
-                ->orderBy($rankMode === 'amount' ? 'min_spent_amount' : 'minimum_point')
-                ->get();
-
-            $currentRank = null;
-
-             foreach ($ranks as $rank) {
-                if ($rankMode === 'amount' && !is_null($rank->min_spent_amount)) {
-                    if ($totalRevenue >= $rank->min_spent_amount) {
-                        $currentRank = $rank;
-                    }
-                } elseif ($rankMode === 'point' && !is_null($rank->minimum_point)) {
-                    if ($user->rank_point >= $rank->minimum_point) {
-                        $currentRank = $rank;
-                    }
-                }
-            }
-
-            // check if current rank not null
-            if(!is_null($currentRank)) {
-                self::handleSavePoint($user, $points, $type, $data,$rankMode);
-            }
+            // ✅ Chuyển toàn bộ logic điểm + rank qua hàm xử lý chính
+            self::handleSavePoint($user, $points, $type, $data, $rankMode);
 
             DB::commit();
         }catch (ApiException $e) {
@@ -1073,11 +1050,14 @@ class Common
 
         // Lấy next rank trên hệ thống dựa vào $rankMode
         if($rankMode === 'amount') {
-            $achievedRank = Rank::where('min_spent_amount', '<=', $total)
+            $achievedRank = Rank::whereNull('minimum_point')
+                            ->where('min_spent_amount', '<=', $total)
                             ->orderBy('min_spent_amount', 'desc')
                             ->first();
         }else if($rankMode === 'point') {
-            $achievedRank = Rank::where('minimum_point', '<=', $user->rank_point)
+            $achievedRank = Rank::whereNull('min_spent_amount')
+                            ->where('minimum_point', '<=', $user->rank_point)
+                            ->orWhere(fn($q) => $q->whereNull('minimum_point'))
                             ->orderBy('minimum_point', 'desc')
                             ->first();
         }
@@ -1104,51 +1084,50 @@ class Common
 
             // Nếu user đã có rank trên he thong
             if($userMember) {
-                // Nếu hệ thống set theo lên rank theo chi tiêu
-                if($achievedRank->amount_to_point > 0 && $achievedRank->min_spent_amount > 0) {
-                    $user->update([
-                        'rank_point' => floor(
+
+                // cập nhật điểm của user trước r mới xét lên hạng theo hệ thống
+                $user->update([
+                    'rank_point' => floor(
                             $user->rank_point
                             + ($totalPaidAmount / $achievedRank->amount_to_point)
                         ),
-                    ]);
-                }
-                // Nếu hệ thống set lên rank theo điểm
-                else if($achievedRank->minimum_point > 0) {
-                    $user->update([
-                        'rank_point' => floor(
-                            $user->rank_point
-                            + $achievedRank->minimum_point
-                        ),
-                    ]);
-                }
+                ]);
             }
             // Nếu user chưa có rank trên he thong
             else {
                 // check lấy rank mặc định theo cấu hình chế độ rank
                 if($rankMode === 'amount') {
-                    $defaultRank = Rank::where('min_spent_amount', '<=', $totalPaidAmount)
+                    $defaultRank = Rank::whereNull('minimum_point')
+                                    ->where('min_spent_amount', '<=', $totalPaidAmount)
                                     ->orderBy('min_spent_amount', 'desc')
                                     ->first();
 
-                    $user->update([
-                        'rank_point' => floor(
-                            $user->rank_point
-                            + ($totalPaidAmount / $defaultRank->amount_to_point)
-                        ),
-                    ]);
                 }else if($rankMode === 'point') {
-                    $defaultRank = Rank::where('minimum_point', '<=', $achievedRank->minimum_point)
+                    $defaultRank = Rank::whereNull('min_spent_amount')
+                                    ->where('minimum_point', '<=', $user->rank_point)
+                                    ->orWhere(fn($q) => $q->whereNull('minimum_point'))
                                     ->orderBy('minimum_point', 'desc')
                                     ->first();
-
-                    $user->update([
-                        'rank_point' => floor(
-                            $user->rank_point
-                            + $defaultRank->minimum_point
-                        ),
-                    ]);
                 }
+
+                // logger([
+                //     'defaultRank' => $defaultRank
+                // ]);
+
+                // logger([
+                //     'rankPointLogger' => floor(
+                //         $user->rank_point
+                //         + ($totalPaidAmount / $defaultRank->amount_to_point)
+                //     )
+                // ]);
+
+                // cập nhật rank point user trên hệ thống khi có rank mặc định
+                $user->update([
+                    'rank_point' => floor(
+                        $user->rank_point
+                        + ($totalPaidAmount / $defaultRank->amount_to_point)
+                    ),
+                ]);
 
             }
 

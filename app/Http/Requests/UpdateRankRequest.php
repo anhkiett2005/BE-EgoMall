@@ -58,6 +58,8 @@ class UpdateRankRequest extends FormRequest
             'rankDetails.*.image.regex' => 'Hình ảnh phải là jpeg, png, jpg, gif, hoặc webp.',
 
             'rankDetails.*.amount_to_point.required' => 'Vui lòng thiết lập số tiền đổi điểm.',
+            // 'rankDetails.*.amount_to_point.required_without' => 'Vui nhập số tiền đổi điểm nếu không thiết lập điểm tích lũy.',
+            // 'rankDetails.*.amount_to_point.prohibits' => 'Không thể nhập số tiền đổi điểm khi được thiết lập điểm tích lũy.',
             'rankDetails.*.amount_to_point.numeric' => 'Số tiền đổi điểm phải là số.',
 
             'rankDetails.*.min_spent_amount.numeric' => 'Điều kiện tổng chi tiêu rank phải là số.',

@@ -204,9 +204,11 @@ class AuthController extends Controller
 
             return ApiResponse::success('Đăng nhập thành công!!', data: $data);
         } catch (ApiException $e) {
-            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+            // return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+            throw $e;
         } catch (JWTException $e) {
-            return ApiResponse::error('Có lỗi xảy ra');
+            // return ApiResponse::error('Có lỗi xảy ra');
+            throw new ApiException('Có lỗi xảy ra!!');
         }
     }
 
@@ -289,7 +291,8 @@ class AuthController extends Controller
                 'error_line' => $e->getLine(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
-            return ApiResponse::error('Có lỗi xảy ra !!!');
+            // return ApiResponse::error('Có lỗi xảy ra !!!');
+            throw new ApiException('Có lỗi xảy ra!!');
         }
     }
 
@@ -375,7 +378,8 @@ class AuthController extends Controller
                 'error_line' => $e->getLine(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
-            return ApiResponse::error('some thing went wrong !!!');
+            // return ApiResponse::error('some thing went wrong !!!');
+            throw new ApiException('Có lỗi xảy ra!!');
         }
     }
 

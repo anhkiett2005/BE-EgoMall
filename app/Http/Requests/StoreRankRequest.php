@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Rank;
+use App\Models\SystemSetting;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -17,6 +19,54 @@ class StoreRankRequest extends FormRequest
         return true;
     }
 
+    public function prepareForValidation()
+    {
+        // 🧩 Lấy cấu hình rank mode trong hệ thống
+        $rankMode = SystemSetting::where('setting_key', 'rank_mode')
+            ->where('setting_group', 'rank_setting')
+            ->value('setting_value');
+
+        if (!$rankMode) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'Validation errors',
+                'code' => 422,
+                'errors' => [
+                    'rank_mode' => ['Chưa cấu hình chế độ xét rank trong hệ thống.']
+                ]
+            ], 422));
+        }
+
+        // 🧠 Kiểm tra rank mặc định trước khi chạy rule
+        if ($rankMode === 'amount') {
+            $defaultRankExists = Rank::where('min_spent_amount', 0)->exists();
+            if (!$defaultRankExists) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Validation errors',
+                    'code' => 422,
+                    'errors' => [
+                        'default_rank' => [
+                            'Hệ thống chưa có rank mặc định theo chi tiêu. Vui lòng thiết lập rank mặc định trước.'
+                        ]
+                    ]
+                ], 422));
+            }
+        } elseif ($rankMode === 'point') {
+            $defaultRankExists = Rank::where('minimum_point', 0)->exists();
+            if (!$defaultRankExists) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Validation errors',
+                    'code' => 422,
+                    'errors' => [
+                        'default_rank' => [
+                            'Hệ thống chưa có rank mặc định theo điểm. Vui lòng thiết lập rank mặc định trước.'
+                        ]
+                    ]
+                ], 422));
+            }
+        }
+    }
+
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -28,7 +78,7 @@ class StoreRankRequest extends FormRequest
             'rankDetails' => 'required|array',
             'rankDetails.*.name' => 'required|string|max:255|unique:ranks,name',
             'rankDetails.*.image' => ['nullable','url','regex:/\.(jpg|jpeg|png|gif|webp)$/i'],
-            'rankDetails.*.amount_to_point' => 'nullable|numeric|required_without:rankDetails.*.minimum_point|prohibits:rankDetails.*.minimum_point',
+            'rankDetails.*.amount_to_point' => 'required|numeric',
             'rankDetails.*.min_spent_amount' => 'nullable|numeric|required_without:rankDetails.*.minimum_point|prohibits:rankDetails.*.minimum_point',
             'rankDetails.*.converted_amount' => 'required|numeric',
             'rankDetails.*.discount' => 'nullable|numeric',
@@ -58,8 +108,8 @@ class StoreRankRequest extends FormRequest
 
             'rankDetails.*.amount_to_point.required' => 'Vui lòng thiết lập số tiền đổi điểm.',
             'rankDetails.*.amount_to_point.numeric' => 'Số tiền đổi điểm phải là số.',
-            'rankDetails.*.amount_to_point.required_without' => 'Vui nhập số tiền đổi điểm nếu không thiết lập điểm tích lũy.',
-            'rankDetails.*.amount_to_point.prohibits' => 'Không thể nhập số tiền đổi điểm khi được thiết lập điểm tích lũy.',
+            // 'rankDetails.*.amount_to_point.required_without' => 'Vui nhập số tiền đổi điểm nếu không thiết lập điểm tích lũy.',
+            // 'rankDetails.*.amount_to_point.prohibits' => 'Không thể nhập số tiền đổi điểm khi được thiết lập điểm tích lũy.',
 
             'rankDetails.*.min_spent_amount.numeric' => 'Điều kiện tổng chi tiêu rank phải là số.',
             'rankDetails.*.min_spent_amount.required_without' => 'Vui lòng nhập tổng chi tiêu nếu không thiết lập điểm tích lũy.',

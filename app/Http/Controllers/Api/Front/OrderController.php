@@ -29,7 +29,7 @@ class OrderController extends Controller
 
         try {
             $data = $request->all();
-            $user = auth('api')->user();
+            $user = auth('api')->user()->load('ranks');
 
             $subtotal = 0;
             $total = 0;
@@ -649,7 +649,7 @@ class OrderController extends Controller
 
         // logger(['user rank' => $user->ranks()->first()]);
 
-        $rankOfUser = $user->ranks()->first();
+        $rankOfUser = $user->ranks()->orderByDesc('rank_id')->first();
 
         // check if default rank or rank of user is empty
         if (!$rankOfUser && !$defaultRank) {

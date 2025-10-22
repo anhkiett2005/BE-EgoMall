@@ -129,8 +129,8 @@ class RankService {
             $rank->update([
                 'name' => $data['rankDetails'][0]['name'],
                 'image' => isset($data['rankDetails'][0]['image']) ? $data['rankDetails'][0]['image'] : null,
-                'amount_to_point' => $data['rankDetails'][0]['amount_to_point'],
-                'min_spent_amount' => $data['rankDetails'][0]['min_spent_amount'],
+                'amount_to_point' => $data['rankDetails'][0]['amount_to_point'] ?? 0,
+                'min_spent_amount' => $data['rankDetails'][0]['min_spent_amount'] ?? 0,
                 'converted_amount' => $data['rankDetails'][0]['converted_amount'],
                 'discount' => $data['rankDetails'][0]['discount'] ?? null,
                 'maximum_discount_order' => $data['rankDetails'][0]['maximum_discount_order'] ?? null,
