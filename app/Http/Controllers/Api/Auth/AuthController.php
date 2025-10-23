@@ -698,7 +698,8 @@ class AuthController extends Controller
 
             return ApiResponse::success('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.');
         } catch (ApiException $e) {
-            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+            // return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+            throw $e;
         } catch (\Exception $e) {
             logger('Log bug set password', [
                 'error_message' => $e->getMessage(),
