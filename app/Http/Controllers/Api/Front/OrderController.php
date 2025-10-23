@@ -644,7 +644,7 @@ class OrderController extends Controller
     private function calculateRankDiscount($user, $subtotal)
     {
         $defaultRank = Rank::where('min_spent_amount', 0)
-                           ->orWhere('minimum_point', 0)
+                           ->orWhereNull('minimum_point')
                            ->first();
 
         // logger(['user rank' => $user->ranks()->first()]);
