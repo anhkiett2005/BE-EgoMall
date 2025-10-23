@@ -3,14 +3,14 @@ use Illuminate\Support\Facades\Route;
 
 // Webhook routes
 
-Route::prefix('webhook')->group(function() {
+Route::prefix('webhook')
+     ->namespace('App\Http\Controllers\Api\Partner')
+     ->group(function() {
 
     // === VnPay === //
     Route::prefix('vnpay')->group(function () {
-        Route::namespace('App\Http\Controllers\Api\Partner\VnPay')->group(function () {
-            Route::namespace('Event\MoneyIn')->group(function() {
-                Route::get('event-money-in', 'EventMoneyIn@eventMoneyIn')->name('partner.vnpay.event.money-in');
-            });
+         Route::namespace('VnPay\Event\MoneyIn')->group(function() {
+            Route::get('event-money-in', 'EventMoneyIn@eventMoneyIn')->name('partner.vnpay.event.money-in');
         });
     });
 
@@ -18,19 +18,15 @@ Route::prefix('webhook')->group(function() {
 
     // === SePay === //
     Route::prefix('sepay')->group(function() {
-        Route::namespace('App\Http\Controllers\Api\Partner\SePay')->group(function() {
-            Route::namespace('Event\MoneyIn')->group(function() {
-                Route::post('event-money-in', 'EventMoneyIn@eventMoneyIn')->name('partner.sepay.event.money-in');
-            });
+        Route::namespace('SePay\Event\MoneyIn')->group(function() {
+            Route::post('event-money-in', 'EventMoneyIn@eventMoneyIn')->name('partner.sepay.event.money-in');
         });
     });
 
     // === PayOs === //
     Route::prefix('payos')->group(function () {
-        Route::namespace('App\Http\Controllers\Api\Partner\PayOs')->group(function () {
-            Route::namespace('Event\MoneyIn')->group(function() {
-                Route::post('event-money-in', 'EventMoneyIn@eventMoneyIn')->name('partner.payos.event.money-in');
-            });
+        Route::namespace('PayOs\Event\MoneyIn')->group(function() {
+            Route::post('event-money-in', 'EventMoneyIn@eventMoneyIn')->name('partner.payos.event.money-in');
         });
     });
 });
