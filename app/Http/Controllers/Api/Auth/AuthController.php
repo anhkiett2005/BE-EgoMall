@@ -307,7 +307,7 @@ class AuthController extends Controller
                 ->redirect()
                 ->getTargetUrl();
 
-            return ApiResponse::success('Facebook redirect URL generated successfully', data: [
+            return ApiResponse::success('URL chuyển hướng Facebook đã được tạo thành công', data: [
                 'url' => $redirectUrl
             ]);
         } catch (\Exception $e) {
