@@ -867,16 +867,20 @@ class Common
         }
     }
 
-    private static function handleSavePoint($user, $points, $type, $data, $rankMode)
+    private static function handleSavePoint($user, $points, $type, $order, $rankMode)
     {
 
-        $order = Order::where('id', $data->id)->first();
+        // $order = Order::where('id', $data->id)->first();
 
         $newPointHistory = new PointHistory();
 
         $checkPoint = PointHistory::where('user_id', $user->id)->orderBy('id','desc')->first();
 
-        list($totalAmount, $totalAmountCurrent) = self::calculateTotals($user->id, $data, $type);
+        list($totalAmount, $totalAmountCurrent) = self::calculateTotals($user->id, $order, $type);
+        // logger([
+        //     'totalAmount' => $totalAmount,
+        //     'totalAmountCurrent' => $totalAmountCurrent
+        // ]);
 
         $rank = self::getUserRank($user, $totalAmount, $rankMode);
 
@@ -914,27 +918,19 @@ class Common
         self::addPointHistory($type, $newPointHistory, $pointsToApply);
 
         if($type == 'order' || $type == 'use-point') {
-            $newPointHistory->order_id = $data?->id;
+            $newPointHistory->order_id = $order?->id;
         }
 
         $newPointHistory->transaction_type = $type;
         $newPointHistory->save();
 
         // Tính toán tổng chi tiêu ròng
-        $orderSalesTotal = Order::where('user_id', $user->id)
-                                ->where('payment_status', 'paid')
-                                ->where('status', '!=', 'cancelled')
-                                ->sum('total_price');
+        $totals = Order::selectRaw("
+                    SUM(CASE WHEN payment_status = 'paid' AND status != 'cancelled' THEN total_price ELSE 0 END) as total_paid,
+                    SUM(CASE WHEN payment_status = 'refunded' AND id < ? THEN total_price ELSE 0 END) as total_refunded
+                ", [$order->id])->where('user_id', $user->id)->first();
 
-        $returnOrderTotal = Order::where('user_id', $user->id)
-                                ->where('payment_status', 'refunded')
-                                ->where('id', '<', $data->id)
-                                ->sum('total_price');
-
-        $orderSalesTotal = $orderSalesTotal ?? 0;
-        $returnOrderTotal = $returnOrderTotal ?? 0;
-
-        $orderTotal = $orderSalesTotal - $returnOrderTotal;
+        $orderTotal = ($totals->total_paid ?? 0) - ($totals->total_refunded ?? 0);
 
         // Get current rank and achieved rank
         list($currentRank, $achievedRank) = self::getCurrentAndAchievedRank($user, $orderTotal, $rankMode);
@@ -943,68 +939,69 @@ class Common
 
 
         // Tính toán upgrade rank cho user
-        self::handleLoyalty($achievedRank, $currentRank,$rankMode, $totalPaidAmount, $order);
+        self::handleLoyalty($achievedRank, $currentRank,$rankMode, $totalPaidAmount,$user);
     }
 
     private static function calculateTotals($userId, $data, $type)
     {
-        $totalAmount = 0;
-        $totalAmountCurrent = 0;
+        $orderId = $data->id;
 
-        // cbi query Order
         $query = Order::where('user_id', $userId);
 
-        if($type == 'order'){
-            $totalAmountPaid = (clone $query)
-                ->where('payment_status', 'paid')
-                ->where('id', '<', $data->id)
-                ->sum('total_price');
+        $totals = $query->selectRaw("
+            SUM(CASE
+                WHEN payment_status = 'paid'
+                    " . ($type === 'order' ? "AND id < $orderId" : "") . "
+                THEN total_price ELSE 0 END
+            ) as total_paid,
 
-            $totalAmountRefund = (clone $query)
-                ->where('payment_status', 'refunded')
-                ->where('id', '<', $data->id)
-                ->sum('total_price');
-        } else {
-            $totalAmountPaid = (clone $query)->where('payment_status', 'paid')->sum('total_price');
-            $totalAmountRefund = (clone $query)->where('payment_status', 'refunded')->sum('total_price');
-        }
+            SUM(CASE
+                WHEN payment_status = 'refunded'
+                    " . ($type === 'order' ? "AND id < $orderId" : "") . "
+                THEN total_price ELSE 0 END
+            ) as total_refunded,
 
-        $totalAmount = $totalAmountPaid - $totalAmountRefund;
-        $totalAmountCurrent = (clone $query)->where('id', $data->id)->sum('total_price');
+            SUM(CASE
+                WHEN id = $orderId THEN total_price ELSE 0 END
+            ) as total_current
+        ")->first();
+
+        $totalAmount = ($totals->total_paid ?? 0) - ($totals->total_refunded ?? 0);
+        $totalAmountCurrent = $totals->total_current ?? 0;
 
         return [$totalAmount, $totalAmountCurrent];
     }
 
     private static function getUserRank($user, $totalAmount, $rankMode)
     {
-        // Nếu user đã có rank
         $userMember = UserMember::where('user_id', $user->id)->first();
-        if ($userMember) {
-            return Rank::find($userMember->rank_id);
+
+        $rank = Rank::query()
+            ->when($userMember, fn($q) =>
+                $q->where('id', $userMember->rank_id)
+            )
+            ->when(!$userMember && $rankMode === 'amount', fn($q) =>
+                $q->where('min_spent_amount', '<=', $totalAmount)
+            )
+            ->when(!$userMember && $rankMode === 'point', fn($q) =>
+                $q->where('minimum_point', '<=', $user->rank_point ?? 0)
+            )
+            ->orderByRaw($rankMode === 'amount'
+                ? 'min_spent_amount DESC'
+                : 'minimum_point DESC'
+            )
+            ->first();
+
+        // Nếu không tìm thấy rank phù hợp → lấy rank thấp nhất (rank mặc định)
+        if (!$rank) {
+            $rank = Rank::orderBy('min_spent_amount', 'asc')
+                ->orderBy('minimum_point', 'asc')
+                ->first();
         }
 
-        // Nếu chưa có rank → tính rank mặc định dựa trên rank_mode
-        $defaultRank = null;
-
-        if ($rankMode === 'amount') {
-            $defaultRank = Rank::where('min_spent_amount', '<=', $totalAmount)
-                            ->orderBy('min_spent_amount', 'desc')
-                            ->first();
-        } elseif ($rankMode === 'point') {
-            $defaultRank = Rank::where('minimum_point', '<=', $user->rank_point ?? 0)
-                            ->orderBy('minimum_point', 'desc')
-                            ->first();
-        }
-
-        // Nếu chưa có rank nào phù hợp thì lấy rank thấp nhất
-        if (!$defaultRank) {
-            $defaultRank = Rank::orderBy('min_spent_amount', 'asc')
-                            ->orderBy('minimum_point', 'asc')
-                            ->first();
-        }
-
-        return $defaultRank;
+        return $rank;
     }
+
 
 
     private static function handleRawPoint($type,$pointFactor, $totalAmountCurrent, $points,$rankMode)
@@ -1066,7 +1063,7 @@ class Common
 
     }
 
-    private static function handleLoyalty($achievedRank, $currentRank, $rankMode, $totalPaidAmount, $order)
+    private static function handleLoyalty($achievedRank, $currentRank, $rankMode, $totalPaidAmount,$user)
     {
         try {
             // logger([
@@ -1074,7 +1071,7 @@ class Common
             //     'currentRank' => $currentRank
             // ]);
             // Tìm user trên đơn hàng hiện tại
-            $user = User::find($order->user_id);
+            // $user = User::find($order->user_id);
 
             // tăng điểm hạng thành viên
             $userMember = UserMember::where('user_id', $user->id)->first();
