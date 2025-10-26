@@ -1139,7 +1139,7 @@ class Common
                 'error_line' => $e->getLine(),
                 'stack_trace' => $e->getTraceAsString()
             ]);
-            throw new ApiException('Có lỗi xảy ra!!');
+            throw new ApiException('Có lỗi xảy ra khi xử lý hạng thành viên!');
         }
     }
 

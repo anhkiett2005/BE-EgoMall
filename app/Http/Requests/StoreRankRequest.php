@@ -49,9 +49,19 @@ class StoreRankRequest extends FormRequest
                         ]
                     ]
                 ], 422));
+            }else {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Validation errors',
+                    'code' => 422,
+                    'errors' => [
+                        'default_rank' => [
+                            'Hệ thống đã có rank mặc định theo chi tiêu. Không thể tạo rank mặc định theo chi tiêu.'
+                        ]
+                    ]
+                ]));
             }
         } elseif ($rankMode === 'point') {
-            $defaultRankExists = Rank::where('minimum_point', 0)->exists();
+            $defaultRankExists = Rank::whereNull('minimum_point')->exists();
             if (!$defaultRankExists) {
                 throw new HttpResponseException(response()->json([
                     'message' => 'Validation errors',
@@ -62,6 +72,16 @@ class StoreRankRequest extends FormRequest
                         ]
                     ]
                 ], 422));
+            }else {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Validation errors',
+                    'code' => 422,
+                    'errors' => [
+                        'default_rank' => [
+                            'Hệ thống đã có rank mặc định theo điểm. Không thể tạo rank mặc định theo điểm.'
+                        ]
+                    ]
+                ]));
             }
         }
     }
