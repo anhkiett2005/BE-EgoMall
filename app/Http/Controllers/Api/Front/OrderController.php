@@ -226,7 +226,7 @@ class OrderController extends Controller
                 ]);
 
                 // Gọi hàm Common lưu log point
-                Common::savePointHistory($user->id, $point_user, 'use-point', $order);
+                Common::savePointHistory($user, $point_user, 'use-point', $order);
 
                 $total = $total - ($converted_amount * $point_user);
             }else if($point_user && $user->rank_point < $point_user) {
@@ -251,7 +251,7 @@ class OrderController extends Controller
             $paymentResponse = $this->processPaymentByMethod($order);
 
             // Lưu điểm khi mua hàng (nếu có tích điểm)
-            Common::savePointHistory($user->id, 0, 'order', $order);
+            Common::savePointHistory($user, 0, 'order', $order);
 
             // Lưu đơn hàng vào database nếu thành công
             DB::commit();

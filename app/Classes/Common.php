@@ -835,12 +835,12 @@ class Common
         return max(0, $price - $discount);
     }
 
-    public static function savePointHistory($userId, $points = 0, $type, $data = null)
+    public static function savePointHistory($user, $points = 0, $type, $data = null)
     {
         DB::beginTransaction();
 
         try {
-            $user = User::find($userId);
+            // $user = User::find($userId);
 
             if (!$user || !$data) {
                 return; // Exit if user or data is not found
