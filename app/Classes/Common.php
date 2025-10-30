@@ -974,7 +974,7 @@ class Common
 
     private static function getUserRank($user, $totalAmount, $rankMode)
     {
-        $userMember = UserMember::where('user_id', $user->id)->first();
+        $userMember = $user->ranks->first();
 
         $rank = Rank::query()
             ->when($userMember, fn($q) =>

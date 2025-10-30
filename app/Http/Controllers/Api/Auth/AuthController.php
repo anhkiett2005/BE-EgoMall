@@ -642,7 +642,8 @@ class AuthController extends Controller
 
             return ApiResponse::success('OTP đã được gửi đến email. Vui lòng kiểm tra.');
         } catch (ApiException $e) {
-            return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+            // return ApiResponse::error($e->getMessage(), $e->getCode(), $e->getErrors());
+            throw $e;
         } catch (\Exception $e) {
             logger('Log bug send otp', [
                 'error_message' => $e->getMessage(),
