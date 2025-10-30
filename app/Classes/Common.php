@@ -1074,7 +1074,7 @@ class Common
             // $user = User::find($order->user_id);
 
             // tăng điểm hạng thành viên
-            $userMember = UserMember::where('user_id', $user->id)->first();
+            $userMember = $user->ranks->first();
             // logger([
             //     'userMember' => $userMember
             // ]);
