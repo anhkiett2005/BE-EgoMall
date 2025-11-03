@@ -29,11 +29,11 @@ class StoreRankRequest extends FormRequest
         if (!$rankMode) {
             throw new HttpResponseException(response()->json([
                 'message' => 'Validation errors',
-                'code' => 422,
+                'code' => Response::HTTP_UNPROCESSABLE_ENTITY,
                 'errors' => [
                     'rank_mode' => ['Chưa cấu hình chế độ xét rank trong hệ thống.']
                 ]
-            ], 422));
+            ], Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
         // 🧠 Kiểm tra rank mặc định trước khi chạy rule
@@ -42,23 +42,23 @@ class StoreRankRequest extends FormRequest
             if (!$defaultRankExists) {
                 throw new HttpResponseException(response()->json([
                     'message' => 'Validation errors',
-                    'code' => 422,
+                    'code' => Response::HTTP_UNPROCESSABLE_ENTITY,
                     'errors' => [
                         'default_rank' => [
                             'Hệ thống chưa có rank mặc định theo chi tiêu. Vui lòng thiết lập rank mặc định trước.'
                         ]
                     ]
-                ], 422));
+                ], Response::HTTP_UNPROCESSABLE_ENTITY));
             }else {
                 throw new HttpResponseException(response()->json([
                     'message' => 'Validation errors',
-                    'code' => 422,
+                    'code' => Response::HTTP_UNPROCESSABLE_ENTITY,
                     'errors' => [
                         'default_rank' => [
                             'Hệ thống đã có rank mặc định theo chi tiêu. Không thể tạo rank mặc định theo chi tiêu.'
                         ]
                     ]
-                ]));
+                ],Response::HTTP_UNPROCESSABLE_ENTITY));
             }
         } elseif ($rankMode === 'point') {
             $defaultRankExists = Rank::whereNull('minimum_point')->exists();
@@ -71,7 +71,7 @@ class StoreRankRequest extends FormRequest
                             'Hệ thống chưa có rank mặc định theo điểm. Vui lòng thiết lập rank mặc định trước.'
                         ]
                     ]
-                ], 422));
+                ], Response::HTTP_UNPROCESSABLE_ENTITY));
             }else {
                 throw new HttpResponseException(response()->json([
                     'message' => 'Validation errors',
@@ -81,7 +81,7 @@ class StoreRankRequest extends FormRequest
                             'Hệ thống đã có rank mặc định theo điểm. Không thể tạo rank mặc định theo điểm.'
                         ]
                     ]
-                ]));
+                ],Response::HTTP_UNPROCESSABLE_ENTITY));
             }
         }
     }

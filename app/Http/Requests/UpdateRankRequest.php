@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Rank;
+use App\Models\SystemSetting;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -15,6 +17,57 @@ class UpdateRankRequest extends FormRequest
     public function authorize(): bool
     {
         return true;
+    }
+
+    public function prepareForValidation()
+    {
+        // check khi update hệ thống đã có rank mặc định rồi thì không thịết lập rank mặc định
+        $rankMode = SystemSetting::where('setting_key', 'rank_mode')
+            ->where('setting_group', 'rank_setting')
+            ->value('setting_value');
+
+        if (!$rankMode) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'Validation errors',
+                'code' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                'errors' => [
+                    'rank_mode' => ['Chưa cấu hình chế độ xét rank trong hệ thống.']
+                ]
+            ], Response::HTTP_UNPROCESSABLE_ENTITY));
+        }
+
+        // check cấu hình rank mode trong hệ thống
+        if($rankMode === 'amount') {
+            $rankExists = Rank::where('min_spent_amount', 0)->exists();
+
+            // nếu dẵ rank mặc định rồi thì khong thịết lập rank mặc định
+            if($rankExists) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Validation errors',
+                    'code' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                    'errors' => [
+                        'default_rank' => [
+                            'Hệ thống đã có rank mặc định. Không thể thiết lập thêm rank mặc định khác.'
+                        ]
+                    ]
+                ], Response::HTTP_UNPROCESSABLE_ENTITY));
+            }
+        }else if($rankMode === 'point') {
+            $rankExists = Rank::whereNull('minimum_point')->exists();
+
+            // nếu dẵ rank mặc định rồi thì khong thịết lập rank mặc định
+            if($rankExists) {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Validation errors',
+                    'code' => Response::HTTP_UNPROCESSABLE_ENTITY,
+                    'errors' => [
+                        'default_rank' => [
+                            'Hệ thống đã có rank mặc định. Không thể thiết lập thêm rank mặc định khác.'
+                        ]
+                    ]
+                ], Response::HTTP_UNPROCESSABLE_ENTITY));
+            }
+        }
     }
 
     /**
