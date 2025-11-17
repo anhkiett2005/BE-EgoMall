@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ResendOtpRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         return true;
@@ -25,5 +30,10 @@ class ResendOtpRequest extends FormRequest
             'email.email'    => 'Email không đúng định dạng.',
             'email.exists'   => 'Email này chưa đăng ký.',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreReviewRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         return true; // quyền kiểm tra ở middleware
@@ -38,5 +43,10 @@ class StoreReviewRequest extends FormRequest
             'images.max' => 'Bạn chỉ được tải lên tối đa 5 ảnh.',
             'comment.max' => 'Bình luận không được vượt quá 1000 ký tự.',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ResetPasswordWithOtpRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         return true;
@@ -31,5 +36,10 @@ class ResetPasswordWithOtpRequest extends FormRequest
             'new_password.confirmed'             => 'Xác nhận mật khẩu không khớp.',
             'new_password_confirmation.required' => 'Bạn phải nhập xác nhận mật khẩu mới.',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

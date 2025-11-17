@@ -2,11 +2,16 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 
 class LoginRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         return true;
@@ -50,5 +55,10 @@ class LoginRequest extends FormRequest
             'password.required' => 'Vui lòng nhập mật khẩu.',
             'password.min'      => 'Mật khẩu phải ít nhất 6 ký tự.',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

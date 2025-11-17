@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SystemSettingUpdateRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         return true;
@@ -23,5 +28,10 @@ class SystemSettingUpdateRequest extends FormRequest
         return [
             '*.nullable' => 'Trường này có thể để trống',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

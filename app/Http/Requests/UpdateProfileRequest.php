@@ -16,9 +16,20 @@ class UpdateProfileRequest extends FormRequest
     {
         return [
             'name'    => 'required|string|max:255',
-            'phone'   => 'nullable|string|max:20',
+            'phone'   => 'nullable|string|max:10',
             'address' => 'nullable|string|max:500',
             'image'   => 'nullable|image|max:2048', // tối đa 2MB
+        ];
+    }
+
+    public function messages()
+    {
+        return [
+            'name.required' => 'Tên là trường bắt buộc.',
+            'name.string' => 'Tên phải là chuỗi.',
+            'name.max' => '	Tên tối đa 255 ký tự.',
+
+            'phone.string' => 'Số điện thoại phải là chuỗi.',
         ];
     }
 }

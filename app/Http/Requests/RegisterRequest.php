@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\User;
+use App\Traits\FormRequestResponseTrait;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -10,6 +11,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RegisterRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         return true;
@@ -90,10 +94,6 @@ class RegisterRequest extends FormRequest
 
     protected function failedValidation(Validator $validator)
     {
-        throw new HttpResponseException(response()->json([
-            'message' => 'Validation errors',
-            'code' => 422,
-            'errors' => $validator->errors()
-        ], Response::HTTP_UNPROCESSABLE_ENTITY));
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }
