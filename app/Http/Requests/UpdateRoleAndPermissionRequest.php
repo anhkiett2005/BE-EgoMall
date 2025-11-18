@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -10,6 +11,9 @@ use Symfony\Component\HttpFoundation\Response;
 
 class UpdateRoleAndPermissionRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -58,10 +62,6 @@ class UpdateRoleAndPermissionRequest extends FormRequest
 
     protected function failedValidation(Validator $validator)
     {
-        throw new HttpResponseException(response()->json([
-            'message' => 'Validation errors',
-            'code' => 422,
-            'errors' => $validator->errors()
-        ], Response::HTTP_UNPROCESSABLE_ENTITY));
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

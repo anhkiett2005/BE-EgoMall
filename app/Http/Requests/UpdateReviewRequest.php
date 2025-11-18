@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateReviewRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         return true; // Đã kiểm tra user_id ở Service rồi
@@ -34,5 +39,10 @@ class UpdateReviewRequest extends FormRequest
             'images.*.mimes'     => 'Hình ảnh phải định dạng jpeg, png, jpg, hoặc webp!',
             'images.*.max'       => 'Mỗi ảnh không vượt quá 10MB!',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

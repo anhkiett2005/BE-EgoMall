@@ -2,13 +2,19 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateReplyRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
-        return auth('api')->check();
+        // return auth('api')->check();
+        return true;
     }
 
     public function rules(): array
@@ -25,5 +31,10 @@ class UpdateReplyRequest extends FormRequest
             'reply.min'      => 'Nội dung phản hồi phải có ít nhất :min ký tự!',
             'reply.max'      => 'Nội dung phản hồi không được vượt quá :max ký tự!',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

@@ -2,11 +2,16 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UserAddressRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         return true;
@@ -60,5 +65,10 @@ class UserAddressRequest extends FormRequest
             'address_detail.unique' => 'Địa chỉ này đã tồn tại trong hệ thống của bạn!',
             'address_detail.required' => 'Chi tiết địa chỉ không được để trống!',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class VerifyOtpRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         // Cho phép mọi request (có thể check thêm nếu muốn)
@@ -29,5 +34,10 @@ class VerifyOtpRequest extends FormRequest
             'otp.required'   => 'Bạn phải nhập mã OTP.',
             'otp.size'       => 'Mã OTP gồm 6 chữ số.',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }

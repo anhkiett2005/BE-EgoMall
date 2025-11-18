@@ -2,10 +2,15 @@
 
 namespace App\Http\Requests;
 
+use App\Traits\FormRequestResponseTrait;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 
 class VariantOptionRequest extends FormRequest
 {
+
+    use FormRequestResponseTrait;
+
     public function authorize(): bool
     {
         return true;
@@ -34,5 +39,10 @@ class VariantOptionRequest extends FormRequest
             'values.*.string' => 'Mỗi giá trị phải là chuỗi!',
             'values.*.max' => 'Mỗi giá trị tối đa 255 ký tự!',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        $this->validationErrorResponse($validator->errors()->toArray());
     }
 }
